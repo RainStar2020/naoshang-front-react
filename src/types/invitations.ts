@@ -1,0 +1,11 @@
+export interface InvitationAccount { accountId: string; displayId: string; name: string; phone: string; frozen: boolean }
+export interface InvitationInitialBinding { source: 'REGISTRATION_INVITE' | 'NO_INVITE'; inviteCode: string | null; superior: InvitationAccount | null; boundAt: string; mockOnly: boolean }
+export interface InvitationRelation { account: InvitationAccount; superior: InvitationAccount | null; inviteCode: string; initialBinding: InvitationInitialBinding; version: number; graphVersion: number; effectiveAt: string; directCount: number; teamCount: number; allowedActions: ('rebind' | 'unbind')[] }
+export interface InvitationAudit { operationId: string; requestId: string; account: InvitationAccount; action: 'rebind' | 'unbind'; before: InvitationAccount | null; after: InvitationAccount | null; reason: string; operatorName: string; effectiveAt: string; beforeVersion: number; afterVersion: number; graphVersion: number }
+export interface InvitationQuery { page: number; pageSize: number; keyword?: string; binding?: 'BOUND' | 'UNBOUND' }
+export interface InvitationList { items: InvitationRelation[]; total: number; summary: { accounts: number; bound: number; unbound: number } }
+export interface InvitationTeamQuery { accountId: string; scope: 'DIRECT' | 'ALL'; page: number; pageSize: number; keyword?: string }
+export interface InvitationTeam { items: { account: InvitationAccount; superior: InvitationAccount | null; depth: number }[]; total: number; directCount: number; teamCount: number; graphVersion: number }
+export interface InvitationDetail { relation: InvitationRelation; ancestors: InvitationAccount[]; history: InvitationAudit[] }
+export interface InvitationMutation { action: 'rebind' | 'unbind'; accountId: string; targetAccountId: string | null; version: number; graphVersion: number; reason: string; idempotencyKey: string }
+export class InvitationError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'InvitationError' } }

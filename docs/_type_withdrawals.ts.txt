@@ -1,0 +1,150 @@
+/** HQ-23 提现审核、打款回执与凭证。字段对齐小程序 wallet/withdraw-* 与 BusinessWithdrawals；金额整数分；不伪造银行打款终态——仅登记回执。最低额/费率/自动打款待定。 */
+export type WithdrawAccountType = 'PERSONAL' | 'COMPANY'
+export type WithdrawStatus = 'PENDING_REVIEW' | 'PROCESSING' | 'SUCCEEDED' | 'REJECTED'
+export type WithdrawModule = 'wholesale' | 'costore' | 'agency'
+export type PayoutReceiptStatus = 'NONE' | 'SUCCESS' | 'FAILED'
+
+export interface WithdrawalApplication {
+  withdrawalId: string
+  title: string
+  module: WithdrawModule
+  identityLabel: string
+  accountId: string
+  accountName: string
+  phone: string
+  /** 申请金额（分） */
+  amount: number
+  /** 手续费快照（分）；费率政策待定，仅展示申请时快照 */
+  fee: number
+  /** 预计到账（分） */
+  netAmount: number
+  accountType: WithdrawAccountType
+  payeeName: string
+  bankName: string
+  maskedBankNumber: string
+  status: WithdrawStatus
+  payoutReceiptStatus: PayoutReceiptStatus
+  payoutFailureReason: string | null
+  voucherUrl: string | null
+  rejectionReason: string | null
+  /** 只读关联 HQ-22 已结算流水 id，不联动改余额 */
+  relatedIncomeEntryIds: string[]
+  createdAt: string
+  reviewedAt: string | null
+  receiptAt: string | null
+  version: number
+  mockOnly: true
+  allowedActions: ('approve' | 'reject' | 'register-receipt')[]
+}
+
+export interface WithdrawalAudit {
+  operationId: string
+  requestId: string
+  action: WithdrawalMutation['action']
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface WithdrawalQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: WithdrawStatus
+  module?: WithdrawModule
+  accountType?: WithdrawAccountType
+  accountId?: string
+}
+
+export interface WithdrawalList {
+  items: WithdrawalApplication[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    applications: number
+    pendingReview: number
+    processing: number
+    succeeded: number
+    rejected: number
+    receiptFailed: number
+    pendingAmount: number
+    succeededAmount: number
+  }
+}
+
+export interface WithdrawalCatalog {
+  modules: { value: WithdrawModule; label: string }[]
+  statuses: { value: WithdrawStatus; label: string }[]
+  pendingPolicy: {
+    note: string
+    minAmountPending: true
+    feePolicyPending: true
+    autoPayoutPending: true
+  }
+  payoutGapNote: string
+  audit: WithdrawalAudit[]
+  mockOnly: true
+}
+
+export interface WithdrawalDetail {
+  application: WithdrawalApplication
+  audit: WithdrawalAudit[]
+  payoutGapNote: string
+  balanceNote: string
+}
+
+export type WithdrawalMutation =
+  | {
+      action: 'approve'
+      withdrawalId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'reject'
+      withdrawalId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'register-receipt'
+      withdrawalId: string
+      version: number
+      receipt: 'SUCCESS' | 'FAILED'
+      voucherUrl?: string
+      reason: string
+      idempotencyKey: string
+    }
+
+export type WithdrawalMutationResult =
+  | { action: 'approve' | 'reject'; application: WithdrawalApplication; mockOnly: true }
+  | {
+      action: 'register-receipt'
+      application: WithdrawalApplication
+      mockOnly: true
+    }
+
+export class WithdrawalError extends Error {
+  constructor(
+    public code:
+      | 'FORBIDDEN'
+      | 'NOT_FOUND'
+      | 'INVALID_INPUT'
+      | 'INVALID_STATE'
+      | 'VERSION_CONFLICT'
+      | 'IDEMPOTENCY_CONFLICT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'WithdrawalError'
+  }
+}

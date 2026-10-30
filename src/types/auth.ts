@@ -1,0 +1,26 @@
+/** 总部独立契约草案，需后端确认；不复用小程序 parent/coach/businessContexts。 */
+export const hqPermissions = ['staff:access', 'staff:roles', 'staff:manage', 'costore:access', 'costore:manage', 'invitations:access', 'invitations:manage', 'quotas:access', 'quotas:recharge', 'partners:upgrade', 'partners:benefits', 'payments:access', 'payments:channels', 'payments:query', 'payments:reconcile', 'payments:export', 'payments:compensate', 'coupons:access', 'coupons:templates', 'coupons:issue', 'orders:access', 'orders:shipping', 'orders:fulfill', 'delivery:access', 'delivery:policies', 'delivery:adjust', 'delivery:shipping', 'products:access', 'products:edit', 'products:publish', 'products:categories', 'products:types', 'announcements:access', 'announcements:edit', 'announcements:publish', 'announcements:stats', 'columns:access', 'columns:edit', 'columns:publish', 'columns:records', 'software:access', 'software:types', 'software:import', 'software:assign', 'software:deliver', 'software:retire', 'software:replace', 'software:export', 'activation:access', 'activation:generate', 'activation:issue', 'activation:revoke', 'activation:reissue', 'activation:expiry', 'activation:export', 'members:access', 'members:grant', 'members:revoke', 'members:restore', 'users:access', 'users:freeze', 'users:reset-password', 'users:change-store', 'users:edit-number', 'course:access', 'course:edit', 'course:publish', 'materials:access', 'materials:edit', 'support:access', 'support:manage', 'trace:access', 'trace:manage', 'pricing:access', 'revenue:access', 'revenue:manage', 'withdrawals:access', 'withdrawals:review', 'stores:access', 'stores:manage', 'training:access', 'training:feedback', 'training:consume', 'transfers:access', 'transfers:arbitrate', 'partners:access', 'agents:access', 'agents:manage'] as const
+export type HqPermission = typeof hqPermissions[number]
+
+export interface HqAccount {
+  accountId: string
+  nickname: string
+  headquartersAuthorized: boolean
+  status: 'active' | 'frozen'
+  permissions: HqPermission[]
+}
+
+export interface HqLoginRequest { loginAccount: string; password: string }
+export interface HqSession { token: string; expiresAt: string; account: HqAccount }
+export type AuthErrorCode = 'INVALID_CREDENTIALS' | 'HQ_REQUIRED' | 'ACCOUNT_FROZEN' | 'SESSION_EXPIRED' | 'UNAVAILABLE'
+
+export class AuthError extends Error {
+  constructor(public code: AuthErrorCode, message: string) { super(message); this.name = 'AuthError' }
+}
+
+
+
+
+
+
+

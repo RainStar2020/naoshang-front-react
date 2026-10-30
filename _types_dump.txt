@@ -1,0 +1,1929 @@
+
+######## activationCodes.ts ########
+import type { StoreOption } from './users'
+
+/** HQ-05 草案；与软件卡发码、总部人工学习授权分别建模。 */
+export type ActivationCodeType = 'membership-tier' | 'column'
+export type ActivationStatus = 'unused' | 'issued' | 'used' | 'revoked' | 'expired'
+export interface ActivationCode {
+  codeId: string; batchId: string; maskedCode: string; codeType: ActivationCodeType; targetId: string; targetName: string
+  status: ActivationStatus; expiresAt: string | null; version: number
+  issuedTo: string | null; issuedToAccountId: string | null; issuedToMemberId: string | null; storeId: string | null; issuedAt: string | null
+  usedByAccountId: string | null; usedByMemberId: string | null; usedAt: string | null; sourceOrderId: string | null
+  replacementCodeId: string | null; replacesCodeId: string | null; createdAt: string
+}
+export interface ActivationBatch { batchId: string; name: string; codeType: ActivationCodeType; targetId: string; targetName: string; quantity: number; expiresAt: string | null; createdAt: string; createdBy: string }
+export interface ActivationAudit { operationId: string; requestId: string; action: 'generate' | 'issue' | 'revoke' | 'reissue' | 'set-expiry' | 'export' | 'activate'; codeIds: string[]; batchId: string | null; reason: string; operatorId: string; operatorName: string; before: string; after: string; occurredAt: string }
+export interface ActivationFilters { keyword?: string; batchId?: string; codeType?: ActivationCodeType; targetId?: string; status?: ActivationStatus; storeId?: string }
+export interface ActivationQuery extends ActivationFilters { page: number; pageSize: number }
+export interface ActivationList { items: ActivationCode[]; total: number; page: number; pageSize: number }
+export interface ActivationOptions {
+  targets: { codeType: ActivationCodeType; targetId: string; name: string; demoOnly: boolean }[]
+  accounts: { accountId: string; name: string; phone: string }[]
+  members: { memberId: string; accountId: string; contextId: string; name: string; displayId: string }[]
+  stores: StoreOption[]
+  maxBatchSize: number; maxSelectionSize: number
+}
+export interface CodeSelection { codeId: string; version: number }
+interface OperationBase { reason: string; idempotencyKey: string }
+export type ActivationMutation = OperationBase & (
+  | { action: 'generate'; name: string; codeType: ActivationCodeType; targetId: string; quantity: number; expiresAt: string | null }
+  | { action: 'issue'; codes: CodeSelection[]; accountId: string | null; memberId: string | null; storeId: string | null }
+  | { action: 'revoke'; codes: CodeSelection[] }
+  | { action: 'set-expiry'; codes: CodeSelection[]; expiresAt: string | null }
+  | { action: 'reissue'; codes: CodeSelection[]; expiresAt: string | null }
+)
+export interface ActivationMutationResult { batchId: string | null; affectedCodeIds: string[]; operation: ActivationAudit; mockOnly: true }
+export interface ActivationDetail { code: ActivationCode; batch: ActivationBatch; audit: ActivationAudit[] }
+export interface ActivationExportRequest extends OperationBase { codes: CodeSelection[] }
+export interface ActivationExport { csv: string; fileName: string; count: number; requestId: string; mockOnly: true }
+export class ActivationError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'INVALID_INPUT' | 'NOT_FOUND' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'IDENTITY_MISMATCH' | 'EXPIRED' | 'CONSUMER_UNAVAILABLE', message: string) { super(message); this.name = 'ActivationError' }
+}
+
+######## announcements.ts ########
+import type { RichContent } from './cms'
+export const announcementRoles = ['parent', 'coach', 'partner', 'agency', 'costore'] as const
+export type AnnouncementRole = typeof announcementRoles[number]
+export interface AnnouncementDraft { id: string; title: string; summary: string; content: RichContent; coverUrl: string; pinned: boolean; audience: AnnouncementRole[]; publishAt: string | null }
+export interface AnnouncementPublication { revision: number; publishedAt: string; value: AnnouncementDraft }
+export interface ManagedAnnouncement { draft: AnnouncementDraft; version: number; status: 'draft' | 'scheduled' | 'published' | 'offline'; publication: AnnouncementPublication | null }
+export interface AnnouncementRead { accountId: string; announcementId: string; firstReadAt: string }
+export interface AnnouncementRecipient { accountId: string; nickname: string; phone: string; roles: AnnouncementRole[]; firstReadAt: string | null }
+export interface AnnouncementStats { targetCount: number; readCount: number; unreadCount: number; available: boolean; recipients: AnnouncementRecipient[] }
+export interface AnnouncementAudit { id: string; announcementId: string; action: 'save' | 'publish' | 'offline'; reason: string; operatorName: string; requestId: string; occurredAt: string; beforeVersion: number; afterVersion: number }
+export interface AnnouncementCatalog { items: ManagedAnnouncement[]; audit: AnnouncementAudit[] }
+export type AnnouncementMutation = { id: string; version: number; reason: string; idempotencyKey: string } & ({ action: 'save'; value: AnnouncementDraft } | { action: 'publish' | 'offline' })
+export class AnnouncementError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'AnnouncementError' } }
+
+
+######## auth.ts ########
+/** 总部独立契约草案，需后端确认；不复用小程序 parent/coach/businessContexts。 */
+export const hqPermissions = ['staff:access', 'staff:roles', 'staff:manage', 'costore:access', 'costore:manage', 'invitations:access', 'invitations:manage', 'quotas:access', 'quotas:recharge', 'partners:upgrade', 'partners:benefits', 'payments:access', 'payments:channels', 'payments:query', 'payments:reconcile', 'payments:export', 'payments:compensate', 'coupons:access', 'coupons:templates', 'coupons:issue', 'orders:access', 'orders:shipping', 'orders:fulfill', 'delivery:access', 'delivery:policies', 'delivery:adjust', 'delivery:shipping', 'products:access', 'products:edit', 'products:publish', 'products:categories', 'products:types', 'announcements:access', 'announcements:edit', 'announcements:publish', 'announcements:stats', 'columns:access', 'columns:edit', 'columns:publish', 'columns:records', 'software:access', 'software:types', 'software:import', 'software:assign', 'software:deliver', 'software:retire', 'software:replace', 'software:export', 'activation:access', 'activation:generate', 'activation:issue', 'activation:revoke', 'activation:reissue', 'activation:expiry', 'activation:export', 'members:access', 'members:grant', 'members:revoke', 'members:restore', 'users:access', 'users:freeze', 'users:reset-password', 'users:change-store', 'course:access', 'course:edit', 'course:publish', 'materials:access', 'materials:edit', 'support:access', 'support:manage', 'trace:access', 'trace:manage', 'pricing:access', 'revenue:access', 'revenue:manage', 'withdrawals:access', 'withdrawals:review', 'stores:access', 'stores:manage', 'training:access', 'training:feedback', 'training:consume', 'transfers:access', 'transfers:arbitrate', 'partners:access', 'agents:access'] as const
+export type HqPermission = typeof hqPermissions[number]
+
+export interface HqAccount {
+  accountId: string
+  nickname: string
+  headquartersAuthorized: boolean
+  status: 'active' | 'frozen'
+  permissions: HqPermission[]
+}
+
+export interface HqLoginRequest { loginAccount: string; password: string }
+export interface HqSession { token: string; expiresAt: string; account: HqAccount }
+export type AuthErrorCode = 'INVALID_CREDENTIALS' | 'HQ_REQUIRED' | 'ACCOUNT_FROZEN' | 'SESSION_EXPIRED' | 'UNAVAILABLE'
+
+export class AuthError extends Error {
+  constructor(public code: AuthErrorCode, message: string) { super(message); this.name = 'AuthError' }
+}
+
+
+
+
+
+
+
+
+######## cms.ts ########
+export type RichTag = 'p' | 'div' | 'span' | 'strong' | 'b' | 'em' | 'i' | 'u' | 's' | 'br' | 'h2' | 'h3' | 'ul' | 'ol' | 'li' | 'blockquote' | 'img'
+export type ContentNode = { type: 'text'; text: string } | { name: RichTag; attrs: { style?: string; src?: string; alt?: string }; children: ContentNode[] }
+export interface RichContent { version: 1; format: 'nodes'; nodes: ContentNode[] }
+export interface CmsTier { membershipTierId: string; number: number; name: string; summary: string; coverUrl: string; benefits: RichContent; version: number }
+export interface CmsChapter { id: string; title: string; type: 'article' | 'video'; order: number; accessibility: 'membership-required'; content: RichContent; videoUrl: string; posterUrl: string }
+export interface CmsCourseDraft { levelId: string; membershipTierId: string; number: number; name: string; summary: string; covers: string[]; content: RichContent; chapters: CmsChapter[] }
+export interface CmsPublication { revision: number; publishedAt: string; draftVersion: number; tierName: string; course: CmsCourseDraft }
+export interface CmsCourse { draft: CmsCourseDraft; version: number; status: 'draft' | 'published' | 'offline'; publication: CmsPublication | null }
+export interface CmsAudit { operationId: string; requestId: string; targetId: string; action: 'save-tier' | 'save-course' | 'publish' | 'offline'; operatorId: string; operatorName: string; reason: string; occurredAt: string; beforeVersion: number; afterVersion: number }
+export interface CmsCatalog { tiers: CmsTier[]; courses: CmsCourse[]; audit: CmsAudit[] }
+export type CmsMutation =
+  | { action: 'save-tier'; targetId: string; version: number; value: Omit<CmsTier, 'membershipTierId' | 'version'>; reason: string; idempotencyKey: string }
+  | { action: 'save-course'; targetId: string; version: number; value: CmsCourseDraft; reason: string; idempotencyKey: string }
+  | { action: 'publish' | 'offline'; targetId: string; version: number; reason: string; idempotencyKey: string }
+export interface CmsAsset { assetId: string; url: string; previewUrl: string; kind: 'image' | 'video'; mockOnly: true }
+export class CmsError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'INVALID_INPUT' | 'NOT_FOUND' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'INVALID_STATE', message: string) { super(message); this.name = 'CmsError' }
+}
+
+######## columns.ts ########
+import type { CmsAsset, CmsChapter, RichContent } from './cms'
+
+/** HQ-07 草案。专栏归属账号，不使用孩子memberId/contextId。 */
+export type ColumnChapter = Omit<CmsChapter, 'accessibility'> & { accessibility: 'column-required' }
+export interface ColumnDraft { columnId: string; productId: string; title: string; summary: string; coverUrl: string; content: RichContent; chapters: ColumnChapter[] }
+export interface ColumnPublication { revision: number; publishedAt: string; draftVersion: number; column: ColumnDraft }
+export interface ManagedColumn { draft: ColumnDraft; version: number; status: 'draft' | 'published' | 'offline'; publication: ColumnPublication | null }
+export interface ColumnProduct { productId: string; title: string; fulfillmentType: 'COLUMN_ACCESS'; mockOnly: true }
+export interface ColumnOrder { orderId: string; orderNo: string; accountId: string; columnId: string; productId: string; paymentStatus: 'PAID' | 'PENDING_PAYMENT'; fulfillmentStatus: 'PENDING_DELIVERY' | 'DELIVERED'; payableAmount: number; createdAt: string; mockOnly: true }
+export interface ColumnGrant { accountId: string; columnId: string; unlocked: true; sourceCodeId: string | null; activatedAt: string; expiresAt: null; version: number }
+export interface ColumnProgress { accountId: string; columnId: string; chapterId: string; positionSeconds: number; durationSeconds: number; percent: number; completed: boolean; lastStudiedAt: string; version: number }
+export interface ColumnAccountRecord { accountId: string; nickname: string; phone: string; purchaseCount: number; pendingPurchaseCount: number; grant: ColumnGrant | null; progress: ColumnProgress[] }
+export interface ColumnRecords { accounts: ColumnAccountRecord[]; orders: ColumnOrder[] }
+export interface ColumnAudit { operationId: string; requestId: string; action: 'save' | 'publish' | 'offline'; columnId: string; operatorId: string; operatorName: string; reason: string; beforeVersion: number; afterVersion: number; occurredAt: string }
+export interface ColumnCatalog { columns: ManagedColumn[]; products: ColumnProduct[]; audit: ColumnAudit[]; accounts: { accountId: string; nickname: string; phone: string }[] }
+export type ColumnMutation = { reason: string; idempotencyKey: string; columnId: string; version: number } & ({ action: 'save'; value: ColumnDraft } | { action: 'publish' | 'offline' })
+export type ColumnUploadResult = CmsAsset
+export interface ColumnProgressWrite { accountId: string; columnId: string; chapterId: string; positionSeconds: number; durationSeconds: number; completed: boolean; ended: boolean; version: number; idempotencyKey: string }
+export class ColumnError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'PURCHASE_REQUIRED' | 'ALREADY_UNLOCKED', message: string) { super(message); this.name = 'ColumnError' }
+}
+
+######## costore.ts ########
+import type { RichContent } from './cms'
+export type CostoreApplicationStatus = 'PENDING_PAYMENT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+export type CostorePaymentStatus = 'NOT_STARTED' | 'PENDING' | 'PAID' | 'CANCELLED'
+export type CostoreRefundStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED' | null
+export interface CostorePlan { planId: string; title: string; durationId: string; months: number; priceBoundary: { referenceMonthlyFee: number; note: string }; benefits: RichContent; agreementVersion: number | null; agreement: RichContent; version: number }
+export interface CostoreApplication { applicationId: string; accountId: string; applicantName: string; applicantPhone: string; storeId: string; storeName: string; durationId: string; durationLabel: string; monthlyFee: number; payableAmount: number; orderId: string | null; applicationStatus: CostoreApplicationStatus; paymentStatus: CostorePaymentStatus; refundStatus: CostoreRefundStatus; refundId: string | null; contractStatus: 'NOT_SIGNED' | 'PENDING_CONFIRMATION' | 'SIGNED'; entitlementStatus: 'NOT_OPEN' | 'PENDING_CONFIRMATION' | 'OPEN'; agreementVersion: number | null; createdAt: string; paidAt: string | null; reviewedAt: string | null; rejectionReason: string | null; version: number; allowedActions: ('retry-refund')[] }
+export interface CostoreRefund { refundId: string; applicationId: string; orderId: string; amount: number; status: Exclude<CostoreRefundStatus, null>; paymentReceiptId: string; reason: string; createdAt: string; completedAt: string | null; failureReason: string | null; mockOnly: true }
+export interface CostoreAudit { operationId: string; requestId: string; action: 'save-plan' | 'retry-refund'; targetId: string; operatorName: string; reason: string; before: string; after: string; occurredAt: string; beforeVersion: number; afterVersion: number }
+export interface CostoreCatalog { plans: CostorePlan[]; stores: { storeId: string; name: string; managerName: string; ownerCount: number; active: boolean }[]; refundRetryAllowed: boolean; mockOnly: true }
+export interface CostoreQuery { page: number; pageSize: number; keyword?: string; applicationStatus?: CostoreApplicationStatus; paymentStatus?: CostorePaymentStatus; refundStatus?: Exclude<CostoreRefundStatus, null> }
+export interface CostoreList { items: CostoreApplication[]; total: number; summary: { applications: number; paid: number; pendingReview: number; rejected: number; refundPending: number; refundFailed: number } }
+export interface CostoreDetail { application: CostoreApplication; refunds: CostoreRefund[]; audit: CostoreAudit[] }
+export type CostoreMutation = { reason: string; idempotencyKey: string; version: number } & ({ action: 'save-plan'; planId: string; title: string; benefits: RichContent; agreement: RichContent } | { action: 'retry-refund'; applicationId: string })
+export class CostoreError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'CostoreError' } }
+
+######## coupons.ts ########
+export type CouponScope = { kind: 'all'; productIds: [] } | { kind: 'products'; productIds: string[] }
+export interface CouponTemplateValue { title: string; amount: number; minAmount: number; scope: CouponScope; validFrom: string; expiresAt: string; enabled: boolean; totalQuantity: number; perAccountLimit: number }
+export interface CouponTemplate extends CouponTemplateValue { templateId: string; version: number; issuedQuantity: number }
+export type CouponStatus = 'available' | 'not-started' | 'reserved' | 'used' | 'expired'
+/** 金额为整数分；用户券保存发放时模板快照。 */
+export interface UserCoupon { couponId: string; templateId: string; templateVersion: number; accountId: string; snapshot: Pick<CouponTemplateValue, 'title' | 'amount' | 'minAmount' | 'scope' | 'validFrom' | 'expiresAt'>; status: CouponStatus; version: number; issuedAt: string; reservedOrderId: string | null; usedOrderId: string | null; reservedAt: string | null; usedAt: string | null }
+export interface CouponAudit { operationId: string; requestId: string; action: 'save-template' | 'issue' | 'reserve' | 'use' | 'release'; templateId: string | null; couponIds: string[]; operatorName: string; reason: string; detail: string; occurredAt: string }
+export interface CouponCatalog { templates: CouponTemplate[]; audit: CouponAudit[]; accounts: { accountId: string; nickname: string; phone: string; frozen: boolean }[]; products: { productId: string; title: string }[]; limits: { maxBatchSize: number; maxAmount: number } }
+export type CouponMutation = { reason: string; idempotencyKey: string } & ({ action: 'save-template'; templateId: string; version: number; value: CouponTemplateValue } | { action: 'issue'; templateId: string; version: number; accountIds: string[] })
+export interface CouponQuery { page: number; pageSize: number; templateId?: string; accountId?: string; status?: CouponStatus; keyword?: string }
+export interface CouponList { items: UserCoupon[]; total: number; page: number; pageSize: number }
+export interface CouponMutationResult { templateId: string; couponIds: string[]; operationId: string }
+export interface CouponCheckoutOrder { orderId: string; accountId: string; productId: string; skuId: string; quantity: number; couponId: string | null; goodsAmount: number; discountAmount: number; payableAmount: number; status: 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED'; expiresAt: number; mockOnly: true }
+export class CouponError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'QUOTA_EXCEEDED', message: string) { super(message); this.name = 'CouponError' } }
+
+######## delivery.ts ########
+import type { OrderTransactionSnapshot } from './orders'
+import type { FulfillmentType } from './products'
+export type DeliveryPolicyMode = 'BOUND_STORE' | 'HEADQUARTERS'
+export interface DeliveryPolicy { productId: string; deliveryMode: DeliveryPolicyMode; deliveryLocked: boolean; version: number }
+export interface DeliveryAddress { recipient: string; phone: string; regionNames: string[]; detail: string }
+export interface DeliveryLogistics { carrier: string; trackingNo: string }
+export interface DeliveryOrder { orderId: string; orderNo: string; accountId: string; productId: string; productTitle: string; fulfillmentType: FulfillmentType; paymentStatus: 'PAID' | 'PENDING_PAYMENT' | 'CANCELLED'; fulfillmentStatus: 'WAIT_DELIVERY' | 'DELIVERED' | 'WAIT_SHIP' | 'SHIPPED'; deliveryMode: 'HEADQUARTERS' | 'STORE'; deliveryStoreId: string | null; deliveryStoreName: string; deliveryLocked: boolean; version: number; createdAt: string; paidAt: string | null; deliveredAt: string | null; shippedAt: string | null; address: DeliveryAddress | null; logistics: DeliveryLogistics | null; mockOnly: true; transaction: OrderTransactionSnapshot | null }
+export type DeliveryAction = 'change-delivery' | 'ship' | 'update-logistics'
+export interface ManagedDeliveryOrder extends DeliveryOrder { allowedActions: DeliveryAction[] }
+export interface DeliveryAudit { operationId: string; requestId: string; action: DeliveryMutation['action'] | 'confirm-delivery'; targetId: string; operatorId: string; operatorName: string; reason: string; before: string; after: string; beforeVersion: number; afterVersion: number; occurredAt: string }
+export interface DeliveryCatalog { policies: DeliveryPolicy[]; products: { productId: string; title: string; fulfillmentType: FulfillmentType; status: string }[]; stores: { storeId: string; name: string; active: boolean }[]; accounts: { accountId: string; nickname: string; phone: string }[]; orders: ManagedDeliveryOrder[]; audit: DeliveryAudit[] }
+export type DeliveryMutation = { version: number; reason: string; idempotencyKey: string } & (
+ { action: 'save-policy'; productId: string; deliveryMode: DeliveryPolicyMode } |
+ { action: 'change-delivery'; orderId: string; selectedStoreId: string } |
+ { action: 'ship' | 'update-logistics'; orderId: string; logistics: DeliveryLogistics })
+export interface CheckoutDeliveryOptions { productId: string; accountId: string; productRevision: number; policyVersion: number; defaultStoreId: string | null; deliveryLocked: boolean; stores: { id: string; name: string }[] }
+export class DeliveryError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'DeliveryError' } }
+
+
+######## income.ts ########
+/** HQ-22 收益联查、提点分配、结算重算与冲正。字段对齐小程序 incomeEntry / allocation / income-detail；金额为整数分；公式与比例仅展示服务端回传，前端不算佣。 */
+export type IncomeModule = 'wholesale' | 'costore' | 'agency'
+export type IncomeChannel = 'B' | 'C' | 'SUPPLY' | 'GLOBAL_AWARD' | 'FOUNDER_AWARD'
+export type AllocationStatus = 'PENDING' | 'ALLOCATED'
+export type AllocationKind = 'sales' | 'inspection'
+export type SettlementStatus =
+  | 'PENDING_ALLOCATION'
+  | 'PENDING_SETTLEMENT'
+  | 'SETTLED'
+  | 'RECALC_PENDING'
+  | 'REVERSED'
+export type IncomeEntryKind = 'ORIGINAL' | 'RECALC' | 'REVERSAL'
+
+export interface IncomeEntry {
+  entryId: string
+  kind: IncomeEntryKind
+  /** 冲正/重算关联的原流水；原单为 null */
+  relatedEntryId: string | null
+  sourceOrder: string
+  title: string
+  category: string
+  channel: IncomeChannel
+  module: IncomeModule
+  identityLabel: string
+  accountId: string
+  accountName: string
+  phone: string
+  storeId: string | null
+  storeName: string | null
+  regionLabel: string | null
+  /** 金额（分，可为负：冲正流水） */
+  amount: number
+  baseAmount: number
+  /** 业务提点基点，仅展示，前端不得据此重算 */
+  rateBps: number
+  allocationStatus: AllocationStatus
+  allocationKind: AllocationKind
+  allocationTarget: string | null
+  allocationAgentId: string | null
+  beneficiaryName: string
+  settlementStatus: SettlementStatus
+  pendingNote: string | null
+  createdAt: string
+  settledAt: string | null
+  version: number
+  mockOnly: true
+  allowedActions: ('reassign-allocation' | 'request-recalc' | 'request-reverse')[]
+}
+
+export interface IncomeAudit {
+  operationId: string
+  requestId: string
+  action: IncomeMutation['action']
+  targetId: string
+  relatedEntryId: string | null
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface IncomeQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  module?: IncomeModule
+  channel?: IncomeChannel
+  allocationStatus?: AllocationStatus
+  settlementStatus?: SettlementStatus
+  storeId?: string
+  accountId?: string
+}
+
+export interface IncomeList {
+  items: IncomeEntry[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    entries: number
+    pendingAllocation: number
+    pendingSettlement: number
+    settled: number
+    recalcPending: number
+    reversed: number
+    /** 分 */
+    settledAmount: number
+    pendingAmount: number
+  }
+}
+
+export interface IncomeCatalog {
+  stores: { storeId: string; name: string }[]
+  modules: { value: IncomeModule; label: string }[]
+  channels: { value: IncomeChannel; label: string }[]
+  allocationTargets: { value: string; label: string; kind: AllocationKind | 'both' }[]
+  settlementStatuses: { value: SettlementStatus; label: string }[]
+  engineGapNote: string
+  audit: IncomeAudit[]
+  mockOnly: true
+}
+
+export interface IncomeDetail {
+  entry: IncomeEntry
+  /** 关联流水（冲正/重算子单或指向的原单） */
+  related: IncomeEntry[]
+  audit: IncomeAudit[]
+  engineGapNote: string
+}
+
+export type IncomeMutation =
+  | {
+      action: 'reassign-allocation'
+      entryId: string
+      version: number
+      targetId: string
+      agentId?: string
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'request-recalc'
+      entryId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'request-reverse'
+      entryId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+
+export type IncomeMutationResult =
+  | { action: 'reassign-allocation'; entry: IncomeEntry; mockOnly: true }
+  | { action: 'request-recalc'; entry: IncomeEntry; linked: IncomeEntry; mockOnly: true }
+  | { action: 'request-reverse'; entry: IncomeEntry; linked: IncomeEntry; mockOnly: true }
+
+export class IncomeError extends Error {
+  constructor(
+    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'IncomeError'
+  }
+}
+
+######## invitations.ts ########
+export interface InvitationAccount { accountId: string; displayId: string; name: string; phone: string; frozen: boolean }
+export interface InvitationInitialBinding { source: 'REGISTRATION_INVITE' | 'NO_INVITE'; inviteCode: string | null; superior: InvitationAccount | null; boundAt: string; mockOnly: true }
+export interface InvitationRelation { account: InvitationAccount; superior: InvitationAccount | null; inviteCode: string; initialBinding: InvitationInitialBinding; version: number; graphVersion: number; effectiveAt: string; directCount: number; teamCount: number; allowedActions: ('rebind' | 'unbind')[] }
+export interface InvitationAudit { operationId: string; requestId: string; account: InvitationAccount; action: 'rebind' | 'unbind'; before: InvitationAccount | null; after: InvitationAccount | null; reason: string; operatorName: string; effectiveAt: string; beforeVersion: number; afterVersion: number; graphVersion: number }
+export interface InvitationQuery { page: number; pageSize: number; keyword?: string; binding?: 'BOUND' | 'UNBOUND' }
+export interface InvitationList { items: InvitationRelation[]; total: number; summary: { accounts: number; bound: number; unbound: number } }
+export interface InvitationTeamQuery { accountId: string; scope: 'DIRECT' | 'ALL'; page: number; pageSize: number; keyword?: string }
+export interface InvitationTeam { items: { account: InvitationAccount; superior: InvitationAccount | null; depth: number }[]; total: number; directCount: number; teamCount: number; graphVersion: number }
+export interface InvitationDetail { relation: InvitationRelation; ancestors: InvitationAccount[]; history: InvitationAudit[] }
+export interface InvitationMutation { action: 'rebind' | 'unbind'; accountId: string; targetAccountId: string | null; version: number; graphVersion: number; reason: string; idempotencyKey: string }
+export class InvitationError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'InvitationError' } }
+
+######## members.ts ########
+import type { StoreOption } from './users'
+
+/** HQ-03 契约草案：小程序 member.id → memberId；contextId 为孩子学习身份。 */
+export interface MembershipTier { membershipTierId: string; name: string; levels: { levelId: string; name: string }[] }
+export interface MemberEntitlement {
+  grantId: string
+  membershipTierId: string
+  status: 'active' | 'revoked'
+  source: 'activation-code' | 'hq-manual'
+  grantedAt: string
+  lastChangedAt: string
+  expiresAt: null
+  sourceCodeId?: string
+}
+export interface LearningAuthorization {
+  levelId: string
+  membershipTierId: string
+  name: string
+  unlocked: boolean
+  percent: number
+}
+export interface MemberProfile {
+  memberId: string
+  accountId: string
+  contextId: string
+  displayId: string
+  name: string
+  gradeCode: string
+  gradeLabel: string
+  genderCode: 'MALE' | 'FEMALE' | 'UNDISCLOSED'
+  genderLabel: string
+  avatar: string | null
+  parentName: string
+  parentPhone: string
+  storeId: string | null
+  storeName: string | null
+  version: number
+  entitlements: MemberEntitlement[]
+}
+export interface MemberFilters { keyword?: string; accountId?: string; gradeCode?: string; storeId?: string }
+export interface MemberQuery extends MemberFilters { page: number; pageSize: number }
+export interface MemberListResult { items: MemberProfile[]; total: number; page: number; pageSize: number }
+export interface MemberOptions {
+  parents: { accountId: string; nickname: string; phone: string }[]
+  grades: { code: string; label: string }[]
+  stores: StoreOption[]
+  tiers: MembershipTier[]
+}
+export type EntitlementAction = 'grant' | 'revoke' | 'restore'
+export interface EntitlementMutation {
+  memberId: string
+  accountId: string
+  contextId: string
+  membershipTierId: string
+  action: EntitlementAction
+  version: number
+  reason: string
+  idempotencyKey: string
+}
+export interface EntitlementAudit {
+  operationId: string; requestId: string; memberId: string; accountId: string; contextId: string
+  membershipTierId: string; tierName: string; action: EntitlementAction
+  before: string; after: string; reason: string; operatorId: string; operatorName: string; occurredAt: string
+  origin?: 'hq' | 'activation-code'
+}
+/** 关联订单为只读交易快照，购买主体始终为 accountId，memberId 为服务学员。 */
+export interface MemberOrderSummary { orderId: string; orderNo: string; accountId: string; memberId: string; title: string; payableAmount: number; statusLabel: string; createdAt: string }
+export interface MemberFeedbackSummary { feedbackId: string; memberId: string; kind: 'training' | 'self-study' | 'camp'; title: string; summary: string; authorName: string; createdAt: string }
+export interface MemberDetail {
+  member: MemberProfile
+  levels: LearningAuthorization[]
+  orders: MemberOrderSummary[]
+  feedback: MemberFeedbackSummary[]
+  audit: EntitlementAudit[]
+}
+export interface EntitlementResult { member: MemberProfile; levels: LearningAuthorization[]; operation: EntitlementAudit; mockOnly: boolean }
+export class MemberServiceError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'IDENTITY_MISMATCH' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'MemberServiceError' }
+}
+
+######## orders.ts ########
+import type { DeliveryAddress, DeliveryAudit, DeliveryLogistics, ManagedDeliveryOrder } from './delivery'
+export type OrderStatus = 'PENDING_PAYMENT' | 'PAID' | 'COMPLETED' | 'CANCELLED'
+export interface OrderLine { id: string; productId: string; skuId: string; title: string; specLabel: string; coverUrl: string; quantity: number; originalUnitAmount: number; unitAmount: number; subtotalAmount: number }
+export interface OrderPayment { paymentId: string; channel: 'WECHAT' | 'ALIPAY'; channelLabel: string; thirdPartyTradeNo: string | null; status: 'WAITING' | 'SUCCESS' | 'CLOSED'; amount: number; paidAt: string | null }
+/** 所有金额均为整数分，交易快照不从当前商品折扣标签推算。 */
+export interface OrderTransactionSnapshot { buyerName: string; buyerPhone: string; memberId: string | null; memberName: string | null; items: OrderLine[]; originalTotalAmount: number; goodsAmount: number; priceReductionAmount: number; tierDiscountAmount: number; tierDiscountLabel: string; coupon: { couponId: string; title: string; discountAmount: number } | null; discountAmount: number; payableAmount: number; payments: OrderPayment[]; source: { kind: 'MALL' | 'MEMBERSHIP' | 'BUSINESS'; label: string; referenceId: string | null; contextId: string | null }; remark: string; cancelledAt: string | null; cancelReason: string | null }
+export type OrderAction = 'ship' | 'update-logistics' | 'confirm-delivery'
+export interface SalesOrder extends Omit<ManagedDeliveryOrder, 'allowedActions'> { status: OrderStatus; allowedActions: OrderAction[] }
+export interface OrderFilters { keyword?: string; accountId?: string; memberId?: string; productId?: string; deliveryMode?: 'STORE' | 'HEADQUARTERS'; deliveryStoreId?: string; channel?: 'WECHAT' | 'ALIPAY'; status?: OrderStatus; fulfillmentStatus?: ManagedDeliveryOrder['fulfillmentStatus']; createdFrom?: string; createdTo?: string }
+export interface OrderQuery extends OrderFilters { page: number; pageSize: number }
+export interface OrderList { items: SalesOrder[]; total: number; page: number; pageSize: number; summary: { orderCount: number; paidCount: number; paidAmount: number } }
+export interface OrderOptions { accounts: { accountId: string; nickname: string; phone: string }[]; members: { memberId: string; name: string; accountId: string }[]; products: { productId: string; title: string }[]; stores: { storeId: string; name: string }[] }
+export interface OrderDetail { order: SalesOrder; audit: DeliveryAudit[] }
+export type OrderMutation = { orderId: string; version: number; reason: string; idempotencyKey: string } & ({ action: 'ship' | 'update-logistics'; logistics: DeliveryLogistics } | { action: 'confirm-delivery'; evidence: string })
+export class OrderError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'OrderError' } }
+export type OrderAddressSnapshot = DeliveryAddress
+
+######## partners.ts ########
+import type { RichContent } from './cms'
+export const partnerLevels = ['DEMO-VIP', 'DEMO-ANGEL', 'DEMO-BOARD', 'DEMO-FOUNDER'] as const
+export type PartnerLevel = typeof partnerLevels[number]
+export interface PartnerLevelBenefits { partnerLevel: PartnerLevel; title: string; wholesaleLabel: string; quotaOccupancy: number; nextLevel: PartnerLevel | null; taskTarget: number | null; summary: string; content: RichContent; version: number }
+export interface PartnerPromotionTask { taskId: string; version: number; beforeLevel: PartnerLevel; targetLevel: PartnerLevel; progress: number; target: number; canClaim: boolean; startedAt: string; validUntil: string; status: 'IN_PROGRESS' | 'READY' | 'PROCESSING' | 'COMPLETED' | 'EXPIRED' | 'SUPERSEDED'; qualificationNote: string }
+export interface PartnerProfile { contextId: string; accountId: string; displayId: string; name: string; phone: string; partnerLevel: PartnerLevel; partnerStatus: 'ACTIVE' | 'FROZEN' | 'EXPIRED' | 'PENDING_ANNUAL'; frozen: boolean; annualStatus: 'ACTIVE' | 'EXPIRED' | 'NOT_OPEN'; annualValidUntil: string | null; annualFeeAmount: 20000; superior: { accountId: string; contextId: string | null; name: string } | null; version: number; allowedActions: ('manual-upgrade' | 'claim-promotion')[]; allowedTargetLevels: PartnerLevel[]; task: PartnerPromotionTask | null }
+export interface PartnerReceipt { receiptId: string; requestId: string; contextId: string; accountId: string; source: 'HQ_MANUAL' | 'USER_TASK'; taskId: string | null; beforeLevel: PartnerLevel; targetLevel: PartnerLevel; status: 'PROCESSING' | 'SUCCEEDED' | 'FAILED'; result: string; reason: string; operatorName: string; createdAt: string; completedAt: string | null; mockOnly: true }
+export interface PartnerAudit { operationId: string; requestId: string; action: 'upgrade' | 'save-benefits' | 'task-promotion'; contextId: string | null; targetId: string; operatorName: string; reason: string; before: string; after: string; occurredAt: string }
+export interface PartnerCatalog { levels: PartnerLevelBenefits[]; receipts: PartnerReceipt[]; audit: PartnerAudit[] }
+export interface PartnerQuery { page: number; pageSize: number; keyword?: string; partnerLevel?: PartnerLevel; partnerStatus?: PartnerProfile['partnerStatus'] }
+export interface PartnerList { items: PartnerProfile[]; total: number; page: number; pageSize: number; summary: { total: number; active: number; frozen: number; annualExpired: number } }
+export interface PartnerDetail { profile: PartnerProfile; taskHistory: PartnerPromotionTask[]; receipts: PartnerReceipt[]; audit: PartnerAudit[] }
+export type PartnerMutation = { reason: string; idempotencyKey: string; version: number } & ({ action: 'upgrade'; contextId: string; targetLevel: PartnerLevel } | { action: 'save-benefits'; partnerLevel: PartnerLevel; summary: string; content: RichContent })
+export interface PartnerMutationResult { receiptId: string | null; operationId: string }
+export class PartnerError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'PartnerError' } }
+
+######## payments.ts ########
+export type PaymentChannel = 'WECHAT' | 'ALIPAY'
+export type PaymentPlatform = 'MINI_PROGRAM' | 'H5'
+export type PaymentBusiness = 'MALL' | 'MEMBERSHIP' | 'BUSINESS'
+export interface PaymentChannelConfig { configId: string; platform: PaymentPlatform; business: PaymentBusiness; channel: PaymentChannel; enabled: boolean; version: number }
+export interface ChannelVerification { status: 'SUCCESS' | 'PENDING' | 'CLOSED' | 'MISMATCH' | 'UNAVAILABLE'; amount: number | null; channelTradeNo: string | null; checkedAt: string; detail: string }
+export interface PaymentRecord { paymentId: string; orderId: string; orderNo: string; accountId: string; channel: PaymentChannel; platform: PaymentPlatform; business: PaymentBusiness; status: 'WAITING' | 'SUCCESS' | 'CLOSED'; amount: number; paidAt: string | null; channelTradeNo: string | null; statementDate: string; createdAt: string; verification: ChannelVerification | null }
+export interface PaymentAttempt { attemptId: string; paymentId: string; orderId: string; channel: PaymentChannel; platform: PaymentPlatform; status: 'WAITING' | 'SUCCESS' | 'CLOSED'; createdAt: string; requestId: string }
+export interface ReconciliationDifference { id: string; paymentId: string; reason: 'CHANNEL_ONLY' | 'LOCAL_ONLY' | 'AMOUNT_MISMATCH' | 'STATUS_MISMATCH' | 'TRADE_NO_MISMATCH'; localAmount: number | null; channelAmount: number | null; detail: string }
+export interface PaymentJob { jobId: string; reconciliationJobId: string | null; kind: 'query' | 'compensate' | 'reconcile'; paymentId: string | null; status: 'PROCESSING' | 'SUCCEEDED' | 'FAILED'; requestId: string; operatorName: string; reason: string; createdAt: string; completedAt: string | null; result: string; receiptId: string | null; fileName: string | null; channel: PaymentChannel | null; statementDate: string | null; differences: ReconciliationDifference[]; mockOnly: true }
+export interface PaymentAudit { operationId: string; requestId: string; action: 'save-channel' | 'query' | 'compensate' | 'reconcile' | 'download'; targetId: string; operatorName: string; reason: string; detail: string; occurredAt: string }
+export interface PaymentCatalog { configs: PaymentChannelConfig[]; payments: PaymentRecord[]; attempts: PaymentAttempt[]; jobs: PaymentJob[]; audit: PaymentAudit[] }
+export type PaymentMutation = { reason: string; idempotencyKey: string } & ({ action: 'save-channel'; configId: string; version: number; enabled: boolean } | { action: 'query' | 'compensate'; paymentId: string } | { action: 'reconcile'; channel: PaymentChannel; statementDate: string; fileName: string; csv: string })
+export interface PaymentMutationResult { jobId: string | null; configId: string | null }
+export interface PaymentDownload { csv: string; fileName: string; mockOnly: true }
+export class PaymentError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'PaymentError' } }
+
+
+######## products.ts ########
+import type { RichContent } from './cms'
+export const fulfillmentTypes = ['PHYSICAL', 'ACTIVATION_CODE', 'OFFLINE_SERVICE', 'COLUMN_ACCESS'] as const
+export type FulfillmentType = typeof fulfillmentTypes[number]
+export interface ProductCategory { categoryId: string; categoryLabel: string; order: number; enabled: boolean; version: number }
+export interface ProductType { code: FulfillmentType; title: string; version: number }
+export interface ProductSpecGroup { id: string; label: string; options: { id: string; label: string }[] }
+/** 所有金额均为整数分；discountLabel为展示文字，禁止据此推算实付。 */
+export interface ProductPriceTier { id: string; label: string; discountLabel: string; amount: number }
+export interface ProductSku { id: string; label: string; specs: Record<string, string>; amount: number; stock: number }
+export interface ProductDraft { productId: string; categoryId: string; title: string; summary: string; coverUrl: string; content: RichContent; fulfillmentType: FulfillmentType; requiresMember: boolean; pricePresentation: 'standard-only' | 'tiered'; originalAmount: number | null; standardAmount: number; activityAmount: number | null; memberPrices: ProductPriceTier[]; rolePrices: ProductPriceTier[]; specGroups: ProductSpecGroup[]; skus: ProductSku[] }
+export interface ManagedProduct { draft: ProductDraft; version: number; status: 'draft' | 'on-sale' | 'off-sale'; publication: { revision: number; publishedAt: string; value: ProductDraft } | null }
+export interface ProductAudit { operationId: string; targetId: string; action: ProductMutation['action']; reason: string; requestId: string; operatorName: string; beforeVersion: number; afterVersion: number; occurredAt: string }
+export interface ProductCatalog { categories: ProductCategory[]; types: ProductType[]; products: ManagedProduct[]; audit: ProductAudit[] }
+export type ProductMutation = { version: number; reason: string; idempotencyKey: string } & (
+  { action: 'save-category'; value: ProductCategory } | { action: 'rename-type'; code: FulfillmentType; title: string } |
+  { action: 'save-product'; value: ProductDraft } | { action: 'on-sale' | 'off-sale'; productId: string })
+export class ProductError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'ProductError' } }
+
+######## promo-materials.ts ########
+/** HQ-24 推广素材、二维码区域模板、视频互动 H5。对照 partner/materials、material-edit；总部维护模板与唯一二维码填充区；禁止前端伪造服务端合成终图；视频不烧录二维码。 */
+export type PromoMaterialType = 'image' | 'article' | 'video'
+export type PromoMaterialStatus = 'DRAFT' | 'PUBLISHED' | 'OFFLINE'
+/** 视频仅互动 H5；不默认烧录二维码。 */
+export type VideoDeliveryMode = 'INTERACTIVE_H5'
+export type PartnerMaterialOp = 'upload-qr' | 'render' | 'download' | 'copy-link'
+export type PromoMaterialAction = 'save' | 'set-qr-region' | 'publish' | 'offline' | 'delete'
+
+/** 原图上唯一二维码填充区；归一化坐标 0–1，相对 mediaWidth/mediaHeight。 */
+export interface QrFillRegion {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface PromoMaterialCategory {
+  categoryId: string
+  name: string
+  type: PromoMaterialType
+}
+
+export interface PromoMaterialTemplate {
+  materialId: string
+  title: string
+  type: PromoMaterialType
+  categoryId: string
+  categoryName: string
+  status: PromoMaterialStatus
+  coverUrl: string
+  mediaUrl: string
+  posterUrl: string | null
+  summary: string
+  /** 图片发布前必填；视频为 null（走 H5，不烧录）。 */
+  qrRegion: QrFillRegion | null
+  mediaWidth: number
+  mediaHeight: number
+  videoDeliveryMode: VideoDeliveryMode | null
+  /** 专用 web-view/H5 路由就绪度；当前联调缺口为 false。 */
+  h5RouteReady: boolean
+  h5RouteNote: string
+  shareUrlTemplate: string
+  partnerOperations: PartnerMaterialOp[]
+  /** 恒 true：合图仅服务端；前端不得展示/生成伪终图。 */
+  composedAssetForbidden: true
+  version: number
+  updatedAt: string
+  publishedAt: string | null
+  mockOnly: true
+  allowedActions: PromoMaterialAction[]
+}
+
+export interface PromoMaterialAudit {
+  operationId: string
+  requestId: string
+  action: PromoMaterialAction
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface PromoMaterialQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  type?: PromoMaterialType
+  status?: PromoMaterialStatus
+  categoryId?: string
+}
+
+export interface PromoMaterialList {
+  items: PromoMaterialTemplate[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    templates: number
+    draft: number
+    published: number
+    offline: number
+    imageWithRegion: number
+    videoH5: number
+    missingQrRegion: number
+  }
+}
+
+export interface PromoMaterialCatalog {
+  categories: PromoMaterialCategory[]
+  types: { id: PromoMaterialType; label: string }[]
+  composeGapNote: string
+  videoH5GapNote: string
+  pendingPolicy: {
+    dedicatedWebViewRoutePending: true
+    clientSideComposeForbidden: true
+  }
+  mockOnly: true
+}
+
+export interface PromoMaterialDetail {
+  template: PromoMaterialTemplate
+  audit: PromoMaterialAudit[]
+  composeGapNote: string
+  videoH5GapNote: string
+}
+
+export type PromoMaterialMutation =
+  | {
+      action: 'save'
+      materialId?: string
+      version: number
+      reason: string
+      idempotencyKey: string
+      title: string
+      type: PromoMaterialType
+      categoryId: string
+      coverUrl: string
+      mediaUrl: string
+      posterUrl?: string | null
+      summary: string
+      mediaWidth: number
+      mediaHeight: number
+      shareUrlTemplate: string
+    }
+  | {
+      action: 'set-qr-region'
+      materialId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+      qrRegion: QrFillRegion
+    }
+  | {
+      action: 'publish' | 'offline' | 'delete'
+      materialId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+
+export interface PromoMaterialMutationResult {
+  action: PromoMaterialAction
+  template: PromoMaterialTemplate
+  mockOnly: true
+  message: string
+}
+
+export type PromoMaterialErrorCode =
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'INVALID_INPUT'
+  | 'INVALID_STATE'
+  | 'VERSION_CONFLICT'
+  | 'IDEMPOTENCY_CONFLICT'
+  | 'QR_REGION_REQUIRED'
+  | 'QR_REGION_INVALID'
+
+export class PromoMaterialError extends Error {
+  constructor(public code: PromoMaterialErrorCode, message: string) {
+    super(message)
+    this.name = 'PromoMaterialError'
+  }
+}
+
+######## quotas.ts ########
+import type { PartnerProfile } from './partners'
+export type QuotaType = 'STANDARD' | 'ACTIVITY'
+/** remaining 为可用量，不含 reserved；所有数量均为整数，金额单位为分。 */
+export interface QuotaBalance { quotaType: QuotaType; total: number; remaining: number; reserved: number; used: number; transferred: number }
+export interface QuotaEligibility { qualified: boolean; canRecharge: boolean; reason: string; allowedTypes: QuotaType[]; perOperationLimit: number; remainingLimit: number; limitLabel: string }
+export interface QuotaOwner { ownerAccountId: string; contextId: string; name: string; phone: string; displayId: string; partnerLevel: PartnerProfile['partnerLevel']; partnerStatus: PartnerProfile['partnerStatus']; version: number; balances: QuotaBalance[]; eligibility: QuotaEligibility }
+export interface QuotaBatch extends QuotaBalance { batchId: string; ownerAccountId: string; source: 'PURCHASE' | 'ACTIVITY_GRANT' | 'HQ_RECHARGE' | 'TRANSFER'; sourceOrderId: string | null; operationId: string; title: string; createdAt: string; expiresAt: null; transferable: boolean; refundable: false }
+export type QuotaLedgerKind = 'PURCHASE' | 'ACTIVITY_GRANT' | 'HQ_RECHARGE' | 'RESERVE' | 'RELEASE' | 'CONSUME' | 'TRANSFER_OUT' | 'TRANSFER_IN'
+export interface QuotaLedger { ledgerId: string; operationId: string; requestId: string; ownerAccountId: string; targetAccountId: string | null; batchId: string; quotaType: QuotaType; kind: QuotaLedgerKind; quantity: number; sourceOrderId: string | null; reason: string; operatorName: string; createdAt: string; before: QuotaBalance; after: QuotaBalance }
+export interface QuotaOrder { orderId: string; ownerAccountId: string; targetAccountId: string | null; kind: 'PURCHASE' | 'ACTIVITY_UPGRADE'; quotaType: QuotaType; quantity: number; batchId: string | null; status: 'UNPAID' | 'PAID' | 'CANCELLED'; unitAmount: number; payableAmount: number; paymentReceiptId: string | null; createdAt: string; updatedAt: string; note: string }
+export interface QuotaRecharge { operationId: string; requestId: string; ownerAccountId: string; targetAccountId: string; batchId: string; quotaType: QuotaType; quantity: number; reason: string; operatorName: string; createdAt: string; before: QuotaBalance; after: QuotaBalance; beforeVersion: number; afterVersion: number }
+export interface QuotaQuery { page: number; pageSize: number; keyword?: string; eligibility?: 'ALLOWED' | 'DENIED' }
+export interface QuotaList { items: QuotaOwner[]; total: number; summary: { owners: number; rechargeable: number; standardRemaining: number; activityRemaining: number; reserved: number } }
+export interface QuotaDetail { owner: QuotaOwner; batches: QuotaBatch[]; ledger: QuotaLedger[]; orders: QuotaOrder[]; recharges: QuotaRecharge[]; activityServiceFeePerQuota: 200000 }
+export interface QuotaRechargeInput { targetAccountId: string; quotaType: QuotaType; quantity: number; version: number; reason: string; idempotencyKey: string }
+export class QuotaError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'QuotaError' } }
+
+######## softwareCards.ts ########
+import type { StoreOption } from './users'
+
+/** HQ-06 独立软件卡契约草案；不复用会员/专栏激活码，也不作为学习授权。 */
+export interface SoftwareCardType { typeId: string; businessCode: string; name: string; termLabel: string; systemLabel: string; description: string; active: boolean; version: number }
+export type SoftwareStockStatus = 'available' | 'assigned' | 'delivered' | 'retired' | 'replaced'
+export const softwareStockLabels: Record<SoftwareStockStatus, string> = { available: '可分配库存', assigned: '已分配待交付', delivered: '已记录交付', retired: '库存已停发', replaced: '已补发停发' }
+export interface SoftwareCard {
+  cardId: string; batchId: string; typeId: string; typeName: string; maskedCode: string; status: SoftwareStockStatus; version: number
+  claimDeadline: string | null; claimExpired: boolean
+  /** 只能由供应商接口/可信回执更新；本轮Mock始终unknown，不能从交付状态推断。 */
+  externalStatus: 'unknown' | 'inactive' | 'active' | 'expired'; externalValidUntil: string | null; externalCheckedAt: string | null
+  deliveryMode: 'hq' | 'store' | null; deliveryStoreId: string | null; accountId: string | null; accountName: string | null; sourceOrderId: string | null
+  assignedAt: string | null; deliveredAt: string | null; secretExportedAt: string | null
+  replacesCardId: string | null; replacementCardId: string | null; createdAt: string
+}
+export interface SoftwareBatch { batchId: string; name: string; typeId: string; typeName: string; source: 'supplier' | 'hq' | 'mock'; sourceName: string; referenceNo: string; quantity: number; claimDeadline: string | null; createdAt: string; createdBy: string }
+export interface SoftwareOrderOption { orderId: string; orderNo: string; accountId: string; typeId: string; fulfillmentType: 'ACTIVATION_CODE'; status: 'PAID' | 'PENDING_PAYMENT'; quantity: number; remainingQuantity: number; deliveryMode: 'hq' | 'store'; deliveryStoreId: string | null; mockOnly: true }
+export interface SoftwareOptions { maxImportSize: number; maxSelectionSize: number; accounts: { accountId: string; name: string; phone: string; storeId: string | null }[]; stores: StoreOption[]; orders: SoftwareOrderOption[] }
+interface OperationBase { reason: string; idempotencyKey: string }
+export interface SoftwareSelection { cardId: string; version: number }
+export type SoftwareMutation = OperationBase & (
+  | { action: 'save-type'; typeId: string; version: number; value: Omit<SoftwareCardType, 'typeId' | 'version'> }
+  | { action: 'import'; name: string; typeId: string; source: SoftwareBatch['source']; sourceName: string; referenceNo: string; codes: string[]; claimDeadline: string | null }
+  | { action: 'assign'; cards: SoftwareSelection[]; accountId: string; deliveryMode: 'hq' | 'store'; deliveryStoreId: string | null; sourceOrderId: string | null }
+  | { action: 'deliver' | 'retire'; cards: SoftwareSelection[] }
+  | { action: 'replace'; oldCard: SoftwareSelection; replacementCard: SoftwareSelection }
+)
+export interface SoftwareAudit { operationId: string; requestId: string; action: SoftwareMutation['action'] | 'export'; cardIds: string[]; batchId: string | null; typeId: string | null; reason: string; operatorId: string; operatorName: string; before: string; after: string; occurredAt: string }
+export interface SoftwareFilters { keyword?: string; batchId?: string; typeId?: string; status?: SoftwareStockStatus; deliveryMode?: 'hq' | 'store'; storeId?: string; accountId?: string; claimState?: 'expired' | 'valid' }
+export interface SoftwareQuery extends SoftwareFilters { page: number; pageSize: number }
+export interface SoftwareList { items: SoftwareCard[]; total: number; page: number; pageSize: number }
+export interface SoftwareCatalog { types: SoftwareCardType[]; batches: SoftwareBatch[]; audit: SoftwareAudit[]; options: SoftwareOptions }
+export interface SoftwareDetail { card: SoftwareCard; batch: SoftwareBatch; type: SoftwareCardType; audit: SoftwareAudit[] }
+export interface SoftwareMutationResult { batchId: string | null; cardIds: string[]; operation: SoftwareAudit; mockOnly: true }
+export interface SoftwareExportRequest extends OperationBase { cards: SoftwareSelection[] }
+export interface SoftwareExport { csv: string; fileName: string; count: number; mockOnly: true }
+export class SoftwareCardError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'INVALID_INPUT' | 'NOT_FOUND' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'EXTERNAL_VERIFICATION_REQUIRED', message: string) { super(message); this.name = 'SoftwareCardError' }
+}
+
+######## staff.ts ########
+/** HQ-18 员工、门店角色与权限配置。字段对齐小程序门店 staff/owners 与映射 HQ-19 任职监管，不替代门店主档（门头照/费用）与训练反馈模块。 */
+export const storeRoles = ['STORE_OWNER', 'STORE_MANAGER', 'COACH'] as const
+export type StoreRole = typeof storeRoles[number]
+
+/** 门店侧能力字典：仅经营操作能力，禁止配置收益公式/提点/结算类权限。 */
+export const storeCapabilityCodes = [
+  'store:profile:read',
+  'store:profile:edit',
+  'members:read',
+  'members:manage',
+  'feedback:read',
+  'feedback:write',
+  'orders:verify',
+  'approvals:decide',
+  'coaches:manage',
+] as const
+export type StoreCapability = typeof storeCapabilityCodes[number]
+
+export const storeCapabilityLabels: Record<StoreCapability, string> = {
+  'store:profile:read': '查看门店资料',
+  'store:profile:edit': '编辑门店资料',
+  'members:read': '查看本店学员',
+  'members:manage': '管理本店学员档案',
+  'feedback:read': '查看训练反馈',
+  'feedback:write': '撰写训练反馈',
+  'orders:verify': '本店订单核销',
+  'approvals:decide': '门店侧申请审批',
+  'coaches:manage': '管理健脑官账号',
+}
+
+export const storeRoleLabels: Record<StoreRole, string> = {
+  STORE_OWNER: '合店老板',
+  STORE_MANAGER: '店长',
+  COACH: '健脑官',
+}
+
+export type StaffStatus = 'ACTIVE' | 'FROZEN' | 'LEFT'
+export type InvitationStatus = 'PENDING' | 'ACTIVE' | 'REVOKED'
+
+export interface StoreRoleDefinition {
+  roleCode: StoreRole
+  title: string
+  summary: string
+  capabilities: StoreCapability[]
+  /** 角色默认是否允许跨店任职；实际跨店还须任职记录 allowCrossStore=true */
+  allowCrossStore: boolean
+  version: number
+}
+
+export interface StaffAssignment {
+  assignmentId: string
+  storeId: string
+  storeName: string
+  storeNumber: string
+  /** 可选关联家长账号；健脑官通道不得从家长身份推导 */
+  linkedAccountId: string | null
+  displayName: string
+  /** 健脑官/员工登录账号；密码永不回显，仅 credentialSet */
+  loginAccount: string
+  roleCode: StoreRole
+  roleTitle: string
+  status: StaffStatus
+  invitationStatus: InvitationStatus
+  credentialSet: boolean
+  allowCrossStore: boolean
+  /** 生效能力 = 角色字典；总部不在此推导财务权限 */
+  effectiveCapabilities: StoreCapability[]
+  version: number
+  effectiveAt: string
+  leftAt: string | null
+  mockOnly: true
+}
+
+export interface StaffStoreOption {
+  storeId: string
+  name: string
+  number: string
+  active: boolean
+}
+
+export interface StaffQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  storeId?: string
+  roleCode?: StoreRole
+  status?: StaffStatus
+}
+
+export interface StaffList {
+  items: StaffAssignment[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    assignments: number
+    active: number
+    frozen: number
+    left: number
+    crossStoreAllowed: number
+  }
+}
+
+export interface StaffAudit {
+  operationId: string
+  requestId: string
+  action: StaffMutation['action']
+  targetId: string
+  operatorId: string
+  operatorName: string
+  reason: string
+  before: string
+  after: string
+  beforeVersion: number
+  afterVersion: number
+  occurredAt: string
+}
+
+export interface StaffCatalog {
+  roles: StoreRoleDefinition[]
+  capabilityDictionary: { code: StoreCapability; label: string }[]
+  stores: StaffStoreOption[]
+  audit: StaffAudit[]
+  mockOnly: true
+}
+
+export interface StaffDetail {
+  assignment: StaffAssignment
+  role: StoreRoleDefinition
+  audit: StaffAudit[]
+}
+
+export type StaffMutation = { reason: string; idempotencyKey: string; version: number } & (
+  | { action: 'save-role'; roleCode: StoreRole; title: string; summary: string; capabilities: StoreCapability[]; allowCrossStore: boolean }
+  | { action: 'create-assignment'; storeId: string; displayName: string; loginAccount: string; roleCode: StoreRole; linkedAccountId: string | null; allowCrossStore: boolean; markCredentialSet: boolean }
+  | { action: 'update-assignment'; assignmentId: string; displayName: string; loginAccount: string; roleCode: StoreRole; linkedAccountId: string | null; allowCrossStore: boolean }
+  | { action: 'set-status'; assignmentId: string; status: StaffStatus }
+  | { action: 'mark-credential-reset'; assignmentId: string }
+)
+
+export type StaffErrorCode = 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT'
+export class StaffError extends Error {
+  constructor(public code: StaffErrorCode, message: string) {
+    super(message)
+    this.name = 'StaffError'
+  }
+}
+
+######## stores.ts ########
+/** HQ-19 门店主档与健脑官账号监管。字段对齐小程序 business-store / store/index；任职角色字典与完整 CRUD 在 HQ-18，本模块聚焦门店实体与健脑官监管动作。 */
+export type StoreStatus = 'ACTIVE' | 'FROZEN' | 'CLOSED'
+
+export interface StoreAgentOption {
+  agentId: string
+  name: string
+  regionLabel: string
+}
+
+export interface StoreProfile {
+  storeId: string
+  number: string
+  name: string
+  status: StoreStatus
+  managerName: string
+  contact: string
+  address: string
+  regionNames: [string, string, string]
+  regionCodes: [string, string, string]
+  /** 合店费用，单位：分 */
+  feeAmount: number
+  /** 合店费用下限边界，单位：分；总部改价不得低于此值 */
+  minimumFeeAmount: number
+  storefrontAssetId: string | null
+  storefrontUrl: string | null
+  agentId: string | null
+  agentName: string | null
+  ownerCount: number
+  coachActive: number
+  coachFrozen: number
+  staffTotal: number
+  version: number
+  openedAt: string
+  mockOnly: true
+}
+
+export interface StoreCoach {
+  coachId: string
+  storeId: string
+  displayName: string
+  loginAccount: string
+  status: 'ACTIVE' | 'FROZEN' | 'LEFT'
+  invitationStatus: 'PENDING' | 'ACTIVE' | 'REVOKED'
+  credentialSet: boolean
+  version: number
+  effectiveAt: string
+  leftAt: string | null
+}
+
+export interface StoreStaffBrief {
+  assignmentId: string
+  displayName: string
+  loginAccount: string
+  roleCode: string
+  roleTitle: string
+  status: string
+  credentialSet: boolean
+  version: number
+}
+
+export interface StoreQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: StoreStatus
+  agentId?: string
+}
+
+export interface StoreList {
+  items: StoreProfile[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    stores: number
+    active: number
+    frozen: number
+    closed: number
+    coachesActive: number
+  }
+}
+
+export interface StoreCatalog {
+  agents: StoreAgentOption[]
+  regionOptions: { value: string; label: string; children?: StoreCatalog['regionOptions'] }[]
+  audit: StoreAudit[]
+  mockOnly: true
+}
+
+export interface StoreDetail {
+  store: StoreProfile
+  coaches: StoreCoach[]
+  /** 本店任职只读摘要；完整角色/任职维护见 HQ-18 /staff-roles */
+  staff: StoreStaffBrief[]
+  audit: StoreAudit[]
+}
+
+export interface StoreAudit {
+  operationId: string
+  requestId: string
+  action: StoreMutation['action']
+  targetId: string
+  operatorId: string
+  operatorName: string
+  reason: string
+  before: string
+  after: string
+  beforeVersion: number
+  afterVersion: number
+  occurredAt: string
+}
+
+export type StoreMutation = { reason: string; idempotencyKey: string; version: number } & (
+  | {
+      action: 'save-profile'
+      storeId: string
+      name: string
+      managerName: string
+      contact: string
+      address: string
+      regionNames: [string, string, string]
+      regionCodes: [string, string, string]
+      feeAmount: number
+      minimumFeeAmount: number
+      storefrontAssetId: string | null
+      storefrontUrl: string | null
+      agentId: string | null
+    }
+  | { action: 'set-status'; storeId: string; status: StoreStatus }
+  | { action: 'set-coach-status'; storeId: string; coachId: string; status: 'ACTIVE' | 'FROZEN' }
+  | { action: 'mark-coach-credential-reset'; storeId: string; coachId: string }
+)
+
+export type StoreErrorCode = 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT'
+
+export class StoreError extends Error {
+  constructor(public code: StoreErrorCode, message: string) {
+    super(message)
+    this.name = 'StoreError'
+  }
+}
+
+export const storeStatusLabels: Record<StoreStatus, string> = {
+  ACTIVE: '营业中',
+  FROZEN: '已冻结',
+  CLOSED: '已停业',
+}
+
+######## support.ts ########
+/** HQ-25 协议版本与客服预留。对照 settings/agreement、support/feedback、我的「联系客服」。完整客服系统为缺口；本模块仅协议发布与客服入口/反馈查阅。 */
+import type { RichContent } from './cms'
+
+export type AgreementType = 'user' | 'privacy'
+export type AgreementStatus = 'DRAFT' | 'PUBLISHED' | 'OFFLINE'
+export type FeedbackStatus = 'OPEN' | 'HANDLED'
+export type SupportAction =
+  | 'save-agreement'
+  | 'publish-agreement'
+  | 'offline-agreement'
+  | 'save-support-config'
+  | 'mark-feedback-handled'
+
+export interface LegalAgreement {
+  agreementId: string
+  type: AgreementType
+  title: string
+  /** 对外展示的协议文案版本，如 2026.10.28 */
+  docVersion: string
+  /** HQ 编辑用纯文本；发布后转为 RichContent 供小程序阅读 */
+  bodyText: string
+  content: RichContent
+  status: AgreementStatus
+  version: number
+  publishedAt: string | null
+  updatedAt: string
+  mockOnly: true
+  allowedActions: ('save-agreement' | 'publish-agreement' | 'offline-agreement')[]
+}
+
+export interface SupportConfig {
+  phone: string
+  description: string
+  /** 意见反馈最多图片数 0–9；对齐小程序 getSupportConfig.feedback.maxImages */
+  feedbackMaxImages: number
+  /** 恒 true：完整在线客服/工单流转未实现，仅入口预留 */
+  fullCustomerServicePending: true
+  version: number
+  updatedAt: string
+  mockOnly: true
+}
+
+export interface SupportFeedbackItem {
+  feedbackId: string
+  accountId: string
+  accountName: string
+  phone: string
+  content: string
+  imageCount: number
+  status: FeedbackStatus
+  createdAt: string
+  handledAt: string | null
+  handleNote: string | null
+  version: number
+  mockOnly: true
+  allowedActions: ('mark-feedback-handled')[]
+}
+
+export interface SupportAudit {
+  operationId: string
+  requestId: string
+  action: SupportAction
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface SupportCatalog {
+  agreements: LegalAgreement[]
+  supportConfig: SupportConfig
+  feedbackSummary: { total: number; open: number; handled: number }
+  fullCsGapNote: string
+  agreementNote: string
+  mockOnly: true
+}
+
+export interface SupportFeedbackList {
+  items: SupportFeedbackItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface SupportFeedbackQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: FeedbackStatus
+}
+
+export type SupportMutation =
+  | {
+      action: 'save-agreement'
+      agreementId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+      title: string
+      docVersion: string
+      bodyText: string
+    }
+  | {
+      action: 'publish-agreement' | 'offline-agreement'
+      agreementId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'save-support-config'
+      version: number
+      reason: string
+      idempotencyKey: string
+      phone: string
+      description: string
+      feedbackMaxImages: number
+    }
+  | {
+      action: 'mark-feedback-handled'
+      feedbackId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+      handleNote: string
+    }
+
+export interface SupportMutationResult {
+  action: SupportAction
+  mockOnly: true
+  message: string
+  catalog?: SupportCatalog
+  feedback?: SupportFeedbackItem
+}
+
+export type SupportErrorCode =
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'INVALID_INPUT'
+  | 'INVALID_STATE'
+  | 'VERSION_CONFLICT'
+  | 'IDEMPOTENCY_CONFLICT'
+
+export class SupportError extends Error {
+  constructor(public code: SupportErrorCode, message: string) {
+    super(message)
+    this.name = 'SupportError'
+  }
+}
+
+######## trace.ts ########
+/** HQ-26 通用资源、异步任务与统一操作追溯。对齐上传三步契约与 /jobs；不做业务工单系统；跨模块审计为聚合只读台（Mock 种子，不改写 HQ-01～25 各模块存储）。 */
+export type AssetStatus = 'PENDING' | 'READY' | 'FAILED' | 'QUARANTINED'
+export type TraceTaskStatus = 'PROCESSING' | 'SUCCEEDED' | 'FAILED'
+export type TraceTaskKind = 'UPLOAD_PROCESS' | 'MATERIAL_COMPOSE' | 'EXPORT' | 'OTHER'
+export type TraceModule =
+  | 'users'
+  | 'members'
+  | 'materials'
+  | 'support'
+  | 'withdrawals'
+  | 'payments'
+  | 'orders'
+  | 'training'
+  | 'assets'
+  | 'other'
+
+export type TraceAction =
+  | 'quarantine-resource'
+  | 'restore-resource'
+  | 'retry-task'
+
+export interface UploadResource {
+  assetId: string
+  /** 与 assetId 同值，对齐小程序 fileId === assetId */
+  fileId: string
+  purpose: string
+  mimeType: string
+  fileName: string
+  sizeBytes: number
+  status: AssetStatus
+  ownerAccountId: string
+  ownerName: string
+  previewUrl: string | null
+  boundHint: string | null
+  createdAt: string
+  updatedAt: string
+  version: number
+  mockOnly: true
+  allowedActions: ('quarantine-resource' | 'restore-resource')[]
+}
+
+export interface TraceTask {
+  jobId: string
+  kind: TraceTaskKind
+  title: string
+  relatedAssetId: string | null
+  relatedModule: TraceModule
+  status: TraceTaskStatus
+  resultSummary: string
+  createdAt: string
+  completedAt: string | null
+  version: number
+  mockOnly: true
+  allowedActions: ('retry-task')[]
+}
+
+export interface UnifiedAuditEntry {
+  entryId: string
+  module: TraceModule
+  action: string
+  targetId: string
+  summary: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  requestId: string
+  occurredAt: string
+  /** 标明来自 Mock 聚合种子，非实时读取各模块 sessionStorage */
+  source: 'AGGREGATED_MOCK'
+  mockOnly: true
+}
+
+export interface TraceCatalog {
+  resourceSummary: { total: number; pending: number; ready: number; failed: number; quarantined: number }
+  taskSummary: { total: number; processing: number; succeeded: number; failed: number }
+  auditSummary: { total: number }
+  uploadContractNote: string
+  unifiedAuditGapNote: string
+  noTicketNote: string
+  mockOnly: true
+}
+
+export interface TraceResourceList {
+  items: UploadResource[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface TraceTaskList {
+  items: TraceTask[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface TraceAuditList {
+  items: UnifiedAuditEntry[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface TraceResourceQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: AssetStatus
+  purpose?: string
+}
+
+export interface TraceTaskQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: TraceTaskStatus
+  kind?: TraceTaskKind
+}
+
+export interface TraceAuditQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  module?: TraceModule
+}
+
+export type TraceMutation =
+  | {
+      action: 'quarantine-resource' | 'restore-resource'
+      assetId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'retry-task'
+      jobId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+
+export interface TraceMutationResult {
+  action: TraceAction
+  mockOnly: true
+  message: string
+  catalog?: TraceCatalog
+  resource?: UploadResource
+  task?: TraceTask
+}
+
+export type TraceErrorCode =
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'INVALID_INPUT'
+  | 'INVALID_STATE'
+  | 'VERSION_CONFLICT'
+  | 'IDEMPOTENCY_CONFLICT'
+
+export class TraceError extends Error {
+  constructor(public code: TraceErrorCode, message: string) {
+    super(message)
+    this.name = 'TraceError'
+  }
+}
+
+######## training.ts ########
+/** HQ-20 训练反馈代写/撤回与课时逐次核销。字段对齐小程序 feedback/*、members/records、training Mock（trainingTotal/Used、specialTotal/Used）。 */
+export type FeedbackKind = 'training' | 'self-study' | 'camp'
+export type FeedbackStatus = 'PUBLISHED' | 'WITHDRAWN'
+export type LessonBucket = 'training' | 'special'
+
+export interface TrainingMemberBalance {
+  memberId: string
+  accountId: string
+  contextId: string
+  displayId: string
+  memberName: string
+  storeId: string | null
+  storeName: string | null
+  /** 陪练课时总量（整数课时，非金额） */
+  trainingTotal: number
+  trainingUsed: number
+  trainingRemaining: number
+  /** 专项/集训课时 */
+  specialTotal: number
+  specialUsed: number
+  specialRemaining: number
+  version: number
+  mockOnly: true
+}
+
+export interface TrainingFeedbackAttachment {
+  assetId: string
+  kind: 'image' | 'file' | 'video'
+  name: string
+  sizeLabel: string | null
+  previewUrl: string | null
+}
+
+export interface TrainingFeedback {
+  feedbackId: string
+  memberId: string
+  memberName: string
+  displayId: string
+  storeId: string | null
+  storeName: string | null
+  kind: FeedbackKind
+  title: string
+  body: string
+  coachName: string
+  status: FeedbackStatus
+  /** coach=门店侧；hq-proxy=总部代写 */
+  origin: 'coach' | 'hq-proxy'
+  attachments: TrainingFeedbackAttachment[]
+  createdAt: string
+  withdrawnAt: string | null
+  withdrawReason: string | null
+  version: number
+  mockOnly: true
+}
+
+export interface LessonConsumeRecord {
+  recordId: string
+  memberId: string
+  memberName: string
+  displayId: string
+  storeId: string | null
+  bucket: LessonBucket
+  quantity: number
+  beforeRemaining: number
+  afterRemaining: number
+  beforeUsed: number
+  afterUsed: number
+  reason: string
+  operatorId: string
+  operatorName: string
+  requestId: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface TrainingAudit {
+  operationId: string
+  requestId: string
+  action: TrainingMutation['action']
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface TrainingBalanceQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  storeId?: string
+}
+
+export interface TrainingBalanceList {
+  items: TrainingMemberBalance[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    members: number
+    trainingRemaining: number
+    specialRemaining: number
+    lowBalance: number
+  }
+}
+
+export interface TrainingFeedbackQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  kind?: FeedbackKind
+  status?: FeedbackStatus
+  memberId?: string
+  storeId?: string
+}
+
+export interface TrainingFeedbackList {
+  items: TrainingFeedback[]
+  total: number
+  page: number
+  pageSize: number
+  summary: { feedback: number; published: number; withdrawn: number; hqProxy: number }
+}
+
+export interface TrainingCatalog {
+  stores: { storeId: string; name: string }[]
+  kinds: { value: FeedbackKind; label: string }[]
+  buckets: { value: LessonBucket; label: string }[]
+  audit: TrainingAudit[]
+  mockOnly: true
+}
+
+export interface TrainingMemberDetail {
+  balance: TrainingMemberBalance
+  consumes: LessonConsumeRecord[]
+  feedback: TrainingFeedback[]
+  audit: TrainingAudit[]
+}
+
+export type TrainingMutation =
+  | {
+      action: 'proxy-feedback'
+      memberId: string
+      kind: FeedbackKind
+      title: string
+      body: string
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'withdraw-feedback'
+      feedbackId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'consume-lessons'
+      memberId: string
+      bucket: LessonBucket
+      quantity: number
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+
+export type TrainingMutationResult =
+  | { action: 'proxy-feedback'; feedback: TrainingFeedback; mockOnly: true }
+  | { action: 'withdraw-feedback'; feedback: TrainingFeedback; mockOnly: true }
+  | { action: 'consume-lessons'; balance: TrainingMemberBalance; record: LessonConsumeRecord; mockOnly: true }
+
+export class TrainingError extends Error {
+  constructor(
+    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'TrainingError'
+  }
+}
+
+######## transfers.ts ########
+/** HQ-21 转店双边审核监管。字段对齐小程序 store/transfer-apply、business approvals TRANSFER；迁移只反映服务端回执，不伪造已迁移。 */
+export type SideApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type TransferOverallStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+/** 归属迁移状态：双方同意后仍须服务端执行；前端不得把 APPROVED 当作已迁完。 */
+export type MigrationStatus = 'NOT_STARTED' | 'AWAITING_SERVER' | 'RECEIPTED_SUCCESS' | 'RECEIPTED_FAILED'
+export type TransferExceptionFlag = 'NONE' | 'FLAGGED'
+
+export interface TransferPendingPolicy {
+  /** 映射文档待定：未用课时迁移口径 */
+  unusedLessonsNote: string
+  /** 映射文档待定：后续订单归属口径 */
+  subsequentOrdersNote: string
+  /** 映射文档待定：历史反馈查阅口径 */
+  historicalFeedbackNote: string
+  /** 映射文档待定：未结算收益迁移口径 */
+  unsettledRevenueNote: string
+  pending: true
+}
+
+export interface TransferApplication {
+  applicationId: string
+  type: 'TRANSFER'
+  memberId: string
+  memberName: string
+  displayId: string
+  applicantName: string
+  reason: string
+  sourceStoreId: string
+  sourceStoreName: string
+  targetStoreId: string
+  targetStoreName: string
+  /** 转出门店侧审核 */
+  sourceApprovalStatus: SideApprovalStatus
+  /** 转入门店侧审核 */
+  targetApprovalStatus: SideApprovalStatus
+  /** 综合状态：任一方拒绝=REJECTED；双方同意=APPROVED；否则 PENDING */
+  status: TransferOverallStatus
+  migrationStatus: MigrationStatus
+  exceptionFlag: TransferExceptionFlag
+  hqNote: string | null
+  /** 申请时未用课时快照（整数课时，口径待定，仅展示） */
+  unusedTrainingLessons: number
+  unusedSpecialLessons: number
+  appliedAt: string
+  sourceReviewedAt: string | null
+  targetReviewedAt: string | null
+  reviewedAt: string | null
+  rejectionReason: string | null
+  migrationReceiptAt: string | null
+  migrationReceiptNote: string | null
+  version: number
+  mockOnly: true
+  allowedActions: ('force-reject' | 'flag-exception' | 'clear-exception' | 'add-note' | 'record-migration-receipt')[]
+}
+
+export interface TransferAudit {
+  operationId: string
+  requestId: string
+  action: TransferMutation['action']
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface TransferQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: TransferOverallStatus
+  migrationStatus?: MigrationStatus
+  exceptionFlag?: TransferExceptionFlag
+  sourceStoreId?: string
+  targetStoreId?: string
+}
+
+export interface TransferList {
+  items: TransferApplication[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    applications: number
+    pending: number
+    bilateralApproved: number
+    rejected: number
+    awaitingMigration: number
+    exceptions: number
+  }
+}
+
+export interface TransferCatalog {
+  stores: { storeId: string; name: string }[]
+  statuses: { value: TransferOverallStatus; label: string }[]
+  migrationStatuses: { value: MigrationStatus; label: string }[]
+  pendingPolicy: TransferPendingPolicy
+  audit: TransferAudit[]
+  mockOnly: true
+}
+
+export interface TransferDetail {
+  application: TransferApplication
+  audit: TransferAudit[]
+  pendingPolicy: TransferPendingPolicy
+  /** 明确提示：双方同意不等于已迁移 */
+  migrationHint: string
+}
+
+export type TransferMutation =
+  | {
+      action: 'force-reject'
+      applicationId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'flag-exception'
+      applicationId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'clear-exception'
+      applicationId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'add-note'
+      applicationId: string
+      version: number
+      note: string
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'record-migration-receipt'
+      applicationId: string
+      version: number
+      /** 仅登记服务端回执，不在前端执行归属迁移 */
+      receipt: 'SUCCESS' | 'FAILED'
+      receiptNote: string
+      reason: string
+      idempotencyKey: string
+    }
+
+export type TransferMutationResult =
+  | { action: 'force-reject'; application: TransferApplication; mockOnly: true }
+  | { action: 'flag-exception'; application: TransferApplication; mockOnly: true }
+  | { action: 'clear-exception'; application: TransferApplication; mockOnly: true }
+  | { action: 'add-note'; application: TransferApplication; mockOnly: true }
+  | { action: 'record-migration-receipt'; application: TransferApplication; mockOnly: true }
+
+export class TransferError extends Error {
+  constructor(
+    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'TransferError'
+  }
+}
+
+######## users.ts ########
+/** HQ-02 总部 DTO 草案。accountId 对应小程序 profile.id；不得混用 memberId。 */
+export interface BusinessIdentity {
+  contextId: string
+  module: 'partner' | 'agency' | 'costore'
+  label: string
+  assignmentId?: string
+  contractId?: string
+}
+
+export interface UserAccount {
+  accountId: string
+  displayId: string
+  nickname: string
+  avatarUrl: string | null
+  phone: string
+  regionCodes: string[]
+  regionNames: string[]
+  storeId: string | null
+  storeName: string | null
+  frozen: boolean
+  version: number
+  businessContexts: BusinessIdentity[]
+  createdAt: string
+  passwordResetAt: string | null
+}
+
+export interface StoreOption { storeId: string; name: string; number: string; active: boolean }
+export interface RegionOption { value: string; label: string; children?: RegionOption[] }
+export interface UserFilters {
+  keyword?: string
+  regionCodes?: string[]
+  storeId?: string
+  status?: 'active' | 'frozen'
+}
+export interface UserListQuery extends UserFilters { page: number; pageSize: number }
+export interface UserListResult { items: UserAccount[]; total: number; page: number; pageSize: number }
+export interface UserFilterOptions { stores: StoreOption[]; regions: RegionOption[] }
+
+interface MutationBase { accountId: string; version: number; reason: string; idempotencyKey: string }
+export type UserMutation =
+  | (MutationBase & { action: 'freeze'; frozen: boolean })
+  | (MutationBase & { action: 'change-store'; storeId: string })
+  | (MutationBase & { action: 'reset-password'; newPassword: string })
+
+export interface UserAuditEntry {
+  operationId: string
+  requestId: string
+  accountId: string
+  action: UserMutation['action']
+  operatorId: string
+  operatorName: string
+  reason: string
+  before: string
+  after: string
+  occurredAt: string
+}
+export interface UserDetail { account: UserAccount; audit: UserAuditEntry[] }
+export interface UserMutationResult { account: UserAccount; operation: UserAuditEntry; mockOnly: true }
+export type UserErrorCode = 'FORBIDDEN' | 'NOT_FOUND' | 'VERSION_CONFLICT' | 'INVALID_INPUT' | 'IDEMPOTENCY_CONFLICT'
+export class UserServiceError extends Error {
+  constructor(public code: UserErrorCode, message: string) { super(message); this.name = 'UserServiceError' }
+}
+
+######## withdrawals.ts ########
+/** HQ-23 提现审核、打款回执与凭证。字段对齐小程序 wallet/withdraw-* 与 BusinessWithdrawals；金额整数分；不伪造银行打款终态——仅登记回执。最低额/费率/自动打款待定。 */
+export type WithdrawAccountType = 'PERSONAL' | 'COMPANY'
+export type WithdrawStatus = 'PENDING_REVIEW' | 'PROCESSING' | 'SUCCEEDED' | 'REJECTED'
+export type WithdrawModule = 'wholesale' | 'costore' | 'agency'
+export type PayoutReceiptStatus = 'NONE' | 'SUCCESS' | 'FAILED'
+
+export interface WithdrawalApplication {
+  withdrawalId: string
+  title: string
+  module: WithdrawModule
+  identityLabel: string
+  accountId: string
+  accountName: string
+  phone: string
+  /** 申请金额（分） */
+  amount: number
+  /** 手续费快照（分）；费率政策待定，仅展示申请时快照 */
+  fee: number
+  /** 预计到账（分） */
+  netAmount: number
+  accountType: WithdrawAccountType
+  payeeName: string
+  bankName: string
+  maskedBankNumber: string
+  status: WithdrawStatus
+  payoutReceiptStatus: PayoutReceiptStatus
+  payoutFailureReason: string | null
+  voucherUrl: string | null
+  rejectionReason: string | null
+  /** 只读关联 HQ-22 已结算流水 id，不联动改余额 */
+  relatedIncomeEntryIds: string[]
+  createdAt: string
+  reviewedAt: string | null
+  receiptAt: string | null
+  version: number
+  mockOnly: true
+  allowedActions: ('approve' | 'reject' | 'register-receipt')[]
+}
+
+export interface WithdrawalAudit {
+  operationId: string
+  requestId: string
+  action: WithdrawalMutation['action']
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface WithdrawalQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: WithdrawStatus
+  module?: WithdrawModule
+  accountType?: WithdrawAccountType
+  accountId?: string
+}
+
+export interface WithdrawalList {
+  items: WithdrawalApplication[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    applications: number
+    pendingReview: number
+    processing: number
+    succeeded: number
+    rejected: number
+    receiptFailed: number
+    pendingAmount: number
+    succeededAmount: number
+  }
+}
+
+export interface WithdrawalCatalog {
+  modules: { value: WithdrawModule; label: string }[]
+  statuses: { value: WithdrawStatus; label: string }[]
+  pendingPolicy: {
+    note: string
+    minAmountPending: true
+    feePolicyPending: true
+    autoPayoutPending: true
+  }
+  payoutGapNote: string
+  audit: WithdrawalAudit[]
+  mockOnly: true
+}
+
+export interface WithdrawalDetail {
+  application: WithdrawalApplication
+  audit: WithdrawalAudit[]
+  payoutGapNote: string
+  balanceNote: string
+}
+
+export type WithdrawalMutation =
+  | {
+      action: 'approve'
+      withdrawalId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'reject'
+      withdrawalId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'register-receipt'
+      withdrawalId: string
+      version: number
+      receipt: 'SUCCESS' | 'FAILED'
+      voucherUrl?: string
+      reason: string
+      idempotencyKey: string
+    }
+
+export type WithdrawalMutationResult =
+  | { action: 'approve' | 'reject'; application: WithdrawalApplication; mockOnly: true }
+  | {
+      action: 'register-receipt'
+      application: WithdrawalApplication
+      mockOnly: true
+    }
+
+export class WithdrawalError extends Error {
+  constructor(
+    public code:
+      | 'FORBIDDEN'
+      | 'NOT_FOUND'
+      | 'INVALID_INPUT'
+      | 'INVALID_STATE'
+      | 'VERSION_CONFLICT'
+      | 'IDEMPOTENCY_CONFLICT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'WithdrawalError'
+  }
+}

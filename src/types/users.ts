@@ -1,0 +1,68 @@
+/** HQ-02 总部 DTO 草案。accountId 对应小程序 profile.id；不得混用 memberId。 */
+export interface BusinessIdentity {
+  contextId: string
+  module: 'partner' | 'agency' | 'costore'
+  label: string
+  assignmentId?: string
+  contractId?: string
+}
+
+/** 用户对外编号前缀：仅允许下拉四项。完整编号 = 前缀 + 恰好 4 位数字。 */
+export const userDisplayIdPrefixes = ['VIP', 'TS', 'SD', 'LC'] as const
+export type UserDisplayIdPrefix = typeof userDisplayIdPrefixes[number]
+export const USER_DISPLAY_ID_PATTERN = /^(VIP|TS|SD|LC)\d{4}$/
+
+export interface UserAccount {
+  accountId: string
+  displayId: string
+  nickname: string
+  avatarUrl: string | null
+  phone: string
+  regionCodes: string[]
+  regionNames: string[]
+  storeId: string | null
+  storeName: string | null
+  frozen: boolean
+  version: number
+  businessContexts: BusinessIdentity[]
+  createdAt: string
+  passwordResetAt: string | null
+}
+
+export interface StoreOption { storeId: string; name: string; number: string; active: boolean }
+export interface RegionOption { value: string; label: string; children?: RegionOption[] }
+export interface UserFilters {
+  keyword?: string
+  regionCodes?: string[]
+  storeId?: string
+  status?: 'active' | 'frozen'
+}
+export interface UserListQuery extends UserFilters { page: number; pageSize: number }
+export interface UserListResult { items: UserAccount[]; total: number; page: number; pageSize: number }
+export interface UserFilterOptions { stores: StoreOption[]; regions: RegionOption[] }
+
+interface MutationBase { accountId: string; version: number; reason: string; idempotencyKey: string }
+export type UserMutation =
+  | (MutationBase & { action: 'freeze'; frozen: boolean })
+  | (MutationBase & { action: 'change-store'; storeId: string })
+  | (MutationBase & { action: 'reset-password'; newPassword: string })
+  | (MutationBase & { action: 'change-display-id'; prefix: UserDisplayIdPrefix; serial: string })
+
+export interface UserAuditEntry {
+  operationId: string
+  requestId: string
+  accountId: string
+  action: UserMutation['action']
+  operatorId: string
+  operatorName: string
+  reason: string
+  before: string
+  after: string
+  occurredAt: string
+}
+export interface UserDetail { account: UserAccount; audit: UserAuditEntry[] }
+export interface UserMutationResult { account: UserAccount; operation: UserAuditEntry; mockOnly: boolean }
+export type UserErrorCode = 'FORBIDDEN' | 'NOT_FOUND' | 'VERSION_CONFLICT' | 'INVALID_INPUT' | 'IDEMPOTENCY_CONFLICT'
+export class UserServiceError extends Error {
+  constructor(public code: UserErrorCode, message: string) { super(message); this.name = 'UserServiceError' }
+}

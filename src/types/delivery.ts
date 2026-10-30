@@ -1,0 +1,18 @@
+import type { OrderTransactionSnapshot } from './orders'
+import type { FulfillmentType } from './products'
+export type DeliveryPolicyMode = 'BOUND_STORE' | 'HEADQUARTERS'
+export interface DeliveryPolicy { productId: string; deliveryMode: DeliveryPolicyMode; deliveryLocked: boolean; version: number }
+export interface DeliveryAddress { recipient: string; phone: string; regionNames: string[]; detail: string }
+export interface DeliveryLogistics { carrier: string; trackingNo: string }
+export interface DeliveryOrder { orderId: string; orderNo: string; accountId: string; productId: string; productTitle: string; fulfillmentType: FulfillmentType; paymentStatus: 'PAID' | 'PENDING_PAYMENT' | 'CANCELLED'; fulfillmentStatus: 'WAIT_DELIVERY' | 'DELIVERED' | 'WAIT_SHIP' | 'SHIPPED'; deliveryMode: 'HEADQUARTERS' | 'STORE'; deliveryStoreId: string | null; deliveryStoreName: string; deliveryLocked: boolean; version: number; createdAt: string; paidAt: string | null; deliveredAt: string | null; shippedAt: string | null; address: DeliveryAddress | null; logistics: DeliveryLogistics | null; mockOnly: boolean; transaction: OrderTransactionSnapshot | null }
+export type DeliveryAction = 'change-delivery' | 'ship' | 'update-logistics'
+export interface ManagedDeliveryOrder extends DeliveryOrder { allowedActions: DeliveryAction[] }
+export interface DeliveryAudit { operationId: string; requestId: string; action: DeliveryMutation['action'] | 'confirm-delivery'; targetId: string; operatorId: string; operatorName: string; reason: string; before: string; after: string; beforeVersion: number; afterVersion: number; occurredAt: string }
+export interface DeliveryCatalog { policies: DeliveryPolicy[]; products: { productId: string; title: string; fulfillmentType: FulfillmentType; status: string }[]; stores: { storeId: string; name: string; active: boolean }[]; accounts: { accountId: string; nickname: string; phone: string }[]; orders: ManagedDeliveryOrder[]; audit: DeliveryAudit[] }
+export type DeliveryMutation = { version: number; reason: string; idempotencyKey: string } & (
+ { action: 'save-policy'; productId: string; deliveryMode: DeliveryPolicyMode } |
+ { action: 'change-delivery'; orderId: string; selectedStoreId: string } |
+ { action: 'ship' | 'update-logistics'; orderId: string; logistics: DeliveryLogistics })
+export interface CheckoutDeliveryOptions { productId: string; accountId: string; productRevision: number; policyVersion: number; defaultStoreId: string | null; deliveryLocked: boolean; stores: { id: string; name: string }[] }
+export class DeliveryError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'DeliveryError' } }
+

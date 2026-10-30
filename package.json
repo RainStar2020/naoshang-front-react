@@ -1,0 +1,31 @@
+{
+  "name": "course-admin-demo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:api:live": "vitest run src/api/live.test.ts",
+    "audit:api:empty": "node scripts/audit-hq-readonly.mjs"
+  },
+  "dependencies": {
+    "antd": "^5.29.3",
+    "axios": "^1.21.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.30.6"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "jsdom": "^29.1.1",
+    "typescript": "5.7.3",
+    "vite": "6.4.5",
+    "vitest": "^4.1.12"
+  }
+}

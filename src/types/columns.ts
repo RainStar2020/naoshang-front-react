@@ -1,0 +1,21 @@
+import type { CmsAsset, CmsChapter, RichContent } from './cms'
+
+/** HQ-07 草案。专栏归属账号，不使用孩子memberId/contextId。 */
+export type ColumnChapter = Omit<CmsChapter, 'accessibility'> & { accessibility: 'column-required' }
+export interface ColumnDraft { columnId: string; productId: string; title: string; summary: string; coverUrl: string; content: RichContent; chapters: ColumnChapter[] }
+export interface ColumnPublication { revision: number; publishedAt: string; draftVersion: number; column: ColumnDraft }
+export interface ManagedColumn { draft: ColumnDraft; version: number; status: 'draft' | 'published' | 'offline'; publication: ColumnPublication | null }
+export interface ColumnProduct { productId: string; title: string; fulfillmentType: 'COLUMN_ACCESS'; mockOnly: boolean }
+export interface ColumnOrder { orderId: string; orderNo: string; accountId: string; columnId: string; productId: string; paymentStatus: 'PAID' | 'PENDING_PAYMENT'; fulfillmentStatus: 'PENDING_DELIVERY' | 'DELIVERED'; payableAmount: number; createdAt: string; mockOnly: boolean }
+export interface ColumnGrant { accountId: string; columnId: string; unlocked: true; sourceCodeId: string | null; activatedAt: string; expiresAt: null; version: number }
+export interface ColumnProgress { accountId: string; columnId: string; chapterId: string; positionSeconds: number; durationSeconds: number; percent: number; completed: boolean; lastStudiedAt: string; version: number }
+export interface ColumnAccountRecord { accountId: string; nickname: string; phone: string; purchaseCount: number; pendingPurchaseCount: number; grant: ColumnGrant | null; progress: ColumnProgress[] }
+export interface ColumnRecords { accounts: ColumnAccountRecord[]; orders: ColumnOrder[] }
+export interface ColumnAudit { operationId: string; requestId: string; action: 'save' | 'publish' | 'offline'; columnId: string; operatorId: string; operatorName: string; reason: string; beforeVersion: number; afterVersion: number; occurredAt: string }
+export interface ColumnCatalog { columns: ManagedColumn[]; products: ColumnProduct[]; audit: ColumnAudit[]; accounts: { accountId: string; nickname: string; phone: string }[] }
+export type ColumnMutation = { reason: string; idempotencyKey: string; columnId: string; version: number } & ({ action: 'save'; value: ColumnDraft } | { action: 'publish' | 'offline' })
+export type ColumnUploadResult = CmsAsset
+export interface ColumnProgressWrite { accountId: string; columnId: string; chapterId: string; positionSeconds: number; durationSeconds: number; completed: boolean; ended: boolean; version: number; idempotencyKey: string }
+export class ColumnError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'PURCHASE_REQUIRED' | 'ALREADY_UNLOCKED', message: string) { super(message); this.name = 'ColumnError' }
+}

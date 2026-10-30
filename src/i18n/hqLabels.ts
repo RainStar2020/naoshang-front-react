@@ -1,0 +1,567 @@
+/** HQ LiveModule 自动表渲染用字段/枚举中文词典。查不到则回退原文，便于后续补词。 */
+
+/** 字段 key → 中文表头 */
+export const fieldLabels: Record<string, string> = {
+  // —— 通用标识 / 时间 ——
+  id: 'ID',
+  accountId: '账号 ID',
+  displayId: '编号',
+  nickname: '昵称',
+  phone: '手机号',
+  email: '邮箱',
+  name: '名称',
+  title: '标题',
+  subtitle: '副标题',
+  status: '状态',
+  createdAt: '创建时间',
+  updatedAt: '更新时间',
+  occurredAt: '发生时间',
+  expireAt: '到期时间',
+  expiredAt: '过期时间',
+  startsAt: '开始时间',
+  endsAt: '结束时间',
+  publishedAt: '发布时间',
+  offlineAt: '下线时间',
+  paidAt: '付款时间',
+  shippedAt: '发货时间',
+  deliveredAt: '妥投时间',
+  closedAt: '关闭时间',
+  reviewedAt: '审核时间',
+  approvedAt: '通过时间',
+  rejectedAt: '驳回时间',
+  activatedAt: '激活时间',
+  usedAt: '使用时间',
+  settledAt: '结算时间',
+  version: '版本',
+  note: '备注',
+  remark: '备注',
+  reason: '原因',
+  description: '描述',
+  content: '内容',
+  summary: '汇总',
+  items: '记录',
+  audit: '操作记录',
+  profile: '档案',
+  account: '账号',
+  draft: '草稿',
+  publication: '发布信息',
+  total: '总数',
+  page: '页码',
+  pageSize: '每页数量',
+  keyword: '关键词',
+  enabled: '启用',
+  disabled: '停用',
+  frozen: '冻结',
+  sort: '排序',
+  sortOrder: '排序',
+  weight: '权重',
+
+  // —— 会员 / 账号 ——
+  memberId: '会员 ID',
+  members: '关联会员',
+  tier: '档位',
+  tierLabel: '会员档位',
+  gender: '性别',
+  birthday: '生日',
+  avatar: '头像',
+  childName: '孩子姓名',
+  parentId: '家长 ID',
+
+  // —— 门店 / 员工 ——
+  storeId: '门店 ID',
+  storeName: '门店',
+  stores: '门店',
+  staffId: '员工 ID',
+  role: '角色',
+  roles: '角色',
+  address: '地址',
+  city: '城市',
+  province: '省份',
+  region: '区域',
+
+  // —— 商品 / 订单 / 支付 ——
+  productId: '商品 ID',
+  products: '商品',
+  skuId: 'SKU ID',
+  skuName: 'SKU 名称',
+  skus: 'SKU',
+  category: '分类',
+  categoryId: '分类 ID',
+  categoryName: '分类名称',
+  orderId: '订单 ID',
+  orderNo: '订单号',
+  quantity: '数量',
+  paymentId: '支付 ID',
+  paymentStatus: '支付状态',
+  paymentChannel: '支付渠道',
+  tradeNo: '交易号',
+  channel: '渠道',
+  channelOrderNo: '渠道订单号',
+  amount: '金额（元）',
+  payableAmount: '应付金额（元）',
+  paidAmount: '实付金额（元）',
+  refundAmount: '退款金额（元）',
+  balance: '余额',
+  availableAmount: '可用金额（元）',
+  frozenAmount: '冻结金额（元）',
+  fee: '手续费（元）',
+  price: '价格（元）',
+  costAmount: '成本价（元）',
+  standardAmount: '售价/标准价（元）',
+  currency: '币种',
+  fulfillmentStatus: '履约状态',
+  fulfillmentType: '履约类型',
+  receiverName: '收件人',
+  receiverPhone: '收件手机',
+  shipmentId: '发货单 ID',
+  logisticsNo: '物流单号',
+  expressNo: '快递单号',
+  carrier: '承运商',
+
+  // —— 激活码 / 软件卡 ——
+  codeId: '激活码 ID',
+  code: '码面',
+  batchId: '批次 ID',
+  batchNo: '批次号',
+  serialNo: '序列号',
+  cardId: '软件卡 ID',
+  boundAccountId: '绑定账号',
+  boundMemberId: '绑定会员',
+
+  // —— 配额（VIP 名额，优先验收） ——
+  quotaId: '配额 ID',
+  contextId: '经营身份 ID',
+  ownerId: '归属 ID',
+  ownerAccountId: '归属账号',
+  ownerType: '归属类型',
+  ownerName: '归属名称',
+  ownerNickname: '归属昵称',
+  standard: '标准名额',
+  activity: '活动名额',
+  activityTotal: '活动名额合计',
+  remaining: '剩余名额',
+  available: '可用名额',
+  reserved: '已占用',
+  consumed: '已消耗',
+  used: '已用名额',
+  totalQuota: '名额合计',
+  level: '等级',
+  levelCode: '等级编码',
+  levelName: '等级名称',
+  type: '类型',
+  kind: '流水类型',
+  source: '来源',
+  annualStatus: '年度状态',
+
+  // —— 合伙人 / 邀请 / 共创店 ——
+  partnerId: '合伙人 ID',
+  agencyId: '代理 ID',
+  inviterId: '邀请人 ID',
+  inviteeId: '被邀请人 ID',
+  graphVersion: '关系图版本',
+  relationType: '关系类型',
+  depth: '层级',
+  path: '路径',
+  children: '下级',
+  parent: '上级',
+  applicationId: '申请 ID',
+  applicantId: '申请人 ID',
+  reviewerId: '审核人 ID',
+  taskStatus: '任务状态',
+  receiptStatus: '回执状态',
+  localStatus: '本地状态',
+
+  // —— 专栏 / 课程 / 资料 / 公告 ——
+  columns: '专栏',
+  entitlementId: '权益 ID',
+  materialId: '资料 ID',
+  announcementId: '公告 ID',
+  coverUrl: '封面',
+  imageUrl: '图片',
+  hours: '课时',
+  remainingHours: '剩余课时',
+  feedback: '反馈',
+  rating: '评分',
+  score: '分数',
+
+  // —— 优惠券 / 提现 / 转店 ——
+  templateId: '模板 ID',
+  couponId: '优惠券 ID',
+  fromStoreId: '转出门店',
+  toStoreId: '转入门店',
+  settlementStatus: '结算状态',
+
+  // —— 客服 / 审计 ——
+  ticketId: '工单 ID',
+  priority: '优先级',
+  assigneeId: '经办人 ID',
+  reply: '回复',
+  operationId: '操作回执',
+  traceId: '审计 ID',
+  module: '模块',
+  action: '操作',
+  requestId: '请求 ID',
+  operatorName: '操作人',
+  operatorId: '操作人 ID',
+  operatorAccountId: '操作人账号',
+  before: '变更前',
+  after: '变更后',
+  targetId: '目标 ID',
+  allowedActions: '允许的操作',
+  resourceType: '资源类型',
+  resourceId: '资源 ID',
+  resourceName: '资源名称',
+  method: '方法',
+  httpStatus: 'HTTP 状态',
+  latencyMs: '耗时（毫秒）',
+  success: '是否成功',
+  errorCode: '错误码',
+  errorMessage: '错误信息',
+  clientIp: '客户端 IP',
+  userAgent: 'User-Agent',
+  payload: '载荷',
+  diff: '差异',
+  permission: '权限',
+  permissions: '权限',
+  scope: '范围',
+  scopes: '范围',
+  hqPermissions: '总部权限',
+  tokenExpiresAt: '令牌过期时间',
+  message: '消息',
+  data: '数据',
+  currentVersion: '当前版本',
+  headers: '请求头',
+  query: '查询参数',
+  request: '请求',
+  response: '响应',
+  body: '请求体',
+  partnerLevel: '合伙人等级',
+  availableStandard: '可用标准名额',
+  availableActivity: '可用活动名额',
+  reservedStandard: '占用标准名额',
+  reservedActivity: '占用活动名额',
+}
+
+// 根据《API联调文档-完整版》HQ 返回示例补充；金额沿用总部接口的元单位。
+Object.assign(fieldLabels, {"accountIds": "关联账号", "accountName": "账号名称", "displayName": "显示名称", "admin": "管理员", "adminId": "管理员 ID", "activated": "已激活数量", "active": "生效数量", "actualAmount": "实际金额（元）", "agentRegionType": "代理区域类型", "agreement": "协议", "agreementVersion": "协议版本", "annualFeeAmount": "年度权益费（元）", "annualStatuses": "年度状态选项", "annualValidUntil": "年度权益有效期", "applicantName": "申请人姓名", "application": "申请详情", "applicationStatus": "申请状态", "applicationStatuses": "申请状态选项", "assetId": "资源 ID", "attempts": "支付尝试记录", "audience": "适用人群", "availableBalance": "可用余额（元）", "awaitingMigration": "待迁移数量", "balances": "课时余额", "bankAccountMask": "银行卡号（脱敏）", "batch": "批次详情", "benefits": "权益内容", "bizId": "业务 ID", "bizType": "业务类型", "bizTypes": "业务类型选项", "bound": "已绑定数量", "boundAt": "绑定时间", "bucket": "名额类别", "buckets": "名额类别选项", "business": "业务信息", "businesses": "业务选项", "buyer": "购买人", "buyerPhone": "购买人手机号", "byLevel": "按等级汇总", "byType": "按类型汇总", "card": "软件卡详情", "cards": "软件卡列表", "carriers": "承运商选项", "categories": "分类列表", "channelTradeNo": "渠道交易号", "channels": "渠道选项", "chapters": "章节", "codes": "激活码列表", "codeStatuses": "激活码状态选项", "column": "专栏详情", "columnId": "专栏 ID", "configId": "配置 ID", "contentType": "内容类型", "contractStatus": "合同状态", "contractStatuses": "合同状态选项", "count": "数量", "couponIds": "优惠券 ID 列表", "coupons": "优惠券列表", "deleted": "已删除", "delta": "变动数量", "differenceCount": "差异笔数", "differences": "差异明细", "directCount": "直属人数", "discountAmount": "优惠金额（元）", "duration": "有效时长", "durationId": "有效期方案 ID", "entitlement": "权益详情", "entitlements": "权益列表", "entitlementState": "权益状态", "entitlementStatus": "权益状态", "entitlementStatuses": "权益状态选项", "entitlementType": "权益类型", "entitlementTypes": "权益类型选项", "error": "错误信息", "events": "事件记录", "exception": "异常信息", "exceptionFlag": "异常标记", "exceptionFlags": "异常标记选项", "exceptionReason": "异常原因", "expired": "已过期数量", "expiresAt": "到期时间", "failedRefunds": "退款失败记录", "feedbackId": "反馈 ID", "feedbackKinds": "反馈类型选项", "feedbackStatuses": "反馈状态选项", "fileName": "文件名", "fileUrl": "文件地址", "followUpOrders": "后续订单", "formula": "计算公式", "frozenBalance": "冻结余额（元）", "frozenQuota": "冻结名额", "fulfillmentStatuses": "履约状态选项", "fulfillmentTypes": "履约类型选项", "genderLabel": "性别", "gmv": "成交金额（元）", "goodsAmount": "商品金额（元）", "gradeCode": "年级编码", "gradeLabel": "年级", "historicalFeedback": "历史反馈", "history": "历史记录", "hqNote": "总部备注", "initialBinding": "首次绑定", "inviteCode": "邀请码", "issuedCount": "已发放数量", "issuedQuantity": "发放数量", "job": "任务详情", "jobId": "任务 ID", "label": "显示名称", "lastLoginAt": "最近登录时间", "ledger": "流水详情", "ledgerId": "流水 ID", "ledgers": "流水列表", "lineAmount": "明细金额（元）", "listPrice": "标价（元）", "managerName": "负责人姓名", "managerPhone": "负责人手机号", "material": "资料详情", "maxUses": "最多使用次数", "memberCount": "会员人数", "memberLevel": "会员等级", "memberName": "会员姓名", "migrationStatus": "迁移状态", "migrationStatuses": "迁移状态选项", "mimeType": "文件类型", "minAmount": "最低消费金额（元）", "modules": "模块列表", "monthlyFee": "月费（元）", "months": "月数", "open": "待处理数量", "order": "订单详情", "orders": "订单列表", "overallStatuses": "综合状态选项", "ownerTypes": "归属类型选项", "paid": "已付款数量", "partner": "合伙人详情", "partnerLevels": "合伙人等级选项", "partnerStatus": "合伙人状态", "partnerStatuses": "合伙人状态选项", "payment": "支付详情", "paymentChannels": "支付渠道选项", "paymentStatuses": "支付状态选项", "pending": "待处理数量", "pendingAmount": "待处理金额（元）", "pendingPolicy": "待生效策略", "pendingReview": "待审核数量", "perAccountLimit": "每账号限领数量", "period": "统计周期", "plan": "方案详情", "planId": "方案 ID", "plans": "方案列表", "platform": "平台", "platforms": "平台选项", "priceBoundary": "价格边界", "product": "商品详情", "productIds": "商品 ID 列表", "productKey": "商品标识", "productName": "商品名称", "progress": "学习进度", "proxy": "代理信息", "purpose": "用途", "qty": "数量", "receiptId": "回执 ID", "receipts": "回执列表", "recentJobs": "最近任务", "referenceMonthlyFee": "参考月费（元）", "refund": "退款详情", "refundStatus": "退款状态", "refundStatuses": "退款状态选项", "regionCode": "区域编码", "rejectReason": "驳回原因", "relogin": "需要重新登录", "reservedOrderId": "占用订单 ID", "resolved": "已解决数量", "revenueAccountId": "收益账户 ID", "rowCount": "记录行数", "senderId": "发送人 ID", "senderRole": "发送人角色", "shipment": "发货详情", "sideApprovalStatuses": "门店审批状态选项", "size": "文件大小", "skuCount": "规格数量", "skuLabel": "规格名称", "snapshot": "快照", "sourceApprovalStatus": "转出门店审批状态", "sourceStoreId": "转出门店 ID", "sourceStoreName": "转出门店名称", "specialRemaining": "剩余专项课时", "specialTotal": "专项总课时", "specialUsed": "已用专项课时", "staff": "员工列表", "statementDate": "对账日期", "stats": "统计信息", "statuses": "状态选项", "stock": "库存", "store": "门店详情", "subject": "主题", "subtype": "子类型", "superior": "上级信息", "supply": "供货信息", "targetAccountId": "目标账号 ID", "targetApprovalStatus": "转入门店审批状态", "targetLevel": "目标等级", "targetStoreId": "转入门店 ID", "targetStoreName": "转入门店名称", "targetType": "目标类型", "task": "任务详情", "taskStatuses": "任务状态选项", "teamCount": "团队人数", "template": "模板详情", "templateCount": "模板数量", "templates": "模板列表", "templateVersion": "模板版本", "ticket": "工单详情", "tiers": "档位选项", "totalAmount": "总金额（元）", "totalEarned": "累计收益（元）", "totalQuantity": "总数量", "totalRows": "总行数", "trace": "溯源详情", "trackingNo": "物流单号", "training": "培训信息", "trainingRemaining": "剩余培训课时", "trainingTotal": "培训总课时", "trainingUsed": "已用培训课时", "transactions": "变动流水", "transfer": "转店详情", "unbound": "未绑定数量", "unlocks": "解锁内容", "unsettledRevenue": "未结算收益（元）", "unused": "未使用数量", "unusedSpecialLessons": "剩余专项课时", "unusedTrainingLessons": "剩余培训课时", "usedCount": "已使用数量", "usedOrderId": "使用订单 ID", "userCouponStatus": "用户优惠券状态", "username": "用户名", "uses": "已使用次数", "validFrom": "有效期起始时间", "validUntil": "有效期截止时间", "value": "选项值", "verification": "核验信息", "withdrawal": "提现详情", "withdrawalId": "提现 ID"})
+
+/**
+ * 按字段分组的枚举值 → 中文。
+ * 查找顺序见 `enumLabel`：field.value → 全局同名值。
+ * 也可用 dotted 形式 `status.ACTIVE` 作为注释约定（实现按嵌套查）。
+ */
+export const enumLabels: Record<string, Record<string, string>> = {
+  status: {
+    ACTIVE: '生效',
+    FROZEN: '已冻结',
+    EXPIRED: '已到期',
+    PENDING_ANNUAL: '年度未开通',
+    INACTIVE: '未生效',
+    DISABLED: '已停用',
+    ENABLED: '已启用',
+    DRAFT: '草稿',
+    draft: '草稿',
+    published: '已发布',
+    PUBLISHED: '已发布',
+    scheduled: '待定时发布',
+    SCHEDULED: '待定时发布',
+    offline: '已下线',
+    OFFLINE: '已下线',
+    PENDING: '待处理',
+    PENDING_PAYMENT: '待付款',
+    PENDING_REVIEW: '待审核',
+    APPROVED: '已通过',
+    REJECTED: '已拒绝',
+    CANCELLED: '已取消',
+    COMPLETED: '已完成',
+    PROCESSING: '处理中',
+    SUCCEEDED: '成功',
+    FAILED: '失败',
+    SUCCESS: '成功',
+    CLOSED: '已关闭',
+    OPEN: '开放',
+    WAITING: '等待中',
+  },
+  ownerType: {
+    partner: '合伙人',
+    store: '门店',
+    account: '账号',
+    agency: '代理',
+    costore: '合店老板',
+    parent: '家长',
+    coach: '健脑官',
+    hq: '总部',
+    member: '会员',
+    PARTNER: '合伙人',
+    STORE: '门店',
+    ACCOUNT: '账号',
+    AGENCY: '代理',
+  },
+  level: {
+    'DEMO-VIP': 'VIP',
+    'DEMO-ANGEL': '天使',
+    'DEMO-BOARD': '私董',
+    'DEMO-FOUNDER': '联创',
+    VIP: 'VIP',
+    ANGEL: '天使',
+    BOARD: '私董',
+    FOUNDER: '联创',
+  },
+  levelCode: {
+    'DEMO-VIP': 'VIP',
+    'DEMO-ANGEL': '天使',
+    'DEMO-BOARD': '私董',
+    'DEMO-FOUNDER': '联创',
+    VIP: 'VIP',
+    ANGEL: '天使',
+    BOARD: '私董',
+    FOUNDER: '联创',
+  },
+    type: {
+    STANDARD: '标准名额',
+    ACTIVITY: '活动名额',
+    PHYSICAL: '实物',
+    ACTIVATION_CODE: '软件卡',
+    OFFLINE_SERVICE: '线下服务',
+    COLUMN_ACCESS: '专栏',
+  },
+  kind: {
+    PURCHASE: '购买到账',
+    ACTIVITY_GRANT: '活动发放',
+    HQ_RECHARGE: '总部充值',
+    RESERVE: '付款前占用',
+    RELEASE: '未付取消释放',
+    CONSUME: '支付后消耗',
+    TRANSFER_OUT: '标准划出',
+    TRANSFER_IN: '标准划入',
+    ORIGINAL: '原流水',
+    RECALC: '重算申请',
+    REVERSAL: '冲正流水',
+  },
+  source: {
+    PURCHASE: '购买',
+    ACTIVITY_GRANT: '活动发放',
+    HQ_RECHARGE: '总部充值',
+    TRANSFER: '标准划入',
+  },
+  paymentStatus: {
+    PENDING_PAYMENT: '待付款',
+    PAID: '已付款',
+    CANCELLED: '已取消',
+    REFUNDED: '已退款',
+    NOT_STARTED: '未付款',
+    PENDING: '待付款',
+    SUCCESS: '成功',
+    WAITING: '待付',
+    CLOSED: '已关闭',
+  },
+  fulfillmentStatus: {
+    WAIT_DELIVERY: '待交付',
+    DELIVERED: '已交付',
+    WAIT_SHIP: '待发货',
+    SHIPPED: '已发货',
+    CANCELLED: '已取消',
+  },
+  fulfillmentType: {
+    PHYSICAL: '实物',
+    ACTIVATION_CODE: '软件卡',
+    OFFLINE_SERVICE: '线下服务',
+    COLUMN_ACCESS: '专栏',
+  },
+  annualStatus: {
+    ACTIVE: '已生效',
+    EXPIRED: '已到期',
+    NOT_OPEN: '未开通',
+  },
+  taskStatus: {
+    IN_PROGRESS: '进行中',
+    READY: '可申请',
+    PROCESSING: '处理中',
+    COMPLETED: '已完成',
+    EXPIRED: '已过期',
+    SUPERSEDED: '已由人工升级替代',
+  },
+  receiptStatus: {
+    PROCESSING: '处理中',
+    SUCCEEDED: '成功',
+    FAILED: '失败',
+  },
+  localStatus: {
+    SUCCESS: '本地成功',
+    WAITING: '本地待付',
+    CLOSED: '本地关闭',
+  },
+  role: {
+    parent: '家长（有孩子档案）',
+    coach: '健脑官',
+    partner: '合伙人',
+    agency: '代理',
+    costore: '合店老板',
+  },
+  orderStatus: {
+    PENDING_PAYMENT: '待付款',
+    PAID: '已付款待履约',
+    COMPLETED: '已完成',
+    CANCELLED: '已取消',
+    UNPAID: '待支付',
+  },
+  settlementStatus: {
+    PENDING: '待结算',
+    SETTLED: '已结算',
+    FAILED: '结算失败',
+  },
+  priority: {
+    LOW: '低',
+    NORMAL: '普通',
+    HIGH: '高',
+    URGENT: '紧急',
+  },
+}
+
+// 文档中的小写档位及独立业务状态，保持字段语义。
+Object.assign(enumLabels, {
+  tier: { none: '普通用户', vip: 'VIP', angel: '天使', private: '私董', cofounder: '联创' },
+  gender: { male: '男', female: '女', unknown: '未知' },
+  channel: { wechat: '微信支付', alipay: '支付宝', balance: '余额支付' },
+  refundStatus: { NONE: '未退款', PENDING: '待退款', PROCESSING: '退款中', SUCCEEDED: '退款成功', FAILED: '退款失败', REFUNDED: '已退款' },
+})
+Object.assign(enumLabels.status, { REVOKED: '已撤销', UNUSED: '未使用', USED: '已使用', VOID: '已作废', PAID: '已付款', REFUNDED: '已退款' })
+for (const field of ['partnerLevel', 'targetLevel']) enumLabels[field] = { ...enumLabels.level, ...enumLabels.tier }
+for (const field of ['partnerStatus', 'applicationStatus', 'entitlementStatus', 'entitlementState']) enumLabels[field] = enumLabels.status
+for (const field of ['sourceApprovalStatus', 'targetApprovalStatus']) enumLabels[field] = { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' }
+for (const field of ['roles', 'ownerTypes', 'partnerLevels', 'statuses', 'paymentStatuses', 'refundStatuses', 'fulfillmentStatuses', 'fulfillmentTypes', 'annualStatuses', 'applicationStatuses', 'entitlementStatuses', 'taskStatuses', 'channels', 'paymentChannel', 'paymentChannels', 'senderRole']) {
+  const singular: Record<string, string> = { roles: 'role', ownerTypes: 'ownerType', partnerLevels: 'partnerLevel', statuses: 'status', paymentStatuses: 'paymentStatus', refundStatuses: 'refundStatus', fulfillmentStatuses: 'fulfillmentStatus', fulfillmentTypes: 'fulfillmentType', annualStatuses: 'annualStatus', applicationStatuses: 'applicationStatus', entitlementStatuses: 'entitlementStatus', taskStatuses: 'taskStatus', channels: 'channel', paymentChannel: 'channel', paymentChannels: 'channel', senderRole: 'role' }
+  enumLabels[field] = enumLabels[singular[field]]
+}
+
+/**
+ * 无字段上下文（或字段未登记）时的全局枚举回退。
+ * 同值多义时以 `enumLabels[field]` 为准；此处仅兜底常见跨模块值。
+ */
+export const globalEnumLabels: Record<string, string> = {
+  ACTIVE: '生效',
+  FROZEN: '已冻结',
+  EXPIRED: '已到期',
+  PENDING_ANNUAL: '年度未开通',
+  INACTIVE: '未生效',
+  DISABLED: '已停用',
+  ENABLED: '已启用',
+  PENDING: '待处理',
+  PENDING_PAYMENT: '待付款',
+  PENDING_REVIEW: '待审核',
+  APPROVED: '已通过',
+  REJECTED: '已拒绝',
+  CANCELLED: '已取消',
+  COMPLETED: '已完成',
+  PROCESSING: '处理中',
+  SUCCEEDED: '成功',
+  FAILED: '失败',
+  SUCCESS: '成功',
+  partner: '合伙人',
+  store: '门店',
+  account: '账号',
+  agency: '代理',
+  costore: '合店老板',
+  STANDARD: '标准名额',
+  ACTIVITY: '活动名额',
+  draft: '草稿',
+  published: '已发布',
+  offline: '已下线',
+}
+
+/** 写操作 action → 中文（按钮旁展示） */
+export const actionLabels: Record<string, string> = {
+  create: '新建',
+  update: '更新',
+  freeze: '冻结',
+  unfreeze: '解冻',
+  'update-note': '修改备注',
+  publish: '发布',
+  unpublish: '撤回发布',
+  delete: '删除',
+  archive: '归档',
+  grant: '发放',
+  revoke: '撤回 / 作废',
+  extend: '延期',
+  'on-shelf': '上架',
+  'off-shelf': '下架',
+  'update-price': '改价',
+  activate: '启用',
+  deactivate: '停用',
+  approve: '通过',
+  reject: '驳回',
+  paid: '标记已打款',
+  reverse: '冲正',
+  adjust: '调整',
+  reset: '重置',
+  settle: '结算',
+  ship: '发货',
+  deliver: '妥投',
+  cancel: '取消',
+  'mark-paid': '标记已付款',
+  refund: '退款',
+  complete: '完成',
+  bind: '绑定',
+  unbind: '解绑',
+  rebuild: '重建',
+  correct: '纠错',
+  reply: '回复',
+  close: '关闭',
+  reopen: '重开',
+  assign: '分派',
+  escalate: '升级',
+  save: '保存',
+  'save-template': '保存券模板',
+  issue: '发放优惠券',
+  reserve: '下单占用',
+  use: '付款核销',
+  release: '取消／超时释放',
+  'confirm-delivery': '确认非实物交付',
+  'save-policy': '保存交付策略',
+  'change-delivery': '调整订单交付方',
+  'update-logistics': '修改物流资料',
+  'save-product': '保存商品草稿',
+  'save-category': '保存一级分类',
+  'rename-type': '修改类型标题',
+  'on-sale': '上架发布',
+  'off-sale': '下架商品',
+  'save-tier': '保存会员等级配置',
+  'save-course': '保存课程草稿',
+  offline: '下线',
+}
+
+/** 表头：字典优先，查不到回退 key（英文/camelCase），便于发现漏词。 */
+export function fieldLabel(key: string): string {
+  return fieldLabels[key] || key
+}
+
+/**
+ * 枚举值中文。
+ * 1) `enumLabels[field][value]`（如 status.ACTIVE、ownerType.partner）
+ * 2) `globalEnumLabels[value]`
+ * 3) undefined → 调用方回退原文
+ */
+export function enumLabel(field: string | undefined, value: string): string | undefined {
+  if (field) {
+    const scoped = enumLabels[field]?.[value]
+    if (scoped) return scoped
+  }
+  // 已知普通字段（昵称、标题、标识等）不参与全局枚举翻译。
+  return !field || enumLabels[field] ? globalEnumLabels[value] : undefined
+}
+
+/** 单元格展示：布尔中文化；有字段上下文时走枚举；否则原文。 */
+export function displayText(value: unknown, field?: string): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (typeof value === 'object') return Array.isArray(value) ? `${value.length} 条` : '查看结构'
+  if (typeof value === 'string' || typeof value === 'number') {
+    const mapped = enumLabel(field, String(value))
+    if (mapped) return mapped
+  }
+  return String(value)
+}
+
+export function actionLabel(action: string): string {
+  return actionLabels[action] || action
+}

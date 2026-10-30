@@ -1,0 +1,154 @@
+/** HQ-25 协议版本与客服预留。对照 settings/agreement、support/feedback、我的「联系客服」。完整客服系统为缺口；本模块仅协议发布与客服入口/反馈查阅。 */
+import type { RichContent } from './cms'
+
+export type AgreementType = 'user' | 'privacy'
+export type AgreementStatus = 'DRAFT' | 'PUBLISHED' | 'OFFLINE'
+export type FeedbackStatus = 'OPEN' | 'HANDLED'
+export type SupportAction =
+  | 'save-agreement'
+  | 'publish-agreement'
+  | 'offline-agreement'
+  | 'save-support-config'
+  | 'mark-feedback-handled'
+
+export interface LegalAgreement {
+  agreementId: string
+  type: AgreementType
+  title: string
+  /** 对外展示的协议文案版本，如 2026.10.28 */
+  docVersion: string
+  /** HQ 编辑用纯文本；发布后转为 RichContent 供小程序阅读 */
+  bodyText: string
+  content: RichContent
+  status: AgreementStatus
+  version: number
+  publishedAt: string | null
+  updatedAt: string
+  mockOnly: boolean
+  allowedActions: ('save-agreement' | 'publish-agreement' | 'offline-agreement')[]
+}
+
+export interface SupportConfig {
+  phone: string
+  description: string
+  /** 意见反馈最多图片数 0–9；对齐小程序 getSupportConfig.feedback.maxImages */
+  feedbackMaxImages: number
+  /** 恒 true：完整在线客服/工单流转未实现，仅入口预留 */
+  fullCustomerServicePending: true
+  version: number
+  updatedAt: string
+  mockOnly: boolean
+}
+
+export interface SupportFeedbackItem {
+  feedbackId: string
+  accountId: string
+  accountName: string
+  phone: string
+  content: string
+  imageCount: number
+  status: FeedbackStatus
+  createdAt: string
+  handledAt: string | null
+  handleNote: string | null
+  version: number
+  mockOnly: boolean
+  allowedActions: ('mark-feedback-handled')[]
+}
+
+export interface SupportAudit {
+  operationId: string
+  requestId: string
+  action: SupportAction
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface SupportCatalog {
+  agreements: LegalAgreement[]
+  supportConfig: SupportConfig
+  feedbackSummary: { total: number; open: number; handled: number }
+  fullCsGapNote: string
+  agreementNote: string
+  mockOnly: boolean
+}
+
+export interface SupportFeedbackList {
+  items: SupportFeedbackItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface SupportFeedbackQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: FeedbackStatus
+}
+
+export type SupportMutation =
+  | {
+      action: 'save-agreement'
+      agreementId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+      title: string
+      docVersion: string
+      bodyText: string
+    }
+  | {
+      action: 'publish-agreement' | 'offline-agreement'
+      agreementId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'save-support-config'
+      version: number
+      reason: string
+      idempotencyKey: string
+      phone: string
+      description: string
+      feedbackMaxImages: number
+    }
+  | {
+      action: 'mark-feedback-handled'
+      feedbackId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+      handleNote: string
+    }
+
+export interface SupportMutationResult {
+  action: SupportAction
+  mockOnly: boolean
+  message: string
+  catalog?: SupportCatalog
+  feedback?: SupportFeedbackItem
+}
+
+export type SupportErrorCode =
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'INVALID_INPUT'
+  | 'INVALID_STATE'
+  | 'VERSION_CONFLICT'
+  | 'IDEMPOTENCY_CONFLICT'
+
+export class SupportError extends Error {
+  constructor(public code: SupportErrorCode, message: string) {
+    super(message)
+    this.name = 'SupportError'
+  }
+}

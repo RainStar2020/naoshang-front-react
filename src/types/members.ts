@@ -1,0 +1,106 @@
+import type { StoreOption } from './users'
+
+/** HQ-03 契约草案：小程序 member.id → memberId；contextId 为孩子学习身份。 */
+export interface MembershipTier { membershipTierId: string; name: string; levels: { levelId: string; name: string }[] }
+export interface MemberEntitlement {
+  grantId: string
+  membershipTierId: string
+  status: 'active' | 'revoked'
+  source: 'activation-code' | 'hq-manual'
+  grantedAt: string
+  lastChangedAt: string
+  expiresAt: null
+  sourceCodeId?: string
+}
+export interface LearningAuthorization {
+  levelId: string
+  membershipTierId: string
+  name: string
+  unlocked: boolean
+  percent: number
+}
+export type MemberLifecycleStatus = 'ACTIVE' | 'INACTIVE'
+
+export interface MemberProfile {
+  memberId: string
+  accountId: string
+  contextId: string
+  displayId: string
+  name: string
+  gradeCode: string
+  gradeLabel: string
+  genderCode: 'MALE' | 'FEMALE' | 'UNDISCLOSED'
+  genderLabel: string
+  birthday: string | null
+  avatar: string | null
+  parentName: string
+  parentPhone: string
+  storeId: string | null
+  storeName: string | null
+  status: MemberLifecycleStatus
+  version: number
+  entitlements: MemberEntitlement[]
+}
+export interface MemberFilters { keyword?: string; accountId?: string; gradeCode?: string; storeId?: string }
+export interface MemberQuery extends MemberFilters { page: number; pageSize: number }
+export interface MemberListResult { items: MemberProfile[]; total: number; page: number; pageSize: number }
+export interface MemberOptions {
+  parents: { accountId: string; nickname: string; phone: string }[]
+  grades: { code: string; label: string }[]
+  stores: StoreOption[]
+  tiers: MembershipTier[]
+}
+export type MemberProfileAction = 'update-profile' | 'bind-store' | 'unbind-store' | 'set-status'
+
+/** HQ 会员档案写操作（与权益开通/撤销分离）。 */
+export type MemberProfileMutation = { reason: string; idempotencyKey: string; version: number; memberId: string } & (
+  | {
+      action: 'update-profile'
+      name?: string
+      birthday?: string | null
+      gradeCode?: string
+      gradeLabel?: string
+      genderCode?: MemberProfile['genderCode']
+      genderLabel?: string
+    }
+  | { action: 'bind-store'; storeId: string }
+  | { action: 'unbind-store'; storeId?: string | null }
+  | { action: 'set-status'; status: MemberLifecycleStatus }
+)
+
+export interface MemberProfileResult {
+  member: MemberProfile
+  mockOnly: boolean
+}
+
+export type EntitlementAction = 'grant' | 'revoke' | 'restore'
+export interface EntitlementMutation {
+  memberId: string
+  accountId: string
+  contextId: string
+  membershipTierId: string
+  action: EntitlementAction
+  version: number
+  reason: string
+  idempotencyKey: string
+}
+export interface EntitlementAudit {
+  operationId: string; requestId: string; memberId: string; accountId: string; contextId: string
+  membershipTierId: string; tierName: string; action: EntitlementAction
+  before: string; after: string; reason: string; operatorId: string; operatorName: string; occurredAt: string
+  origin?: 'hq' | 'activation-code'
+}
+/** 关联订单为只读交易快照，购买主体始终为 accountId，memberId 为服务学员。 */
+export interface MemberOrderSummary { orderId: string; orderNo: string; accountId: string; memberId: string; title: string; payableAmount: number; statusLabel: string; createdAt: string }
+export interface MemberFeedbackSummary { feedbackId: string; memberId: string; kind: 'training' | 'self-study' | 'camp'; title: string; summary: string; authorName: string; createdAt: string }
+export interface MemberDetail {
+  member: MemberProfile
+  levels: LearningAuthorization[]
+  orders: MemberOrderSummary[]
+  feedback: MemberFeedbackSummary[]
+  audit: EntitlementAudit[]
+}
+export interface EntitlementResult { member: MemberProfile; levels: LearningAuthorization[]; operation: EntitlementAudit; mockOnly: boolean }
+export class MemberServiceError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'IDENTITY_MISMATCH' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'MemberServiceError' }
+}

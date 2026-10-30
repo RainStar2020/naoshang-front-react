@@ -1,0 +1,16 @@
+export type PaymentChannel = 'WECHAT' | 'ALIPAY'
+export type PaymentPlatform = 'MINI_PROGRAM' | 'H5'
+export type PaymentBusiness = 'MALL' | 'MEMBERSHIP' | 'BUSINESS'
+export interface PaymentChannelConfig { configId: string; platform: PaymentPlatform; business: PaymentBusiness; channel: PaymentChannel; enabled: boolean; version: number }
+export interface ChannelVerification { status: 'SUCCESS' | 'PENDING' | 'CLOSED' | 'MISMATCH' | 'UNAVAILABLE'; amount: number | null; channelTradeNo: string | null; checkedAt: string; detail: string }
+export interface PaymentRecord { paymentId: string; orderId: string; orderNo: string; accountId: string; channel: PaymentChannel; platform: PaymentPlatform; business: PaymentBusiness; status: 'WAITING' | 'SUCCESS' | 'CLOSED'; amount: number; paidAt: string | null; channelTradeNo: string | null; statementDate: string; createdAt: string; verification: ChannelVerification | null }
+export interface PaymentAttempt { attemptId: string; paymentId: string; orderId: string; channel: PaymentChannel; platform: PaymentPlatform; status: 'WAITING' | 'SUCCESS' | 'CLOSED'; createdAt: string; requestId: string }
+export interface ReconciliationDifference { id: string; paymentId: string; reason: 'CHANNEL_ONLY' | 'LOCAL_ONLY' | 'AMOUNT_MISMATCH' | 'STATUS_MISMATCH' | 'TRADE_NO_MISMATCH'; localAmount: number | null; channelAmount: number | null; detail: string }
+export interface PaymentJob { jobId: string; reconciliationJobId: string | null; kind: 'query' | 'compensate' | 'reconcile'; paymentId: string | null; status: 'PROCESSING' | 'SUCCEEDED' | 'FAILED'; requestId: string; operatorName: string; reason: string; createdAt: string; completedAt: string | null; result: string; receiptId: string | null; fileName: string | null; channel: PaymentChannel | null; statementDate: string | null; differences: ReconciliationDifference[]; mockOnly: true }
+export interface PaymentAudit { operationId: string; requestId: string; action: 'save-channel' | 'query' | 'compensate' | 'reconcile' | 'download'; targetId: string; operatorName: string; reason: string; detail: string; occurredAt: string }
+export interface PaymentCatalog { configs: PaymentChannelConfig[]; payments: PaymentRecord[]; attempts: PaymentAttempt[]; jobs: PaymentJob[]; audit: PaymentAudit[] }
+export type PaymentMutation = { reason: string; idempotencyKey: string } & ({ action: 'save-channel'; configId: string; version: number; enabled: boolean } | { action: 'query' | 'compensate'; paymentId: string } | { action: 'reconcile'; channel: PaymentChannel; statementDate: string; fileName: string; csv: string })
+export interface PaymentMutationResult { jobId: string | null; configId: string | null }
+export interface PaymentDownload { csv: string; fileName: string; mockOnly: true }
+export class PaymentError extends Error { constructor(public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT', message: string) { super(message); this.name = 'PaymentError' } }
+

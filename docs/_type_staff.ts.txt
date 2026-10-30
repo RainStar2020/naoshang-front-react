@@ -1,0 +1,147 @@
+/** HQ-18 员工、门店角色与权限配置。字段对齐小程序门店 staff/owners 与映射 HQ-19 任职监管，不替代门店主档（门头照/费用）与训练反馈模块。 */
+export const storeRoles = ['STORE_OWNER', 'STORE_MANAGER', 'COACH'] as const
+export type StoreRole = typeof storeRoles[number]
+
+/** 门店侧能力字典：仅经营操作能力，禁止配置收益公式/提点/结算类权限。 */
+export const storeCapabilityCodes = [
+  'store:profile:read',
+  'store:profile:edit',
+  'members:read',
+  'members:manage',
+  'feedback:read',
+  'feedback:write',
+  'orders:verify',
+  'approvals:decide',
+  'coaches:manage',
+] as const
+export type StoreCapability = typeof storeCapabilityCodes[number]
+
+export const storeCapabilityLabels: Record<StoreCapability, string> = {
+  'store:profile:read': '查看门店资料',
+  'store:profile:edit': '编辑门店资料',
+  'members:read': '查看本店学员',
+  'members:manage': '管理本店学员档案',
+  'feedback:read': '查看训练反馈',
+  'feedback:write': '撰写训练反馈',
+  'orders:verify': '本店订单核销',
+  'approvals:decide': '门店侧申请审批',
+  'coaches:manage': '管理健脑官账号',
+}
+
+export const storeRoleLabels: Record<StoreRole, string> = {
+  STORE_OWNER: '合店老板',
+  STORE_MANAGER: '店长',
+  COACH: '健脑官',
+}
+
+export type StaffStatus = 'ACTIVE' | 'FROZEN' | 'LEFT'
+export type InvitationStatus = 'PENDING' | 'ACTIVE' | 'REVOKED'
+
+export interface StoreRoleDefinition {
+  roleCode: StoreRole
+  title: string
+  summary: string
+  capabilities: StoreCapability[]
+  /** 角色默认是否允许跨店任职；实际跨店还须任职记录 allowCrossStore=true */
+  allowCrossStore: boolean
+  version: number
+}
+
+export interface StaffAssignment {
+  assignmentId: string
+  storeId: string
+  storeName: string
+  storeNumber: string
+  /** 可选关联家长账号；健脑官通道不得从家长身份推导 */
+  linkedAccountId: string | null
+  displayName: string
+  /** 健脑官/员工登录账号；密码永不回显，仅 credentialSet */
+  loginAccount: string
+  roleCode: StoreRole
+  roleTitle: string
+  status: StaffStatus
+  invitationStatus: InvitationStatus
+  credentialSet: boolean
+  allowCrossStore: boolean
+  /** 生效能力 = 角色字典；总部不在此推导财务权限 */
+  effectiveCapabilities: StoreCapability[]
+  version: number
+  effectiveAt: string
+  leftAt: string | null
+  mockOnly: true
+}
+
+export interface StaffStoreOption {
+  storeId: string
+  name: string
+  number: string
+  active: boolean
+}
+
+export interface StaffQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  storeId?: string
+  roleCode?: StoreRole
+  status?: StaffStatus
+}
+
+export interface StaffList {
+  items: StaffAssignment[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    assignments: number
+    active: number
+    frozen: number
+    left: number
+    crossStoreAllowed: number
+  }
+}
+
+export interface StaffAudit {
+  operationId: string
+  requestId: string
+  action: StaffMutation['action']
+  targetId: string
+  operatorId: string
+  operatorName: string
+  reason: string
+  before: string
+  after: string
+  beforeVersion: number
+  afterVersion: number
+  occurredAt: string
+}
+
+export interface StaffCatalog {
+  roles: StoreRoleDefinition[]
+  capabilityDictionary: { code: StoreCapability; label: string }[]
+  stores: StaffStoreOption[]
+  audit: StaffAudit[]
+  mockOnly: true
+}
+
+export interface StaffDetail {
+  assignment: StaffAssignment
+  role: StoreRoleDefinition
+  audit: StaffAudit[]
+}
+
+export type StaffMutation = { reason: string; idempotencyKey: string; version: number } & (
+  | { action: 'save-role'; roleCode: StoreRole; title: string; summary: string; capabilities: StoreCapability[]; allowCrossStore: boolean }
+  | { action: 'create-assignment'; storeId: string; displayName: string; loginAccount: string; roleCode: StoreRole; linkedAccountId: string | null; allowCrossStore: boolean; markCredentialSet: boolean }
+  | { action: 'update-assignment'; assignmentId: string; displayName: string; loginAccount: string; roleCode: StoreRole; linkedAccountId: string | null; allowCrossStore: boolean }
+  | { action: 'set-status'; assignmentId: string; status: StaffStatus }
+  | { action: 'mark-credential-reset'; assignmentId: string }
+)
+
+export type StaffErrorCode = 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT'
+export class StaffError extends Error {
+  constructor(public code: StaffErrorCode, message: string) {
+    super(message)
+    this.name = 'StaffError'
+  }
+}

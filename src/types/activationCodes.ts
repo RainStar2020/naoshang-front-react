@@ -1,0 +1,40 @@
+import type { StoreOption } from './users'
+
+/** HQ-05 草案；与软件卡发码、总部人工学习授权分别建模。 */
+export type ActivationCodeType = 'membership-tier' | 'column'
+export type ActivationStatus = 'unused' | 'issued' | 'used' | 'revoked' | 'expired'
+export interface ActivationCode {
+  codeId: string; batchId: string; maskedCode: string; codeType: ActivationCodeType; targetId: string; targetName: string
+  status: ActivationStatus; expiresAt: string | null; version: number
+  issuedTo: string | null; issuedToAccountId: string | null; issuedToMemberId: string | null; storeId: string | null; issuedAt: string | null
+  usedByAccountId: string | null; usedByMemberId: string | null; usedAt: string | null; sourceOrderId: string | null
+  replacementCodeId: string | null; replacesCodeId: string | null; createdAt: string
+}
+export interface ActivationBatch { batchId: string; name: string; codeType: ActivationCodeType; targetId: string; targetName: string; quantity: number; expiresAt: string | null; createdAt: string; createdBy: string }
+export interface ActivationAudit { operationId: string; requestId: string; action: 'generate' | 'issue' | 'revoke' | 'reissue' | 'set-expiry' | 'export' | 'activate'; codeIds: string[]; batchId: string | null; reason: string; operatorId: string; operatorName: string; before: string; after: string; occurredAt: string }
+export interface ActivationFilters { keyword?: string; batchId?: string; codeType?: ActivationCodeType; targetId?: string; status?: ActivationStatus; storeId?: string }
+export interface ActivationQuery extends ActivationFilters { page: number; pageSize: number }
+export interface ActivationList { items: ActivationCode[]; total: number; page: number; pageSize: number }
+export interface ActivationOptions {
+  targets: { codeType: ActivationCodeType; targetId: string; name: string; demoOnly: boolean }[]
+  accounts: { accountId: string; name: string; phone: string }[]
+  members: { memberId: string; accountId: string; contextId: string; name: string; displayId: string }[]
+  stores: StoreOption[]
+  maxBatchSize: number; maxSelectionSize: number
+}
+export interface CodeSelection { codeId: string; version: number }
+interface OperationBase { reason: string; idempotencyKey: string }
+export type ActivationMutation = OperationBase & (
+  | { action: 'generate'; name: string; codeType: ActivationCodeType; targetId: string; quantity: number; expiresAt: string | null }
+  | { action: 'issue'; codes: CodeSelection[]; accountId: string | null; memberId: string | null; storeId: string | null }
+  | { action: 'revoke'; codes: CodeSelection[] }
+  | { action: 'set-expiry'; codes: CodeSelection[]; expiresAt: string | null }
+  | { action: 'reissue'; codes: CodeSelection[]; expiresAt: string | null }
+)
+export interface ActivationMutationResult { batchId: string | null; affectedCodeIds: string[]; operation: ActivationAudit; mockOnly: boolean }
+export interface ActivationDetail { code: ActivationCode; batch: ActivationBatch; audit: ActivationAudit[] }
+export interface ActivationExportRequest extends OperationBase { codes: CodeSelection[] }
+export interface ActivationExport { csv: string; fileName: string; count: number; requestId: string; mockOnly: boolean }
+export class ActivationError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'INVALID_INPUT' | 'NOT_FOUND' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'IDENTITY_MISMATCH' | 'EXPIRED' | 'CONSUMER_UNAVAILABLE', message: string) { super(message); this.name = 'ActivationError' }
+}

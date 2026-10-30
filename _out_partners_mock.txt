@@ -1,0 +1,98 @@
+﻿
+======== services/mock/partners.ts len=12981 ========
+import { mockInvitationSuperiorId } from './invitations'
+import type { HqAccount } from '../../types/auth'
+import { partnerLevels, PartnerError, type PartnerAudit, type PartnerCatalog, type PartnerLevel, type PartnerLevelBenefits, type PartnerMutation, type PartnerMutationResult, type PartnerProfile, type PartnerPromotionTask, type PartnerQuery, type PartnerReceipt } from '../../types/partners'
+import { mockListUsers, mockUserDetail } from './users'
+import { hasContent, normalizeContent } from '../../utils/richContent'
+const copy = <T,>(value: T): T => structuredClone(value)
+const fail = (code: PartnerError['code'], message: string): never => { throw new PartnerError(code, message) }
+const levels: PartnerLevelBenefits[] = partnerLevels.map((partnerLevel, index) => ({ partnerLevel, title: ['VIP鍚堜紮浜?, '澶╀娇鍚堜紮浜?, '绉佽懀鍚堜紮浜?, '鑱斿垱鍚堜紮浜?][index], wholesaleLabel: ['灏忔壒', '涓壒', '澶ф壒', '鎬绘壒'][index], quotaOccupancy: [1, 3, 6, 24][index], nextLevel: partnerLevels[index + 1] ?? null, taskTarget: [3, 9, 18, null][index], summary: '骞村害缁忚惀鏉冪泭璇存槑婕旂ず锛涘叿浣撹祫鏍笺€佹敹鐩婂強鎶ヤ环鐢辨湇鍔＄杩斿洖銆?, content: normalizeContent({ version: 1, format: 'nodes', nodes: [{ name: 'p', children: [{ type: 'text', text: '骞村害鍚堜紮鏉冪泭200鍏?骞达紝涓庢案涔呭涔犳潈鐩婂垎绂汇€傛璇存槑涓嶅喅瀹氭敹鐩婃垨鍏呭€艰祫鏍笺€? }] }] }), version: 1 }))
+interface StoredPartner { accountId: string; contextId: string; partnerLevel: PartnerLevel; annualValidUntil: string | null; frozen: boolean; version: number; task: PartnerPromotionTask | null; taskHistory: PartnerPromotionTask[] }
+function newTask(level: PartnerLevel, progress = 0, qualified = false): PartnerPromotionTask | null { const config = levels.find(row => row.partnerLevel === level)!; if (!config.nextLevel) return null; return { taskId: `demo-task-${crypto.randomUUID()}`, version: 1, beforeLevel: level, targetLevel: config.nextLevel, progress, target: config.taskTarget!, canClaim: qualified, startedAt: '2026-10-01T00:00:00+08:00', validUntil: '2027-09-30T23:59:59+08:00', status: qualified ? 'READY' : 'IN_PROGRESS', qualificationNote: qualified ? 'Mock鏈嶅姟绔‘璁ゅ彲鐢宠锛岄渶璐﹀彿涓诲姩鎻愪氦' : '杩涘害涓烘湇鍔＄婕旂ず鍊硷紝涓嶆嵁鍥㈤槦鍒楄〃绱' } }
+const partners: StoredPartner[] = mockListUsers({ page: 1, pageSize: 50 }).items.filter(row => row.businessContexts.some(context => context.module === 'partner')).map((account, index, all) => {
+  const level = partnerLevels[index % 4], task = newTask(level, index === 1 ? 9 : index === 6 ? 18 : 1, index === 1)
+  if (task && index === 6) task.qualificationNote = '婕旂ず锛氭暟瀛楄揪鍒扮洰鏍囷紝鏈嶅姟绔粛鍦ㄨ祫鏍煎鏍革紝涓嶅彲鐢宠'
+  if (task && index === 8) task.validUntil = '2025-09-30T23:59:59+08:00'
+  return { accountId: account.accountId, contextId: account.businessContexts.find(context => context.module === 'partner')!.contextId, partnerLevel: level, annualValidUntil: index === 2 ? '2025-10-01T00:00:00+08:00' : index === 3 ? null : '2027-10-01T00:00:00+08:00', frozen: false, version: 1, task, taskHistory: [] }
+})
+const receipts: PartnerReceipt[] = [], audit: PartnerAudit[] = []
+const operations = new Map<string, { payload: string; result: PartnerMutationResult }>(), claims = new Map<string, { payload: string; receiptId: string }>(), readyTimes = new Map<string, number>()
+const find = (contextId: string) => partners.find(row => row.contextId === contextId) ?? fail('NOT_FOUND', '鍚堜紮涓氬姟韬唤涓嶅瓨鍦?)
+const title = (level: PartnerLevel) => levels.find(row => row.partnerLevel === level)!.title
+function profile(row: StoredPartner): PartnerProfile {
+  const account = mockUserDetail(row.accountId).account, annualStatus = row.annualValidUntil === null ? 'NOT_OPEN' : Date.parse(row.annualValidUntil) <= Date.now() ? 'EXPIRED' : 'ACTIVE'
+  const frozen = row.frozen || account.frozen || annualStatus === 'EXPIRED', processing = receipts.some(receipt => receipt.contextId === row.contextId && receipt.status === 'PROCESSING')
+  const partnerStatus = frozen ? annualStatus === 'EXPIRED' ? 'EXPIRED' : 'FROZEN' : annualStatus === 'NOT_OPEN' ? 'PENDING_ANNUAL' : 'ACTIVE'
+  const allowedTargetLevels = !frozen && annualStatus === 'ACTIVE' && !processing ? partnerLevels.slice(partnerLevels.indexOf(row.partnerLevel) + 1) : []
+  const task = row.task ? copy(row.task) : null
+  if (task && Date.parse(task.validUntil) <= Date.now()) { task.status = 'EXPIRED'; task.canClaim = false }
+  if (task && (frozen || annualStatus !== 'ACTIVE' || processing)) { task.canClaim = false; if (processing) task.status = 'PROCESSING' }
+  const superiorId = mockInvitationSuperiorId(row.accountId)
+  const superior = superiorId ? { accountId: superiorId, contextId: partners.find(item => item.accountId === superiorId)?.contextId ?? null, name: mockUserDetail(superiorId).account.nickname } : null
+  return { contextId: row.contextId, accountId: row.accountId, displayId: account.displayId, name: account.nickname, phone: account.phone, partnerLevel: row.partnerLevel, partnerStatus, frozen, annualStatus, annualValidUntil: row.annualValidUntil, annualFeeAmount: 20000, superior, version: row.version, allowedTargetLevels: [...allowedTargetLevels], allowedActions: [...(allowedTargetLevels.length ? ['manual-upgrade' as const] : []), ...(task?.canClaim ? ['claim-promotion' as const] : [])], task }
+}
+function addAudit(value: Omit<PartnerAudit, 'operationId' | 'occurredAt'>) { const entry = { ...value, operationId: crypto.randomUUID(), occurredAt: new Date().toISOString() }; audit.push(entry); return entry.operationId }
+function applyLevel(row: StoredPartner, targetLevel: PartnerLevel, source: 'HQ_MANUAL' | 'USER_TASK') {
+  if (row.task) { const task = copy(row.task); task.status = source === 'USER_TASK' ? 'COMPLETED' : 'SUPERSEDED'; task.canClaim = false; task.version++; row.taskHistory.push(task) }
+  row.partnerLevel = targetLevel; row.task = newTask(targetLevel); if (row.task) { row.task.startedAt = new Date().toISOString(); row.task.validUntil = new Date(Date.now() + 365 * 86400000).toISOString() }; row.version++
+}
+function completeClaims() {
+  for (const receipt of receipts) {
+    if (receipt.source !== 'USER_TASK' || receipt.status !== 'PROCESSING' || (readyTimes.get(receipt.receiptId) ?? Infinity) > Date.now()) continue
+    const row = find(receipt.contextId), current = profile(row)
+    try {
+      if (current.frozen || current.annualStatus !== 'ACTIVE' || row.partnerLevel !== receipt.beforeLevel || row.task?.taskId !== receipt.taskId || !row.task.canClaim || Date.parse(row.task.validUntil) <= Date.now()) fail('INVALID_STATE', '韬唤銆佸勾搴︽潈鐩婃垨浠诲姟璧勬牸宸插彉鍖栵紝鏅嬪崌鏈墽琛?)
+      applyLevel(row, receipt.targetLevel, 'USER_TASK'); receipt.status = 'SUCCEEDED'; receipt.result = 'Mock鏈嶅姟绔换鍔℃檵鍗囨垚鍔燂紱涓嶆柊澧炴敹鐩娿€佷笉缁勾搴︺€佷笉鎵ｄ粙缁嶄汉鍚嶉'
+    } catch (err) { receipt.status = 'FAILED'; receipt.result = err instanceof Error ? err.message : '鏅嬪崌澶辫触'; row.version++ }
+    receipt.completedAt = new Date().toISOString(); addAudit({ requestId: receipt.requestId, action: 'task-promotion', contextId: row.contextId, targetId: receipt.receiptId, operatorName: receipt.operatorName, reason: receipt.reason, before: title(receipt.beforeLevel), after: `${receipt.status}锛?{title(row.partnerLevel)}锛?{receipt.result}` })
+  }
+}
+export function mockPartnerCatalog(): PartnerCatalog { completeClaims(); return copy({ levels, receipts: [...receipts].reverse(), audit: [...audit].reverse() }) }
+export function mockPartnerList(query: PartnerQuery) {
+  completeClaims()
+  if (!Number.isInteger(query.page) || query.page < 1 || ![5, 10, 20].includes(query.pageSize) || query.partnerLevel && !partnerLevels.includes(query.partnerLevel) || query.partnerStatus && !['ACTIVE', 'FROZEN', 'EXPIRED', 'PENDING_ANNUAL'].includes(query.partnerStatus)) fail('INVALID_INPUT', '鍒嗛〉鎴栧悎浼欑姸鎬佸弬鏁版棤鏁?)
+  const keyword = query.keyword?.trim().toLowerCase() ?? ''
+  const rows = partners.map(profile).filter(row => (!keyword || `${row.name} ${row.phone} ${row.accountId} ${row.displayId}`.toLowerCase().includes(keyword)) && (!query.partnerLevel || row.partnerLevel === query.partnerLevel) && (!query.partnerStatus || row.partnerStatus === query.partnerStatus))
+  return copy({ items: rows.slice((query.page - 1) * query.pageSize, query.page * query.pageSize), total: rows.length, page: query.page, pageSize: query.pageSize, summary: { total: rows.length, active: rows.filter(row => row.partnerStatus === 'ACTIVE').length, frozen: rows.filter(row => row.frozen).length, annualExpired: rows.filter(row => row.annualStatus === 'EXPIRED').length } })
+}
+export function mockPartnerDetail(contextId: string) { completeClaims(); const row = find(contextId); return copy({ profile: profile(row), taskHistory: row.taskHistory, receipts: receipts.filter(receipt => receipt.contextId === contextId).reverse(), audit: audit.filter(entry => entry.contextId === contextId).reverse() }) }
+export function mockPartnerMutate(input: PartnerMutation, operator: HqAccount): PartnerMutationResult {
+  completeClaims()
+  if (!['upgrade', 'save-benefits'].includes(input.action) || !input.idempotencyKey || !input.reason.trim() || input.reason.trim().length > 200) fail('INVALID_INPUT', '鎿嶄綔銆佸師鍥犳垨璇锋眰鍙锋棤鏁?)
+  const key = `${operator.accountId}:${input.idempotencyKey}`, payload = JSON.stringify(input), previous = operations.get(key)
+  if (previous) { if (previous.payload !== payload) fail('IDEMPOTENCY_CONFLICT', '璇锋眰鍙峰弬鏁板凡鏀瑰彉'); return copy(previous.result) }
+  let result: PartnerMutationResult
+  if (input.action === 'save-benefits') {
+    const row = levels.find(row => row.partnerLevel === input.partnerLevel) ?? fail('NOT_FOUND', '鍚堜紮绛夌骇涓嶅瓨鍦?)
+    if (row.version !== input.version) fail('VERSION_CONFLICT', '绛夌骇璇存槑宸叉洿鏂帮紝璇峰埛鏂?)
+    const content = normalizeContent(input.content)
+    if (!input.summary.trim() || input.summary.length > 500 || !hasContent(content)) fail('INVALID_INPUT', '璇峰～鍐?鑷?00瀛楁憳瑕佸強绛夌骇鏉冪泭姝ｆ枃')
+    const before = `V${row.version}锛?{row.summary}`; row.summary = input.summary.trim(); row.content = content; row.version++
+    result = { receiptId: null, operationId: addAudit({ requestId: input.idempotencyKey, action: input.action, contextId: null, targetId: row.partnerLevel, operatorName: operator.nickname, reason: input.reason.trim(), before, after: `V${row.version}锛?{row.summary}` }) }
+  } else {
+    const row = find(input.contextId), current = profile(row)
+    if (row.version !== input.version) fail('VERSION_CONFLICT', '鍚堜紮妗ｆ宸叉洿鏂帮紝璇峰埛鏂?)
+    if (!current.allowedActions.includes('manual-upgrade') || !current.allowedTargetLevels.includes(input.targetLevel)) fail('INVALID_STATE', '鏈嶅姟绔笉鍏佽姝や汉宸ュ崌绾х洰鏍囨垨褰撳墠鐘舵€佷笉鍙搷浣?)
+    const beforeLevel = row.partnerLevel, receiptId = crypto.randomUUID(); applyLevel(row, input.targetLevel, 'HQ_MANUAL')
+    receipts.push({ receiptId, requestId: input.idempotencyKey, contextId: row.contextId, accountId: row.accountId, source: 'HQ_MANUAL', taskId: null, beforeLevel, targetLevel: input.targetLevel, status: 'SUCCEEDED', result: 'Mock鎬婚儴浜哄伐鍗囩骇鎴愬姛锛涘勾搴︽湡闄愩€佸巻鍙叉敹鐩婂強瀛╁瓙鏉冪泭涓嶅彉锛屼笉鍦ㄦ鎵ｅ悕棰?, reason: input.reason.trim(), operatorName: operator.nickname, createdAt: new Date().toISOString(), completedAt: new Date().toISOString(), mockOnly: true })
+    result = { receiptId, operationId: addAudit({ requestId: input.idempotencyKey, action: input.action, contextId: row.contextId, targetId: receiptId, operatorName: operator.nickname, reason: input.reason.trim(), before: `${title(beforeLevel)} V${input.version}`, after: `${title(row.partnerLevel)} V${row.version}` }) }
+  }
+  operations.set(key, { payload, result: copy(result) }); return result
+}
+/** 灏忕▼搴忚处鍙蜂富鍔ㄦ彁浜や换鍔℃檵鍗囩殑Mock濂戠害锛涙€婚儴鏈嶅姟涓嶆毚闇蹭唬棰嗘帴鍙ｃ€?*/
+export function mockClaimPartnerPromotion(input: { accountId: string; contextId: string; taskId: string; version: number; idempotencyKey: string }) {
+  completeClaims(); const row = find(input.contextId)
+  if (row.accountId !== input.accountId) fail('FORBIDDEN', '鍚堜紮韬唤涓嶅睘浜庡綋鍓嶈处鍙?)
+  if (!input.idempotencyKey) fail('INVALID_INPUT', '缂哄皯鏅嬪崌璇锋眰鍙?)
+  const key = `${input.accountId}:${input.idempotencyKey}`, payload = JSON.stringify(input), old = claims.get(key)
+  if (old) { if (old.payload !== payload) fail('IDEMPOTENCY_CONFLICT', '璇锋眰鍙蜂笉鑳芥洿鎹㈡檵鍗囪韩浠芥垨浠诲姟'); return copy(receipts.find(receipt => receipt.receiptId === old.receiptId)!) }
+  const current = profile(row)
+  if (row.version !== input.version) fail('VERSION_CONFLICT', '鍚堜紮妗ｆ宸叉洿鏂帮紝璇峰埛鏂?)
+  if (!current.allowedActions.includes('claim-promotion') || !row.task || row.task.taskId !== input.taskId || !current.task?.canClaim) fail('INVALID_STATE', '浠诲姟鏈揪璧勬牸銆佸凡杩囨湡銆佽韩浠藉喕缁撴垨姝ｅ湪澶勭悊涓?)
+  const receipt: PartnerReceipt = { receiptId: crypto.randomUUID(), requestId: input.idempotencyKey, contextId: row.contextId, accountId: row.accountId, source: 'USER_TASK', taskId: row.task!.taskId, beforeLevel: row.partnerLevel, targetLevel: row.task!.targetLevel, status: 'PROCESSING', result: 'Mock浠诲姟鏅嬪崌澶勭悊涓紝鏈珛鍗虫洿鏀圭瓑绾?, reason: 'Mock璐﹀彿涓诲姩鐐瑰嚮鐢宠浠诲姟鏅嬪崌', operatorName: mockUserDetail(row.accountId).account.nickname, createdAt: new Date().toISOString(), completedAt: null, mockOnly: true }
+  row.version++; receipts.push(receipt); readyTimes.set(receipt.receiptId, Date.now() + 1000); claims.set(key, { payload, receiptId: receipt.receiptId }); return copy(receipt)
+}
+
+
+

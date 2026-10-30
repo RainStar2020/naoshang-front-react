@@ -1,0 +1,33 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>脑商总部管理后台</title>
+    <link rel="icon" href="./favicon.svg" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      /* randomUUID polyfill for LAN http (non-secure context) */
+      (function () {
+        var c = globalThis.crypto;
+        if (!c || typeof c.randomUUID === 'function') return;
+        Object.defineProperty(c, 'randomUUID', {
+          configurable: true,
+          value: function () {
+            var bytes = new Uint8Array(16);
+            c.getRandomValues(bytes);
+            bytes[6] = (bytes[6] & 0x0f) | 0x40;
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+            var hex = Array.prototype.map.call(bytes, function (b) {
+              return b.toString(16).padStart(2, '0');
+            }).join('');
+            return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+          }
+        });
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

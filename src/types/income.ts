@@ -1,0 +1,153 @@
+/** HQ-22 收益联查、提点分配、结算重算与冲正。字段对齐小程序 incomeEntry / allocation / income-detail；金额为整数分；公式与比例仅展示服务端回传，前端不算佣。 */
+export type IncomeModule = 'wholesale' | 'costore' | 'agency'
+export type IncomeChannel = 'B' | 'C' | 'SUPPLY' | 'GLOBAL_AWARD' | 'FOUNDER_AWARD'
+export type AllocationStatus = 'PENDING' | 'ALLOCATED'
+export type AllocationKind = 'sales' | 'inspection'
+export type SettlementStatus =
+  | 'PENDING_ALLOCATION'
+  | 'PENDING_SETTLEMENT'
+  | 'SETTLED'
+  | 'RECALC_PENDING'
+  | 'REVERSED'
+export type IncomeEntryKind = 'ORIGINAL' | 'RECALC' | 'REVERSAL'
+
+export interface IncomeEntry {
+  entryId: string
+  kind: IncomeEntryKind
+  /** 冲正/重算关联的原流水；原单为 null */
+  relatedEntryId: string | null
+  sourceOrder: string
+  title: string
+  category: string
+  channel: IncomeChannel
+  module: IncomeModule
+  identityLabel: string
+  accountId: string
+  accountName: string
+  phone: string
+  storeId: string | null
+  storeName: string | null
+  regionLabel: string | null
+  /** 金额（分，可为负：冲正流水） */
+  amount: number
+  baseAmount: number
+  /** 业务提点基点，仅展示，前端不得据此重算 */
+  rateBps: number
+  allocationStatus: AllocationStatus
+  allocationKind: AllocationKind
+  allocationTarget: string | null
+  allocationAgentId: string | null
+  beneficiaryName: string
+  settlementStatus: SettlementStatus
+  pendingNote: string | null
+  createdAt: string
+  settledAt: string | null
+  version: number
+  mockOnly: boolean
+  allowedActions: ('reassign-allocation' | 'request-recalc' | 'request-reverse')[]
+}
+
+export interface IncomeAudit {
+  operationId: string
+  requestId: string
+  action: IncomeMutation['action']
+  targetId: string
+  relatedEntryId: string | null
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface IncomeQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  module?: IncomeModule
+  channel?: IncomeChannel
+  allocationStatus?: AllocationStatus
+  settlementStatus?: SettlementStatus
+  storeId?: string
+  accountId?: string
+}
+
+export interface IncomeList {
+  items: IncomeEntry[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    entries: number
+    pendingAllocation: number
+    pendingSettlement: number
+    settled: number
+    recalcPending: number
+    reversed: number
+    /** 分 */
+    settledAmount: number
+    pendingAmount: number
+  }
+}
+
+export interface IncomeCatalog {
+  stores: { storeId: string; name: string }[]
+  modules: { value: IncomeModule; label: string }[]
+  channels: { value: IncomeChannel; label: string }[]
+  allocationTargets: { value: string; label: string; kind: AllocationKind | 'both' }[]
+  settlementStatuses: { value: SettlementStatus; label: string }[]
+  engineGapNote: string
+  audit: IncomeAudit[]
+  mockOnly: boolean
+}
+
+export interface IncomeDetail {
+  entry: IncomeEntry
+  /** 关联流水（冲正/重算子单或指向的原单） */
+  related: IncomeEntry[]
+  audit: IncomeAudit[]
+  engineGapNote: string
+}
+
+export type IncomeMutation =
+  | {
+      action: 'reassign-allocation'
+      entryId: string
+      version: number
+      targetId: string
+      agentId?: string
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'request-recalc'
+      entryId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'request-reverse'
+      entryId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+
+export type IncomeMutationResult =
+  | { action: 'reassign-allocation'; entry: IncomeEntry; mockOnly: boolean }
+  | { action: 'request-recalc'; entry: IncomeEntry; linked: IncomeEntry; mockOnly: boolean }
+  | { action: 'request-reverse'; entry: IncomeEntry; linked: IncomeEntry; mockOnly: boolean }
+
+export class IncomeError extends Error {
+  constructor(
+    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'IncomeError'
+  }
+}

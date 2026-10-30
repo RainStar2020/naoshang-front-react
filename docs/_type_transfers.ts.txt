@@ -1,0 +1,170 @@
+/** HQ-21 转店双边审核监管。字段对齐小程序 store/transfer-apply、business approvals TRANSFER；迁移只反映服务端回执，不伪造已迁移。 */
+export type SideApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+export type TransferOverallStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+/** 归属迁移状态：双方同意后仍须服务端执行；前端不得把 APPROVED 当作已迁完。 */
+export type MigrationStatus = 'NOT_STARTED' | 'AWAITING_SERVER' | 'RECEIPTED_SUCCESS' | 'RECEIPTED_FAILED'
+export type TransferExceptionFlag = 'NONE' | 'FLAGGED'
+
+export interface TransferPendingPolicy {
+  /** 映射文档待定：未用课时迁移口径 */
+  unusedLessonsNote: string
+  /** 映射文档待定：后续订单归属口径 */
+  subsequentOrdersNote: string
+  /** 映射文档待定：历史反馈查阅口径 */
+  historicalFeedbackNote: string
+  /** 映射文档待定：未结算收益迁移口径 */
+  unsettledRevenueNote: string
+  pending: true
+}
+
+export interface TransferApplication {
+  applicationId: string
+  type: 'TRANSFER'
+  memberId: string
+  memberName: string
+  displayId: string
+  applicantName: string
+  reason: string
+  sourceStoreId: string
+  sourceStoreName: string
+  targetStoreId: string
+  targetStoreName: string
+  /** 转出门店侧审核 */
+  sourceApprovalStatus: SideApprovalStatus
+  /** 转入门店侧审核 */
+  targetApprovalStatus: SideApprovalStatus
+  /** 综合状态：任一方拒绝=REJECTED；双方同意=APPROVED；否则 PENDING */
+  status: TransferOverallStatus
+  migrationStatus: MigrationStatus
+  exceptionFlag: TransferExceptionFlag
+  hqNote: string | null
+  /** 申请时未用课时快照（整数课时，口径待定，仅展示） */
+  unusedTrainingLessons: number
+  unusedSpecialLessons: number
+  appliedAt: string
+  sourceReviewedAt: string | null
+  targetReviewedAt: string | null
+  reviewedAt: string | null
+  rejectionReason: string | null
+  migrationReceiptAt: string | null
+  migrationReceiptNote: string | null
+  version: number
+  mockOnly: true
+  allowedActions: ('force-reject' | 'flag-exception' | 'clear-exception' | 'add-note' | 'record-migration-receipt')[]
+}
+
+export interface TransferAudit {
+  operationId: string
+  requestId: string
+  action: TransferMutation['action']
+  targetId: string
+  before: string
+  after: string
+  reason: string
+  operatorId: string
+  operatorName: string
+  occurredAt: string
+  beforeVersion: number
+  afterVersion: number
+}
+
+export interface TransferQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: TransferOverallStatus
+  migrationStatus?: MigrationStatus
+  exceptionFlag?: TransferExceptionFlag
+  sourceStoreId?: string
+  targetStoreId?: string
+}
+
+export interface TransferList {
+  items: TransferApplication[]
+  total: number
+  page: number
+  pageSize: number
+  summary: {
+    applications: number
+    pending: number
+    bilateralApproved: number
+    rejected: number
+    awaitingMigration: number
+    exceptions: number
+  }
+}
+
+export interface TransferCatalog {
+  stores: { storeId: string; name: string }[]
+  statuses: { value: TransferOverallStatus; label: string }[]
+  migrationStatuses: { value: MigrationStatus; label: string }[]
+  pendingPolicy: TransferPendingPolicy
+  audit: TransferAudit[]
+  mockOnly: true
+}
+
+export interface TransferDetail {
+  application: TransferApplication
+  audit: TransferAudit[]
+  pendingPolicy: TransferPendingPolicy
+  /** 明确提示：双方同意不等于已迁移 */
+  migrationHint: string
+}
+
+export type TransferMutation =
+  | {
+      action: 'force-reject'
+      applicationId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'flag-exception'
+      applicationId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'clear-exception'
+      applicationId: string
+      version: number
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'add-note'
+      applicationId: string
+      version: number
+      note: string
+      reason: string
+      idempotencyKey: string
+    }
+  | {
+      action: 'record-migration-receipt'
+      applicationId: string
+      version: number
+      /** 仅登记服务端回执，不在前端执行归属迁移 */
+      receipt: 'SUCCESS' | 'FAILED'
+      receiptNote: string
+      reason: string
+      idempotencyKey: string
+    }
+
+export type TransferMutationResult =
+  | { action: 'force-reject'; application: TransferApplication; mockOnly: true }
+  | { action: 'flag-exception'; application: TransferApplication; mockOnly: true }
+  | { action: 'clear-exception'; application: TransferApplication; mockOnly: true }
+  | { action: 'add-note'; application: TransferApplication; mockOnly: true }
+  | { action: 'record-migration-receipt'; application: TransferApplication; mockOnly: true }
+
+export class TransferError extends Error {
+  constructor(
+    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'INVALID_INPUT' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'TransferError'
+  }
+}

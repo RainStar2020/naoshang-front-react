@@ -1,0 +1,224 @@
+## activation_codes (rows~14)
+comment: 激活码（level=学习等级单开 / column=专栏 / fs·jy·cj·xn·ys=孩子会员等级）
+cols: code*:varchar(191), target_type:text, target_id:text, max_uses:bigint, uses:bigint, status:varchar(255), expires_at:bigint, used_by:text, channel:varchar(255), store_id:text, issued_by:text, issued_to:varchar(191), batch_id:text, note:text, created_at:varchar(32)
+fks: issued_to->users.id
+
+## activity_prices (rows~0)
+comment: 商品活动价（每个商品一条；未配置则无记录，前端显示「—」）
+cols: product_id*:varchar(191), amount:decimal(18,2), note:text, updated_at:bigint
+fks: -
+
+## addresses (rows~0)
+comment: 收货地址
+cols: id*:varchar(191), user_id:varchar(191), recipient:varchar(255), phone:varchar(255), region_codes:text, region_names:text, detail:varchar(255), is_default:bigint, created_at:varchar(32), version:bigint
+fks: user_id->users.id
+
+## allocation_quotes (rows~2)
+comment: 分配意愿报价单（巡查 5% / 销售 5% 的分配方案快照，提交时据此校验）
+cols: id*:varchar(191), entry_id:varchar(191), user_id:varchar(191), kind:text, targets:text, entry_amount:decimal(18,2), rows:text, total_percent:decimal(18,2), total_amount:decimal(18,2), expires_at:bigint, created_at:bigint
+fks: user_id->users.id
+
+## allocations (rows~3)
+comment: 收益分配（门店服务费/合店分红指向具体受益人；巡查 5% 与销售 5% 可自选分配）
+cols: id*:varchar(191), entry_id:varchar(191), user_id:varchar(191), target_id:varchar(191), beneficiary_name:varchar(255), kind:text, percent:decimal(18,2), amount:decimal(18,2), status:varchar(255), operation_id:text, idempotency_key:varchar(191), created_at:varchar(32)
+fks: target_id->users.id; user_id->users.id
+
+## app_settings (rows~0)
+comment: 后台可调配置（JSON 单行存储；与 store.js DEFAULT_SETTINGS 对齐）
+cols: id*:varchar(191), payload:text
+fks: -
+
+## applications (rows~0)
+comment: 申请单（合伙人/健脑官/合店/代理/转店 统一申请流）
+cols: id*:varchar(191), type:text, title:varchar(255), application_status:varchar(255), payment_status:varchar(255), contract_status:varchar(255), entitlement_status:varchar(255), user_id:varchar(191), member_id:text, store_id:text, store_agent_id:text, target_store_id:text, agency_type:text, payable_amount:decimal(18,2), store:text, idempotency_key:varchar(191), created_at:varchar(32), version:bigint
+fks: user_id->users.id
+
+## assets (rows~1)
+comment: 上传资源（直传占位；状态机 PENDING→READY/FAILED）
+cols: id*:varchar(191), user_id:varchar(191), purpose:text, file_name:varchar(255), mime_type:varchar(255), size:bigint, status:varchar(255), preview_url:text, fail_reason:text, created_at:varchar(32)
+fks: user_id->users.id
+
+## co_store_owners (rows~1)
+comment: 合店老板名单（一个合店可有多名老板，1:N 拆表）
+cols: id*:bigint, co_store_id:varchar(191), user_id:varchar(191), performance:decimal(18,2), created_at:varchar(32)
+fks: user_id->users.id; co_store_id->co_stores.id
+
+## co_stores (rows~1)
+comment: 合店 / 门店表（合店是 users 的角色；含合店老板名单 1:N 关系）
+cols: id*:varchar(191), owner_id:varchar(191), promoter_id:varchar(191), store_manager_id:varchar(191), store_id:varchar(191), monthly_fee:decimal(18,2), owner_count:bigint, join_date:text, created_at:varchar(32)
+fks: store_manager_id->users.id; promoter_id->users.id; owner_id->users.id
+
+## coaches (rows~0)
+comment: 健脑官（门店独立登录账号；与家长账号体系分离）
+cols: id*:varchar(191), store_id:varchar(191), name:varchar(255), login_account:text, status:varchar(255), invitation_status:varchar(255), idempotency_key:varchar(191), created_at:varchar(32), version:bigint
+fks: -
+
+## columns (rows~2)
+comment: 专栏（可激活内容包；章节与正文以 JSON 保存，结构见 src/columns.js）
+cols: id*:varchar(191), title:varchar(255), summary:varchar(255), cover_url:text, price:decimal(18,2), fulfillment_type:varchar(255), requires_member:bigint, price_presentation:varchar(255), checkout_notice:text, content:text, chapters:text
+fks: -
+
+## commissions (rows~8)
+comment: 收益明细（佣金台账；全球奖/直推奖/复购奖/创始奖/代理奖/合店分配全类型统一落此表）
+cols: id*:varchar(191), owner_id:varchar(191), identity:varchar(255), type:varchar(191), subtype:text, period:varchar(191), base_amount:decimal(18,2), rate:decimal(18,2), amount:decimal(18,2), ref_order_id:varchar(191), status:varchar(255), note:text, formula:text, created_at:varchar(32)
+fks: ref_order_id->orders.id; owner_id->users.id
+
+## counters (rows~3)
+comment: 全局 ID 计数器（内部 id 与对外编号的序号来源）
+cols: name*:varchar(191), value:bigint
+fks: -
+
+## coupons (rows~12)
+comment: 优惠券（用户券包；下单时核销）
+cols: id*:varchar(191), user_id:varchar(191), title:varchar(255), discount_amount:decimal(18,2), threshold_text:varchar(255), scope_label:varchar(255), status:varchar(255), expires_at:bigint, created_at:varchar(32)
+fks: user_id->users.id
+
+## entitlement_orders (rows~0)
+comment: 权益收益费订单（200 元门禁；幂等键保证重复提交不重复扣费）
+cols: id*:bigint, idempotency_key:varchar(191), operation_id:text, user_id:varchar(191), amount:decimal(18,2), status:varchar(255), note:text, at:bigint, created_at:varchar(32)
+fks: user_id->users.id
+
+## experience_ledger (rows~8)
+comment: 经验值流水（1 元 = 1 经验值；纯记账，不参与资金分账）
+cols: id*:varchar(191), user_id:varchar(191), tab:varchar(191), event:text, title:text, points:bigint, price:decimal(18,2), ref_id:text, meta:text, occurred_at:bigint
+fks: user_id->users.id
+
+## free_upgrade_log (rows~0)
+comment: 拉人免费升档日志（规则A 按人数 / 规则B 按业绩，取进度较高者）
+cols: id*:varchar(191), user_id:varchar(191), from_tier:text, to_tier:text, rule:text, trigger_ref:text, note:text, created_at:bigint
+fks: user_id->users.id
+
+## invite_codes (rows~0)
+comment: 邀请码流水（两套互不混用：register 注册拉新码 / agent 代理归属码；R 开头=注册，A 开头=代理）
+cols: code*:varchar(191), type:varchar(191), owner_id:varchar(191), created_at:bigint, expires_at:bigint, max_use:bigint, used_by:text, status:varchar(255)
+fks: -
+
+## jobs (rows~1)
+comment: 异步任务（海报合成等；queued→running→succeeded/failed）
+cols: id*:varchar(191), type:varchar(255), material_id:text, qr_asset_id:text, user_id:varchar(191), status:varchar(255), message:text, download_url:text, share_url:text, idempotency_key:varchar(191), created_at:varchar(32)
+fks: user_id->users.id
+
+## learning_progress (rows~1)
+comment: 学习进度（会员 × 学习等级 × 章节 三元组记录）
+cols: member_id*:varchar(191), level_id*:varchar(191), chapter_id*:varchar(191), position_seconds:decimal(18,2), duration_seconds:decimal(18,2), completed:bigint, updated_at:bigint
+fks: -
+
+## material_renders (rows~0)
+comment: 素材渲染记录（海报合成幂等键，防止重复渲染）
+cols: id*:varchar(191), material_id:text, qr_asset_id:text, user_id:varchar(191), idempotency_key:varchar(191), created_at:varchar(32)
+fks: user_id->users.id
+
+## members (rows~10)
+comment: 家庭会员（孩子档案；六级会员等级 normal<fs<jy<cj<xn<ys 决定板块权益解锁）
+cols: id*:varchar(191), user_id:varchar(191), name:varchar(255), grade_code:varchar(255), grade_label:varchar(255), gender_code:varchar(255), gender_label:varchar(255), avatar_asset_id:text, avatar_url:text, store_id:varchar(191), activated:bigint, member_level:varchar(255), member_seq:bigint, display_id:varchar(191), unlocked_levels:text, unlocked_columns:text, training:text, idempotency_key:varchar(191), created_at:varchar(32), version:bigint
+fks: user_id->users.id
+
+## orders (rows~4)
+comment: 订单 / 销售记录（一切收益的计算来源）
+cols: id*:varchar(191), buyer_id:varchar(191), seller_id:varchar(191), package_tier:text, old_tier:text, quota_count:bigint, vip_credit:bigint, actual_paid:decimal(18,2), seller_cost:decimal(18,2), supply_spread:decimal(18,2), store_fee:decimal(18,2), hq_fee:decimal(18,2), region_code:varchar(191), channel:varchar(255), store_id:text, status:varchar(255), created_at:varchar(32)
+fks: seller_id->users.id; buyer_id->users.id
+
+## password_resets (rows~0)
+comment: 密码重置凭据（ticket 为一次性令牌，10 分钟有效）
+cols: ticket*:varchar(191), phone:text, expires_at:bigint, used:bigint, created_at:varchar(32)
+fks: -
+
+## pay_accounts (rows~0)
+comment: 收款账户（提现打款目标；完整卡号仅存本表，对外只返回脱敏值）
+cols: token*:varchar(191), user_id:varchar(191), account_type:text, name:text, bank_name:varchar(255), bank_number:varchar(255), masked_bank_number:varchar(255), created_at:varchar(32)
+fks: user_id->users.id
+
+## payments (rows~3)
+comment: 支付单（微信/支付宝/银行卡 + 银联；权益费、合伙人年费、商城商品、升档共用）
+cols: id*:varchar(191), biz_type:varchar(191), biz_id:text, user_id:varchar(191), amount:decimal(18,2), channel:text, subject:varchar(255), status:varchar(255), transaction_id:text, idempotency_key:varchar(191), pay_params:text, meta:text, notify_raw:text, note:text, created_at:varchar(32), paid_at:bigint
+fks: user_id->users.id
+
+## promotion_tasks (rows~0)
+comment: 晋升任务（推广达标免费晋升通道；默认 1 年有效期）
+cols: id*:varchar(191), user_id:varchar(191), start_tier:text, valid_until:bigint, valid_months:bigint, targets:text, status:varchar(255), achieved_at:bigint, granted_tier:text, claimed_at:bigint, created_at:bigint
+fks: user_id->users.id
+
+## quota_activity_batches (rows~1)
+comment: 活动名额批次（每笔活动名额发放一条，带 1 年有效期）
+cols: id*:bigint, user_id:varchar(191), qty:bigint, obtained_at:varchar(32), expire_at:varchar(191)
+fks: user_id->users.id
+
+## quota_ledger (rows~7)
+comment: VIP 名额余额台账（标准名额与活动名额两桶分开记账）
+cols: user_id*:varchar(191), standard:bigint
+fks: user_id->users.id
+
+## quota_transactions (rows~1)
+comment: VIP 名额流水（发放/消耗双向审计）
+cols: id*:bigint, user_id:varchar(191), op:text, kind:text, used_standard:bigint, used_activity:bigint, amount:decimal(18,2), ref:varchar(191), operator_id:text, created_at:varchar(32)
+fks: user_id->users.id
+
+## quotes (rows~332)
+comment: 报价单（商城结算/权益开通/升级档位共用；默认 10 分钟有效、一次性消费）
+cols: id*:varchar(191), scene:text, user_id:text, amount:decimal(18,2), breakdown:text, items:text, meta:text, rule_version:bigint, issued_at:bigint, expires_at:bigint, consumed:bigint, consumed_at:bigint, consumed_ref:text
+fks: -
+
+## regional_agents (rows~8)
+comment: 区域代理表（省代/市代/县区代/门店代理；代理是 users 的角色，故为关联表）
+cols: id*:varchar(191), user_id:varchar(191), region_type:varchar(191), region_code:varchar(191), price_tier:bigint, referrer_id:varchar(191), granted_tier:text, appointed_at:varchar(32)
+fks: referrer_id->users.id; user_id->users.id
+
+## settings (rows~0)
+comment: 后台可调配置（键值对 + JSON 值，与 store.js DEFAULT_SETTINGS 对齐）
+cols: id*:bigint, key:varchar(191), value:text
+fks: -
+
+## settlements (rows~0)
+comment: 月度结算批次（每次跑批归档一份结果）
+cols: id*:bigint, period:text, run_at:varchar(32), summary:text
+fks: -
+
+## skus (rows~18)
+comment: 商城 SKU 目录（按规格细分的价格与库存）
+cols: id*:varchar(191), product_id:varchar(191), label:varchar(255), list_price:decimal(18,2), stock:bigint, updated_at:bigint
+fks: -
+
+## sms_codes (rows~1)
+comment: 短信验证码（按 purpose 场景隔离：register 与 reset-password 互不混用）
+cols: id*:bigint, phone:varchar(191), code:text, purpose:varchar(255), expires_at:bigint, used:bigint, created_at:varchar(32)
+fks: -
+
+## stock_ledger (rows~11)
+comment: SKU 库存台账（每次出入库一条流水，可回溯库存变化）
+cols: id*:varchar(191), sku_id:varchar(191), delta:bigint, reason:text, order_id:text, operator_id:varchar(191), at:bigint, balance_after:bigint
+fks: operator_id->users.id; sku_id->skus.id
+
+## store_transfers (rows~0)
+comment: 转店申请（会员在门店之间转移）
+cols: id*:varchar(191), member_id:varchar(191), from_store_id:text, target_store_id:text, reason:varchar(255), status:varchar(255), user_id:varchar(191), store_agent_id:text, idempotency_key:varchar(191), created_at:varchar(32), version:bigint
+fks: user_id->users.id
+
+## support_feedback (rows~0)
+comment: 客服反馈（用户提交的问题与建议）
+cols: id*:varchar(191), user_id:varchar(191), content:varchar(255), image_asset_ids:text, idempotency_key:varchar(191), created_at:varchar(32)
+fks: user_id->users.id
+
+## training_feedback (rows~0)
+comment: 训练反馈（家长/健脑官针对会员提交的课后反馈）
+cols: id*:varchar(191), member_id:varchar(191), kind:varchar(255), title:varchar(255), text:varchar(255), coach_id:text, coach_name:varchar(255), image_asset_ids:text, attachment_asset_ids:text, idempotency_key:varchar(191), created_at:varchar(32)
+fks: -
+
+## upline_history (rows~1)
+comment: 上下级关系变更历史（解绑/重绑/改名留痕）
+cols: id*:bigint, user_id:varchar(191), old_upline:varchar(191), new_upline:varchar(191), action:text, at:varchar(32)
+fks: new_upline->users.id; old_upline->users.id; user_id->users.id
+
+## users (rows~21)
+comment: 用户主表（人；所有人的主档，代理/合店老板等身份是身上的角色而非独立表）
+cols: id*:varchar(191), seq:bigint, display_id:varchar(191), name:varchar(255), phone:varchar(191), password:varchar(255), password_migrated_at:bigint, tier:varchar(255), is_founding:varchar(255), upline_id:varchar(191), team_vip:bigint, annual_fee_paid:bigint, entitlement_state:varchar(255), entitlement_paid_at:bigint, entitlement_expires_at:bigint, role:text, avatar:text, wechat_openid:text, created_at:varchar(32), principal_tier:varchar(255), referral_tier:varchar(255), referral_upline_tier:varchar(255), free_upgrade_applied:bigint
+fks: upline_id->users.id
+
+## wechat_tickets (rows~0)
+comment: 微信授权票据（一次一换；live / mock 双模式）
+cols: id*:varchar(191), openid:text, ticket:varchar(191), mode:varchar(255), used:bigint, expires_at:bigint, created_at:bigint
+fks: -
+
+## withdrawals (rows~0)
+comment: 提现单（手续费 0.6%、最低 1 元；审核流目前未接正式打款通道）
+cols: id*:varchar(191), user_id:varchar(191), title:varchar(255), amount:decimal(18,2), fee:decimal(18,2), net_amount:decimal(18,2), status:varchar(255), account_type:text, account_name:varchar(255), bank_name:varchar(255), masked_bank_number:varchar(255), operation_id:text, idempotency_key:varchar(191), reject_reason:text, created_at:varchar(32)
+fks: user_id->users.id

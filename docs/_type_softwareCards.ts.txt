@@ -1,0 +1,39 @@
+import type { StoreOption } from './users'
+
+/** HQ-06 独立软件卡契约草案；不复用会员/专栏激活码，也不作为学习授权。 */
+export interface SoftwareCardType { typeId: string; businessCode: string; name: string; termLabel: string; systemLabel: string; description: string; active: boolean; version: number }
+export type SoftwareStockStatus = 'available' | 'assigned' | 'delivered' | 'retired' | 'replaced'
+export const softwareStockLabels: Record<SoftwareStockStatus, string> = { available: '可分配库存', assigned: '已分配待交付', delivered: '已记录交付', retired: '库存已停发', replaced: '已补发停发' }
+export interface SoftwareCard {
+  cardId: string; batchId: string; typeId: string; typeName: string; maskedCode: string; status: SoftwareStockStatus; version: number
+  claimDeadline: string | null; claimExpired: boolean
+  /** 只能由供应商接口/可信回执更新；本轮Mock始终unknown，不能从交付状态推断。 */
+  externalStatus: 'unknown' | 'inactive' | 'active' | 'expired'; externalValidUntil: string | null; externalCheckedAt: string | null
+  deliveryMode: 'hq' | 'store' | null; deliveryStoreId: string | null; accountId: string | null; accountName: string | null; sourceOrderId: string | null
+  assignedAt: string | null; deliveredAt: string | null; secretExportedAt: string | null
+  replacesCardId: string | null; replacementCardId: string | null; createdAt: string
+}
+export interface SoftwareBatch { batchId: string; name: string; typeId: string; typeName: string; source: 'supplier' | 'hq' | 'mock'; sourceName: string; referenceNo: string; quantity: number; claimDeadline: string | null; createdAt: string; createdBy: string }
+export interface SoftwareOrderOption { orderId: string; orderNo: string; accountId: string; typeId: string; fulfillmentType: 'ACTIVATION_CODE'; status: 'PAID' | 'PENDING_PAYMENT'; quantity: number; remainingQuantity: number; deliveryMode: 'hq' | 'store'; deliveryStoreId: string | null; mockOnly: true }
+export interface SoftwareOptions { maxImportSize: number; maxSelectionSize: number; accounts: { accountId: string; name: string; phone: string; storeId: string | null }[]; stores: StoreOption[]; orders: SoftwareOrderOption[] }
+interface OperationBase { reason: string; idempotencyKey: string }
+export interface SoftwareSelection { cardId: string; version: number }
+export type SoftwareMutation = OperationBase & (
+  | { action: 'save-type'; typeId: string; version: number; value: Omit<SoftwareCardType, 'typeId' | 'version'> }
+  | { action: 'import'; name: string; typeId: string; source: SoftwareBatch['source']; sourceName: string; referenceNo: string; codes: string[]; claimDeadline: string | null }
+  | { action: 'assign'; cards: SoftwareSelection[]; accountId: string; deliveryMode: 'hq' | 'store'; deliveryStoreId: string | null; sourceOrderId: string | null }
+  | { action: 'deliver' | 'retire'; cards: SoftwareSelection[] }
+  | { action: 'replace'; oldCard: SoftwareSelection; replacementCard: SoftwareSelection }
+)
+export interface SoftwareAudit { operationId: string; requestId: string; action: SoftwareMutation['action'] | 'export'; cardIds: string[]; batchId: string | null; typeId: string | null; reason: string; operatorId: string; operatorName: string; before: string; after: string; occurredAt: string }
+export interface SoftwareFilters { keyword?: string; batchId?: string; typeId?: string; status?: SoftwareStockStatus; deliveryMode?: 'hq' | 'store'; storeId?: string; accountId?: string; claimState?: 'expired' | 'valid' }
+export interface SoftwareQuery extends SoftwareFilters { page: number; pageSize: number }
+export interface SoftwareList { items: SoftwareCard[]; total: number; page: number; pageSize: number }
+export interface SoftwareCatalog { types: SoftwareCardType[]; batches: SoftwareBatch[]; audit: SoftwareAudit[]; options: SoftwareOptions }
+export interface SoftwareDetail { card: SoftwareCard; batch: SoftwareBatch; type: SoftwareCardType; audit: SoftwareAudit[] }
+export interface SoftwareMutationResult { batchId: string | null; cardIds: string[]; operation: SoftwareAudit; mockOnly: true }
+export interface SoftwareExportRequest extends OperationBase { cards: SoftwareSelection[] }
+export interface SoftwareExport { csv: string; fileName: string; count: number; mockOnly: true }
+export class SoftwareCardError extends Error {
+  constructor(public code: 'FORBIDDEN' | 'INVALID_INPUT' | 'NOT_FOUND' | 'INVALID_STATE' | 'VERSION_CONFLICT' | 'IDEMPOTENCY_CONFLICT' | 'EXTERNAL_VERIFICATION_REQUIRED', message: string) { super(message); this.name = 'SoftwareCardError' }
+}

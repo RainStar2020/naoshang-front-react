@@ -1,0 +1,88 @@
+
+> course-admin-demo@0.1.0 test
+> vitest run --reporter=dot
+
+
+ RUN  v4.1.12 E:/project/react-web/naoshang-front-react
+
+stderr | src/api/client.test.ts > 总部 API 请求层 > HTTP 200 中的业务错误拒绝，并保留 currentVersion
+[hq-api] legacy business failure on 2xx {
+  code: 40901,
+  message: 'conflict',
+  status: 200,
+  traceId: undefined,
+  errors: undefined,
+  currentVersion: 3
+}
+
+stderr | src/services/real/auth.test.ts > 真实总部认证适配 > 错误密码映射为登录错误；失效 token 映射为会话错误
+[hq-api] legacy business failure on 2xx {
+  code: 40100,
+  message: 'unauthorized',
+  status: 200,
+  traceId: undefined,
+  errors: undefined,
+  currentVersion: undefined
+}
+
+stderr | src/api/client.test.ts > 总部 API 请求层 > HTTP 错误中的业务信封转换为 ApiError
+[hq-api] legacy business failure on non-2xx {
+  code: 40100,
+  message: 'expired',
+  status: 401,
+  traceId: undefined,
+  errors: undefined,
+  currentVersion: undefined
+}
+
+stderr | src/services/real/auth.test.ts > 真实总部认证适配 > 错误密码映射为登录错误；失效 token 映射为会话错误
+[hq-api] legacy business failure on 2xx {
+  code: 40100,
+  message: 'unauthorized',
+  status: 200,
+  traceId: undefined,
+  errors: undefined,
+  currentVersion: undefined
+}
+
+stderr | src/api/client.test.ts > 总部 API 请求层 > HTTP 错误中的业务信封转换为 ApiError
+[hq-api] legacy business failure on non-2xx {
+  code: 40100,
+  message: 'expired',
+  status: 401,
+  traceId: undefined,
+  errors: undefined,
+  currentVersion: undefined
+}
+
+stderr | src/services/real/auth.test.ts > 真实总部认证适配 > 错误密码映射为登录错误；失效 token 映射为会话错误
+[hq-api] legacy business failure on 2xx {
+  code: 40100,
+  message: 'unauthorized',
+  status: 200,
+  traceId: undefined,
+  errors: undefined,
+  currentVersion: undefined
+}
+
+stderr | src/pages/LiveModule.test.tsx > 真实业务页面（本地适配器测试，不访问后台） > 加载真实服务返回的账号记录并通过详情接口读取档案
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/pages/LiveModule.test.tsx > 真实业务页面（本地适配器测试，不访问后台） > 读取失败显式显示错误，不回退 mock
+[hq-api] legacy business failure on 2xx {
+  code: 50000,
+  message: '测试：后台不可用',
+  status: 200,
+  traceId: undefined,
+  errors: undefined,
+  currentVersion: undefined
+}
+
+···························································································································································································································································································································································································································································································································································································-·······
+
+ Test Files  38 passed | 1 skipped (39)
+      Tests  578 passed | 1 skipped (579)
+   Start at  16:25:52
+   Duration  5.27s (transform 9.43s, setup 0ms, import 7.81s, tests 19.85s, environment 817ms)
+

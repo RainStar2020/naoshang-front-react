@@ -1,5 +1,6 @@
 import { ApiError, type RequestOptions } from '../../api/client'
 import type { ApiResponse, MutationRequest } from '../../types/hq/common'
+import { normalizeRemark } from '../../utils/remark'
 
 export type DataRecord = Record<string, unknown>
 export interface ModuleInput {
@@ -43,26 +44,26 @@ export function requiredPath(input: ModuleInput, key: string): string {
 
 /** JSON 编辑器是外部输入边界；验证通用字段及文档明确的 action。 */
 export function buildMutationRequest(operation: ModuleOperation, body: DataRecord, reason: string, key: string): MutationRequest {
-  if (!reason.trim()) throw new Error('请填写操作原因')
   if (!key.trim()) throw new Error('请填写幂等请求号')
   if (!body.action || typeof body.action !== 'string') throw new Error('请选择或填写操作类型')
-  if (operation.actions.length && !operation.actions.includes(body.action)) throw new Error('操作类型不在后端契约范围内')
+  if (operation.actions.length && !operation.actions.includes(body.action)) throw new Error('操作类型不在后端契约范围')
   if (body.version !== undefined && (!Number.isInteger(body.version) || Number(body.version) < 1)) throw new Error('版本号必须为大于 0 的整数')
   if (body.action === 'update-note' && typeof body.note !== 'string') throw new Error('修改备注必须填写 note 字符串')
-  return { body: { ...body, reason: reason.trim(), idempotencyKey: key.trim() } }
+  // UI 备注选填；后端 reason 仍可能必填，空值时用占位
+  return { body: { ...body, reason: normalizeRemark(reason), idempotencyKey: key.trim() } }
 }
 
-/** 统一在服务层解开信封。失败不回退到演示数据，不自动重试写操作。 */
 export async function runOperation(operation: ModuleOperation, input: ModuleInput): Promise<unknown> {
   for (const param of operation.params) requiredPath(input, param)
   if (operation.method === 'POST') {
     if (!input.request) throw new Error('缺少请求参数')
     if (!operation.path.startsWith('/auth/')) {
       const body = input.request.body
-      const reason = body.reason || input.request.headers?.['X-Reason']
-      if (typeof reason !== 'string' || !reason.trim()) throw new Error('请填写操作原因')
+      const rawReason = body.reason || input.request.headers?.['X-Reason'] || ''
+      if (typeof rawReason !== 'string') throw new Error('备注格式无效')
+      body.reason = normalizeRemark(rawReason)
       if (typeof body.action !== 'string' || !body.action.trim()) throw new Error('缺少操作类型')
-      if (operation.actions.length && !operation.actions.includes(body.action)) throw new Error('操作类型不在后端契约范围内')
+      if (operation.actions.length && !operation.actions.includes(body.action)) throw new Error('操作类型不在后端契约范围')
     }
   }
   const result = await operation.invoke(input)

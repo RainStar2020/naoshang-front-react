@@ -181,7 +181,7 @@ function LiveModuleContent({ definition }: { definition: typeof liveModules[numb
         {definition.name !== 'auth' && <><Form.Item name="action" label="操作类型" rules={[{ required: true, whitespace: true }]}>{write?.actions.length ? <Select options={write.actions.map((action) => ({ value: action, label: `${actionLabel(action)}（${action}）` }))} /> : <Input placeholder="文档未单独定义此端点的操作类型，请按后端约定填写" />}</Form.Item>
         <Form.Item name="version" label="当前资源版本（请以详情返回为准）"><InputNumber min={1} precision={0} style={{ width: '100%' }} /></Form.Item></>}
         <Form.Item name="payload" label="业务参数（JSON 对象）" extra="填写该操作所需字段；金额单位为元。操作类型、原因、版本及请求号由表单统一附加，不发送旧演示页面的字段。" rules={[{ required: true }]}><Input.TextArea rows={7} spellCheck={false} /></Form.Item>
-        <Form.Item name="reason" label="操作原因" rules={[{ required: true, whitespace: true }]}><Input.TextArea rows={2} maxLength={512} /></Form.Item>
+        <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}><Input.TextArea rows={2} maxLength={200} showCount placeholder="选填，可留空" /></Form.Item>
         {definition.name !== 'auth' && <Form.Item name="idempotencyKey" label="幂等请求号（失败重试保持原值）" rules={[{ required: true, whitespace: true }]}><Input /></Form.Item>}
         <Button type="primary" htmlType="submit" block>核对并提交</Button>
       </Form>

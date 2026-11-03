@@ -74,3 +74,22 @@ export async function postProductsByProductIdMutate(path: ProductsEndpoints['POS
   })
   return response.data
 }
+
+/** @see POST /api/hq/products/categories/mutate */
+export async function postProductsCategoriesMutate(request: ProductsEndpoints['POST /products/categories/mutate']['request'], options: RequestOptions = {}): Promise<ProductsEndpoints['POST /products/categories/mutate']['response']> {
+  const response = await apiClient.post<ProductsEndpoints['POST /products/categories/mutate']['response']>('/products/categories/mutate', request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+
+/** @see POST /api/hq/products/types/:code/mutate */
+export async function postProductsTypesByCodeMutate(path: ProductsEndpoints['POST /products/types/:code/mutate']['path'], request: ProductsEndpoints['POST /products/types/:code/mutate']['request'], options: RequestOptions = {}): Promise<ProductsEndpoints['POST /products/types/:code/mutate']['response']> {
+  const response = await apiClient.post<ProductsEndpoints['POST /products/types/:code/mutate']['response']>(`/products/types/${encodeURIComponent(path.code)}/mutate`, request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+

@@ -771,7 +771,7 @@ export default function Materials() {
               </Card>
             )}
 
-            <Form.Item name="reason" label="原因" rules={[{ required: true, whitespace: true, message: '请填写原因' }]}>
+            <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
               <Input.TextArea rows={2} maxLength={200} />
             </Form.Item>
           </Form>
@@ -811,7 +811,7 @@ export default function Materials() {
               <Form.Item name="height" hidden><InputNumber /></Form.Item>
             </Form>
             <Form form={regionForm} layout="vertical">
-              <Form.Item name="reason" label="原因" rules={[{ required: true, whitespace: true }]}>
+              <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
                 <Input.TextArea rows={2} maxLength={200} />
               </Form.Item>
             </Form>

@@ -61,14 +61,14 @@ function select(items: SoftwareSelection[]) {
   if (!items.length || items.length > limits.maxSelectionSize || new Set(items.map(item => item.cardId)).size !== items.length) fail('INVALID_INPUT', '请选择不重复的软件卡，不能超过服务返回的操作上限')
   return items.map(item => { const card = find(item.cardId); if (card.version !== item.version) fail('VERSION_CONFLICT', '卡库存已更新，请刷新后重试'); return card })
 }
-function reason(value: string) { if (!value?.trim() || value.trim().length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因') }
+function reason(value: string) { const t = value?.trim() || ''; if (t.length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因'); return t || '（无备注）' }
 function addAudit(action: SoftwareAudit['action'], cardIds: string[], batchId: string | null, typeId: string | null, input: { reason: string; idempotencyKey: string }, operator: HqAccount, before: string, after: string) {
   const entry: SoftwareAudit = { operationId: crypto.randomUUID(), requestId: input.idempotencyKey, action, cardIds, batchId, typeId, reason: input.reason.trim(), operatorId: operator.accountId, operatorName: operator.nickname, before, after, occurredAt: new Date().toISOString() }
   audit.push(entry); return entry
 }
 function activeType(id: string) { return types.find(type => type.typeId === id && type.active) ?? fail('INVALID_INPUT', '软件卡类型不存在或已停用') }
 export async function mockSoftwareMutate(input: SoftwareMutation, operator: HqAccount): Promise<SoftwareMutationResult> {
-  reason(input.reason)
+  input = { ...input, reason: reason(input.reason) }
   if (!input.idempotencyKey || !['save-type', 'import', 'assign', 'deliver', 'retire', 'replace'].includes(input.action)) fail('INVALID_INPUT', '操作类型或请求号无效')
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(input)))
   const fingerprint = Array.from(new Uint8Array(digest)).map(value => value.toString(16).padStart(2, '0')).join('')
@@ -141,7 +141,7 @@ export async function mockSoftwareMutate(input: SoftwareMutation, operator: HqAc
   operations.set(key, { fingerprint, result: clone(result) }); return clone(result)
 }
 export function mockSoftwareExport(input: SoftwareExportRequest, operator: HqAccount): SoftwareExport {
-  reason(input.reason)
+  input = { ...input, reason: reason(input.reason) }
   if (!input.idempotencyKey) fail('INVALID_INPUT', '缺少导出请求号')
   const key = `${operator.accountId}:${input.idempotencyKey}`, payload = JSON.stringify(input)
   const previous = exports.get(key)

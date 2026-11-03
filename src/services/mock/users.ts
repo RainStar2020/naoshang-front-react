@@ -1,4 +1,4 @@
-import type { BusinessIdentity, RegionOption, StoreOption, UserAccount, UserAuditEntry, UserDetail, UserFilterOptions, UserListQuery, UserListResult, UserMutation, UserMutationResult } from '../../types/users'
+import type { BusinessIdentity, RegionOption, StoreOption, TierOption, UserAccount, UserAuditEntry, UserDetail, UserFilterOptions, UserListQuery, UserListResult, UserMutation, UserMutationResult } from '../../types/users'
 import { USER_DISPLAY_ID_PATTERN, userDisplayIdPrefixes } from '../../types/users'
 import { UserServiceError } from '../../types/users'
 import type { HqAccount } from '../../types/auth'
@@ -12,6 +12,10 @@ const stores: StoreOption[] = [
 const regions: RegionOption[] = [
   { value: '410000', label: '河南省', children: [{ value: '410100', label: '郑州市', children: [{ value: '410104', label: '管城回族区' }, { value: '410102', label: '中原区' }] }] },
   { value: '340000', label: '安徽省', children: [{ value: '340100', label: '合肥市', children: [{ value: '340104', label: '蜀山区' }] }] },
+]
+const tiers: TierOption[] = [
+  { value: 'vip', label: 'VIP合伙人' },
+  { value: 'parent', label: '家长' },
 ]
 const names = ['林晓雅', '陈明', '王思雨', '李晨', '赵悦', '刘洋', '周宁']
 const users: UserAccount[] = Array.from({ length: 28 }, (_, index) => {
@@ -30,7 +34,10 @@ const users: UserAccount[] = Array.from({ length: 28 }, (_, index) => {
     regionCodes: index % 3 === 2 ? ['340000', '340100', '340104'] : ['410000', '410100', index % 2 ? '410102' : '410104'],
     regionNames: index % 3 === 2 ? ['安徽省', '合肥市', '蜀山区'] : ['河南省', '郑州市', index % 2 ? '中原区' : '管城回族区'],
     storeId: store?.storeId ?? null, storeName: store?.name ?? null,
-    frozen: n % 5 === 0, version: 1, businessContexts,
+    frozen: n % 5 === 0,
+    tier: businessContexts.length ? 'vip' : 'parent',
+    tierLabel: businessContexts.length ? (businessContexts[0]?.label ?? 'VIP合伙人') : null,
+    version: 1, businessContexts,
     createdAt: `2026-10-${String(index % 24 + 1).padStart(2, '0')}T09:00:00+08:00`, passwordResetAt: null,
   }
 })
@@ -40,7 +47,7 @@ const copy = <T,>(value: T): T => structuredClone(value)
 const fail = (code: ConstructorParameters<typeof UserServiceError>[0], message: string): never => { throw new UserServiceError(code, message) }
 const findAccount = (id: string) => users.find(item => item.accountId === id) ?? fail('NOT_FOUND', '账号不存在，请刷新列表')
 
-export function mockUserOptions(): UserFilterOptions { return copy({ stores, regions }) }
+export function mockUserOptions(): UserFilterOptions { return copy({ stores, regions, tiers }) }
 
 export function mockListUsers(query: UserListQuery): UserListResult {
   if (!Number.isInteger(query.page) || query.page < 1 || ![10, 20, 50].includes(query.pageSize)) fail('INVALID_INPUT', '分页参数无效')
@@ -48,7 +55,7 @@ export function mockListUsers(query: UserListQuery): UserListResult {
   const filtered = users.filter(item =>
     (!keyword || [item.nickname, item.displayId, item.phone].some(value => value.toLocaleLowerCase().includes(keyword))) &&
     (!query.status || item.frozen === (query.status === 'frozen')) &&
-    (!query.storeId || (query.storeId === 'unbound' ? item.storeId === null : item.storeId === query.storeId)) &&
+    (!query.tier || item.tier === query.tier) &&
     (!query.regionCodes?.length || query.regionCodes.every((code, i) => item.regionCodes[i] === code)),
   )
   const start = (query.page - 1) * query.pageSize
@@ -60,7 +67,9 @@ export function mockUserDetail(id: string): UserDetail {
 }
 
 export async function mockMutateUser(input: UserMutation, operator: HqAccount): Promise<UserMutationResult> {
-  if (!input.idempotencyKey || !input.reason.trim() || input.reason.trim().length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因和有效请求号')
+  if (!input.idempotencyKey) fail('INVALID_INPUT', '请填写1–200字操作原因和有效请求号')
+  if (input.reason.trim().length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因和有效请求号')
+  if (!input.reason.trim()) input = { ...input, reason: '（无备注）' }
   if (input.action === 'reset-password' && (input.newPassword.length < 6 || input.newPassword.length > 32 || /\s/.test(input.newPassword))) fail('INVALID_INPUT', '密码需为6–32位且不包含空格')
   // 摘要用于校验同一请求是否改变参数；不在 Mock 结果、操作历史或存储中保存明文密码。
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(input)))

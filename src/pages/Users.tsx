@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Avatar, Button, Card, Cascader, Form, Input, Select, Space, Table, Tag, Typography, message } from 'antd'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
@@ -16,7 +16,7 @@ export default function Users() {
   const [form] = Form.useForm<UserFilters>()
   const [query, setQuery] = useState<UserListQuery>({ page: 1, pageSize: 10 })
   const [result, setResult] = useState<UserListResult | null>(null)
-  const [options, setOptions] = useState<UserFilterOptions>({ stores: [], regions: [] })
+  const [options, setOptions] = useState<UserFilterOptions>({ stores: [], regions: [], tiers: [] })
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [optionsError, setOptionsError] = useState<string | null>(null)
@@ -51,24 +51,29 @@ export default function Users() {
   </Space>
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>
     {contextHolder}
-    <div className="user-page-heading"><div><Typography.Title level={3} style={{ margin: 0 }}>用户账号管理</Typography.Title><Typography.Text type="secondary">查询家长账号、查看经营身份，处理账号状态与所属门店。</Typography.Text></div><Button onClick={reload} loading={busy}>刷新</Button></div>
+    <div className="user-page-heading"><div><Typography.Title level={3} style={{ margin: 0 }}>用户账号管理</Typography.Title><Typography.Text type="secondary">查询家长账号、查看经营身份与 VIP 等级，处理账号状态；所属门店见详情。</Typography.Text></div><Button onClick={reload} loading={busy}>刷新</Button></div>
     <HqDataSourceAlert mockMessage="本模块使用内存 Mock：操作不会同步到小程序，刷新整个页面将恢复演示数据。" />
-    {optionsError && <Alert type="error" message={`地区/门店选项加载失败：${optionsError}`} action={<Button size="small" onClick={reload}>重试</Button>} />}
+    {optionsError && <Alert type="error" message={`地区/VIP等级选项加载失败：${optionsError}`} action={<Button size="small" onClick={reload}>重试</Button>} />}
     <Card variant="borderless"><Form name="userFilters" form={form} layout="vertical" onFinish={values => setQuery({ ...values, keyword: values.keyword?.trim(), page: 1, pageSize: query.pageSize })}>
       <div className="user-filter-grid">
         <Form.Item name="keyword" label="账号搜索"><Input allowClear maxLength={64} placeholder="手机号 / 账号编号 / 昵称" /></Form.Item>
         <Form.Item name="regionCodes" label="账号地区"><Cascader options={options.regions} changeOnSelect allowClear placeholder="省 / 市 / 区县" disabled={!!optionsError} /></Form.Item>
-        <Form.Item name="storeId" label="所属门店"><Select allowClear showSearch optionFilterProp="label" placeholder="全部门店" disabled={!!optionsError} options={[{ value: 'unbound', label: '未绑定门店' }, ...options.stores.map(store => ({ value: store.storeId, label: store.name }))]} /></Form.Item>
+        <Form.Item name="tier" label="VIP等级"><Select allowClear showSearch optionFilterProp="label" placeholder="全部等级" disabled={!!optionsError} options={options.tiers.map(tier => ({ value: tier.value, label: tier.label }))} /></Form.Item>
         <Form.Item name="status" label="账号状态"><Select allowClear placeholder="全部状态" options={[{ value: 'active', label: '正常' }, { value: 'frozen', label: '冻结' }]} /></Form.Item>
       </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 10 }) }}>重置筛选</Button></Space>
     </Form></Card>
     <Card variant="borderless" title="账号列表" extra={<Typography.Text type="secondary">{result ? `共 ${result.total} 个账号` : '—'}</Typography.Text>}>
-      {error ? <Alert type="error" showIcon message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<UserAccount> rowKey="accountId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: canOperate ? 1200 : 1015 }} locale={{ emptyText: '暂无符合条件的账号，请调整筛选条件' }} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize !== value.pageSize ? 1 : page, pageSize })) }} columns={[
+      {error ? <Alert type="error" showIcon message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<UserAccount> rowKey="accountId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: canOperate ? 1010 : 825 }} locale={{ emptyText: '暂无符合条件的账号，请调整筛选条件' }} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize !== value.pageSize ? 1 : page, pageSize })) }} columns={[
         { title: '用户账号', key: 'account', width: 190, render: (_, user) => <Space><Avatar src={user.avatarUrl}>{(user.nickname || '?').slice(0, 1)}</Avatar><div><Button type="link" style={{ padding: 0 }} onClick={() => setDetailId(user.accountId)}>{user.nickname}</Button><div><Typography.Text type="secondary">{user.displayId}</Typography.Text></div></div></Space> },
         { title: '手机号', dataIndex: 'phone', width: 135 },
         { title: '地区', key: 'region', width: 170, render: (_, user) => (user.regionNames ?? []).join(' / ') || '未设置' },
-        { title: '所属门店', dataIndex: 'storeName', width: 190, render: name => name ?? <Typography.Text type="secondary">未绑定</Typography.Text> },
-        { title: '业务身份', key: 'identities', width: 170, render: (_, user) => (user.businessContexts ?? []).length ? <Space size={[0, 4]} wrap>{(user.businessContexts ?? []).map(context => <Tag key={context.contextId}>{context.label}</Tag>)}</Space> : <Typography.Text type="secondary">家长账号</Typography.Text> },
+        { title: '批发商身份', key: 'identities', width: 190, render: (_, user) => {
+          const tierLabel = user.tierLabel?.trim()
+          if (tierLabel) return <Tag>{tierLabel}</Tag>
+          const contexts = user.businessContexts ?? []
+          if (contexts.length) return <Space size={[0, 4]} wrap>{contexts.map(context => <Tag key={context.contextId}>{context.label}</Tag>)}</Space>
+          return <Typography.Text type="secondary">—</Typography.Text>
+        } },
         { title: '状态', key: 'status', width: 80, render: (_, user) => <Tag color={user.frozen ? 'red' : 'green'}>{user.frozen ? '冻结' : '正常'}</Tag> },
         { title: '操作', key: 'actions', fixed: 'right', width: canOperate ? 265 : 80, render: (_, user) => actions(user) },
       ]} />}

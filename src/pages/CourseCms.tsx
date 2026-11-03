@@ -53,10 +53,10 @@ export default function CourseCms() {
   }, [token, refresh])
   const request = (input: CmsMutation) => { setPending({ ...input, idempotencyKey: crypto.randomUUID() }); setReason(''); setSubmitError(null); setBlocked(false) }
   const confirm = async () => {
-    if (!pending || !reason.trim()) { setSubmitError('请填写操作原因'); return }
+    if (!pending) return
     setSubmitting(true); setSubmitError(null)
     try {
-      await cmsService.mutate(token, { ...pending, reason: reason.trim() })
+      await cmsService.mutate(token, { ...pending, reason: reason.trim() || '（无备注）' })
       setCatalog(await cmsService.catalog(token))
       setPending(null); setCourseEditor(null); setTierEditor(null)
       messageApi.success('Mock操作已完成，操作记录已保存；尚未接通真实小程序API')
@@ -98,7 +98,7 @@ export default function CourseCms() {
       <Alert type={pending.action === 'offline' ? 'warning' : 'info'} message={pending.action === 'publish' ? '将当前草稿发布为新版本；等级归属变化会影响发布目录，请确认目标会员等级和章节内容。' : pending.action === 'offline' ? '下线后从可消费目录隐藏；保留历史发布快照、授权记录和学习进度。' : pending.action === 'save-course' ? '仅保存草稿，已发布版本保持不变。' : '保存会员等级展示配置，授权ID保持稳定。'} />
       {submitError && <Alert style={{ marginTop: 12 }} type="error" message={submitError} role="alert" />}
       {blocked && <Button onClick={() => { setPending(null); setCourseEditor(null); setTierEditor(null); setRefresh(value => value + 1) }}>关闭并刷新</Button>}
-      <Input.TextArea aria-label="CMS操作原因" style={{ marginTop: 16 }} disabled={submitting || blocked} rows={3} maxLength={200} showCount placeholder="请填写操作原因" value={reason} onChange={event => setReason(event.target.value)} />
+      <Input.TextArea aria-label="CMS操作原因" style={{ marginTop: 16 }} disabled={submitting || blocked} rows={3} maxLength={200} showCount placeholder="选填，可留空" value={reason} onChange={event => setReason(event.target.value)} />
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>请求号：{pending.idempotencyKey}</Typography.Text>
     </Modal>}
   </Space>

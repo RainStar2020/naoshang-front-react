@@ -216,10 +216,10 @@ export default function Revenue() {
           ...pending,
           targetId,
           agentId: targetId === 'other' ? agentId : undefined,
-          reason: reason.trim(),
+          reason: reason.trim() || '（无备注）',
         }
       } else {
-        input = { ...pending, reason: reason.trim() }
+        input = { ...pending, reason: reason.trim() || '（无备注）' }
       }
       const result = await incomeService.mutate(token, input)
       message.success(
@@ -626,7 +626,7 @@ export default function Revenue() {
           )}
           <Input.TextArea
             rows={3}
-            placeholder="操作原因（必填）"
+            placeholder="选填，可留空"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />

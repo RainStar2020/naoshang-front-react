@@ -13,3 +13,9 @@ const mockAuthService = {
 const cachedRealAuthService = cacheSession(realAuthService)
 export const clearSessionCache = cachedRealAuthService.clearSessionCache
 export const authService = isMockAuth ? mockAuthService : cachedRealAuthService
+
+/** 修改总部管理员口令；成功后需重新登录。mock 模式不支持。 */
+export async function changeHqPassword(input: { oldPassword: string; newPassword: string; reason?: string }): Promise<void> {
+  if (isMockAuth) throw new Error('演示模式不支持修改口令')
+  await realAuthService.changePassword(input)
+}

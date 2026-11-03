@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button, Input, Space, Upload, message } from 'antd'
 import { cmsService } from '../services/cms'
 import type { CmsAsset, ContentNode, RichContent, RichTag } from '../types/cms'
-import { isMediaUrl } from '../utils/richContent'
+import { emptyContent, isMediaUrl, normalizeContent } from '../utils/richContent'
 
 export function CmsAssetInput({ value, onChange, token, kind = 'image', label, upload }: { value: string; onChange: (url: string) => void; token: string; kind?: 'image' | 'video'; label: string; upload?: (file: File) => Promise<CmsAsset> }) {
   const [busy, setBusy] = useState(false)
@@ -42,19 +42,37 @@ export function CmsAssetInput({ value, onChange, token, kind = 'image', label, u
   )
 }
 
-export default function CmsContentEditor({ value, onChange, token, label, upload, mediaPolicy = 'image-text' }: {
+async function fileToDataUrl(file: File): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('读取本地图片失败'))
+    reader.readAsDataURL(file)
+  })
+}
+
+export default function CmsContentEditor({ value, onChange, token, label, upload, mediaPolicy = 'image-text', localMedia = false }: {
   value: RichContent
   onChange: (value: RichContent) => void
   token: string
   label: string
   upload?: (file: File) => Promise<CmsAsset>
   mediaPolicy?: 'image-text' | 'full'
+  /** 为 true 时插图只用本地 data URL，不调用 upload / assets API */
+  localMedia?: boolean
 }) {
+  // API/mock 节点常缺 attrs/children；先 normalize，再防御式渲染，避免 Object.entries(null) 崩弹窗
+  const safeValue = (() => {
+    try { return normalizeContent(value ?? emptyContent()) }
+    catch { return emptyContent() }
+  })()
   const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
   const render = (node: ContentNode): string => {
-    if ('type' in node) return escape(node.text)
-    const attrs = Object.entries(node.attrs).map(([key, val]) => ` ${key}="${escape(val ?? '')}"`).join('')
-    return `<${node.name}${attrs}>${node.children.map(render).join('')}${node.name === 'img' || node.name === 'br' ? '' : `</${node.name}>`}`
+    if (!node || typeof node !== 'object') return ''
+    if ('type' in node) return escape(node.text ?? '')
+    const attrs = Object.entries(node.attrs ?? {}).map(([key, val]) => ` ${key}="${escape(val ?? '')}"`).join('')
+    const children = Array.isArray(node.children) ? node.children : []
+    return `<${node.name}${attrs}>${children.map(render).join('')}${node.name === 'img' || node.name === 'br' ? '' : `</${node.name}>`}`
   }
   const parse = (html: string): RichContent => {
     const doc = new DOMParser().parseFromString(html, 'text/html')
@@ -71,8 +89,13 @@ export default function CmsContentEditor({ value, onChange, token, label, upload
     })
     return { version: 1, format: 'nodes', nodes: walk(doc.body.childNodes) }
   }
-  return <div aria-label={label}><RichEditor value={value.nodes.map(render).join('')} onChange={html => onChange(parse(html))}
+  const resolveUpload = async (file: File) => {
+    if (localMedia) return fileToDataUrl(file)
+    const asset = await (upload ? upload(file) : cmsService.upload(token, file))
+    return asset.url
+  }
+  return <div aria-label={label}><RichEditor value={(safeValue.nodes ?? []).map(render).join('')} onChange={html => onChange(parse(html))}
     allowVideo={mediaPolicy === 'full'} allowAttachments={false}
-    upload={async file => (await (upload ? upload(file) : cmsService.upload(token, file))).url}
-    placeholder={mediaPolicy === 'full' ? '输入文字，可在光标位置插入图片和视频' : '输入文字，可在光标位置插入图片'} /></div>
+    upload={resolveUpload}
+    placeholder={mediaPolicy === 'full' ? '输入文字，可在光标位置插入图片和视频' : '输入文字，可在光标位置插入图片（商品编辑为本地预览）'} /></div>
 }

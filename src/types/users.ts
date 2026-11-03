@@ -23,6 +23,10 @@ export interface UserAccount {
   storeId: string | null
   storeName: string | null
   frozen: boolean
+  /** API tier code, e.g. vip */
+  tier: string | null
+  /** API display label for business identity column, e.g. VIP合伙人 */
+  tierLabel: string | null
   version: number
   businessContexts: BusinessIdentity[]
   createdAt: string
@@ -31,15 +35,19 @@ export interface UserAccount {
 
 export interface StoreOption { storeId: string; name: string; number: string; active: boolean }
 export interface RegionOption { value: string; label: string; children?: RegionOption[] }
+/** VIP / 业务档位筛选项；value 对齐 GET /users?tier= */
+export interface TierOption { value: string; label: string }
 export interface UserFilters {
   keyword?: string
   regionCodes?: string[]
-  storeId?: string
+  /** 对齐 HQ UsersListQuery.tier */
+  tier?: string
   status?: 'active' | 'frozen'
 }
 export interface UserListQuery extends UserFilters { page: number; pageSize: number }
 export interface UserListResult { items: UserAccount[]; total: number; page: number; pageSize: number }
-export interface UserFilterOptions { stores: StoreOption[]; regions: RegionOption[] }
+/** stores 仍供详情换店弹窗；列表筛选用 tiers */
+export interface UserFilterOptions { stores: StoreOption[]; regions: RegionOption[]; tiers: TierOption[] }
 
 interface MutationBase { accountId: string; version: number; reason: string; idempotencyKey: string }
 export type UserMutation =

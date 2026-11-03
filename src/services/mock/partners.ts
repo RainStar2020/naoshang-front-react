@@ -7,7 +7,45 @@ const copy = <T,>(value: T): T => structuredClone(value)
 const fail = (code: PartnerError['code'], message: string): never => { throw new PartnerError(code, message) }
 const levels: PartnerLevelBenefits[] = partnerLevels.map((partnerLevel, index) => ({ partnerLevel, title: ['VIP', '天使', '私董', '联创'][index], wholesaleLabel: ['小批', '中批', '大批', '总批'][index], quotaOccupancy: [1, 3, 6, 24][index], nextLevel: partnerLevels[index + 1] ?? null, taskTarget: [3, 9, 18, null][index], summary: '年度经营权益说明演示；具体资格、收益及报价由服务端返回。', content: normalizeContent({ version: 1, format: 'nodes', nodes: [{ name: 'p', children: [{ type: 'text', text: '年度合伙权益200元/年，与永久学习权益分离。此说明不决定收益或充值资格。' }] }] }), version: 1 }))
 interface StoredPartner { accountId: string; contextId: string; partnerLevel: PartnerLevel; annualValidUntil: string | null; frozen: boolean; version: number; task: PartnerPromotionTask | null; taskHistory: PartnerPromotionTask[] }
-function newTask(level: PartnerLevel, progress = 0, qualified = false): PartnerPromotionTask | null { const config = levels.find(row => row.partnerLevel === level)!; if (!config.nextLevel) return null; return { taskId: `demo-task-${crypto.randomUUID()}`, version: 1, beforeLevel: level, targetLevel: config.nextLevel, progress, target: config.taskTarget!, canClaim: qualified, startedAt: '2026-10-01T00:00:00+08:00', validUntil: '2027-09-30T23:59:59+08:00', status: qualified ? 'READY' : 'IN_PROGRESS', qualificationNote: qualified ? 'Mock服务端确认可申请，需账号主动提交' : '进度为服务端演示值，不据团队列表累计' } }
+function newTask(level: PartnerLevel, progress = 0, qualified = false): PartnerPromotionTask | null {
+  const config = levels.find(row => row.partnerLevel === level)!
+  if (!config.nextLevel) return null
+  const target = config.taskTarget!
+  const nextTitle = levels.find(row => row.partnerLevel === config.nextLevel)!.title
+  const status = qualified ? 'READY' : 'IN_PROGRESS'
+  const statusLabel = qualified ? '可申请' : '进行中'
+  const progressText = `${progress}/${target}`
+  const percent = target > 0 ? Math.round((progress / target) * 1000) / 10 : 0
+  const text = `直推 ${target} 位${nextTitle}合伙人即可免费晋升（12 个月内）`
+  return {
+    taskId: `demo-task-${crypto.randomUUID()}`,
+    enabled: true,
+    status,
+    statusLabel,
+    achieved: qualified,
+    items: [{ key: 'direct', label: `直推${nextTitle}`, required: target, current: progress, reached: progress >= target, progressText, percent }],
+    daysLeft: 360,
+    validUntil: '2027-09-30T23:59:59+08:00',
+    startTier: level,
+    startTierLabel: config.title,
+    targetTier: config.nextLevel,
+    targetTierLabel: nextTitle,
+    isMax: false,
+    canApply: qualified,
+    grantedTier: null,
+    grantRule: '达标免费升 1 档',
+    deadlineText: '任务有效期 12 个月，将于 360 天后截止',
+    text,
+    version: 1,
+    beforeLevel: level,
+    targetLevel: config.nextLevel,
+    progress,
+    target,
+    canClaim: qualified,
+    startedAt: '2026-10-01T00:00:00+08:00',
+    qualificationNote: qualified ? 'Mock服务端确认可申请，需账号主动提交' : '进度为服务端演示值，不据团队列表累计',
+  }
+}
 const partners: StoredPartner[] = mockListUsers({ page: 1, pageSize: 50 }).items.filter(row => row.businessContexts.some(context => context.module === 'partner')).map((account, index, all) => {
   const level = partnerLevels[index % 4], task = newTask(level, index === 1 ? 9 : index === 6 ? 18 : 1, index === 1)
   if (task && index === 6) task.qualificationNote = '演示：数字达到目标，服务端仍在资格复核，不可申请'
@@ -24,15 +62,15 @@ function profile(row: StoredPartner): PartnerProfile {
   const partnerStatus = frozen ? annualStatus === 'EXPIRED' ? 'EXPIRED' : 'FROZEN' : annualStatus === 'NOT_OPEN' ? 'PENDING_ANNUAL' : 'ACTIVE'
   const allowedTargetLevels = !frozen && annualStatus === 'ACTIVE' && !processing ? partnerLevels.slice(partnerLevels.indexOf(row.partnerLevel) + 1) : []
   const task = row.task ? copy(row.task) : null
-  if (task && Date.parse(task.validUntil) <= Date.now()) { task.status = 'EXPIRED'; task.canClaim = false }
-  if (task && (frozen || annualStatus !== 'ACTIVE' || processing)) { task.canClaim = false; if (processing) task.status = 'PROCESSING' }
+  if (task && task.validUntil && Date.parse(task.validUntil) <= Date.now()) { task.status = 'EXPIRED'; task.statusLabel = '已过期'; task.canClaim = false; task.canApply = false }
+  if (task && (frozen || annualStatus !== 'ACTIVE' || processing)) { task.canClaim = false; task.canApply = false; if (processing) { task.status = 'PROCESSING'; task.statusLabel = '处理中' } }
   const superiorId = mockInvitationSuperiorId(row.accountId)
-  const superior = superiorId ? { accountId: superiorId, contextId: partners.find(item => item.accountId === superiorId)?.contextId ?? null, name: mockUserDetail(superiorId).account.nickname } : null
+  const superior = superiorId ? { accountId: superiorId, contextId: partners.find(item => item.accountId === superiorId)?.contextId ?? null, name: mockUserDetail(superiorId).account.nickname, phone: mockUserDetail(superiorId).account.phone, displayId: mockUserDetail(superiorId).account.displayId } : null
   return { contextId: row.contextId, accountId: row.accountId, displayId: account.displayId, name: account.nickname, phone: account.phone, partnerLevel: row.partnerLevel, partnerStatus, frozen, annualStatus, annualValidUntil: row.annualValidUntil, annualFeeAmount: 20000, superior, version: row.version, allowedTargetLevels: [...allowedTargetLevels], allowedActions: [...(allowedTargetLevels.length ? ['manual-upgrade' as const] : []), ...(task?.canClaim ? ['claim-promotion' as const] : [])], task }
 }
 function addAudit(value: Omit<PartnerAudit, 'operationId' | 'occurredAt'>) { const entry = { ...value, operationId: crypto.randomUUID(), occurredAt: new Date().toISOString() }; audit.push(entry); return entry.operationId }
 function applyLevel(row: StoredPartner, targetLevel: PartnerLevel, source: 'HQ_MANUAL' | 'USER_TASK') {
-  if (row.task) { const task = copy(row.task); task.status = source === 'USER_TASK' ? 'COMPLETED' : 'SUPERSEDED'; task.canClaim = false; task.version++; row.taskHistory.push(task) }
+  if (row.task) { const task = copy(row.task); task.status = source === 'USER_TASK' ? 'COMPLETED' : 'SUPERSEDED'; task.statusLabel = source === 'USER_TASK' ? '已完成' : '已由人工升级替代'; task.canClaim = false; task.canApply = false; task.version++; row.taskHistory.push(task) }
   row.partnerLevel = targetLevel; row.task = newTask(targetLevel); if (row.task) { row.task.startedAt = new Date().toISOString(); row.task.validUntil = new Date(Date.now() + 365 * 86400000).toISOString() }; row.version++
 }
 function completeClaims() {
@@ -40,7 +78,7 @@ function completeClaims() {
     if (receipt.source !== 'USER_TASK' || receipt.status !== 'PROCESSING' || (readyTimes.get(receipt.receiptId) ?? Infinity) > Date.now()) continue
     const row = find(receipt.contextId), current = profile(row)
     try {
-      if (current.frozen || current.annualStatus !== 'ACTIVE' || row.partnerLevel !== receipt.beforeLevel || row.task?.taskId !== receipt.taskId || !row.task.canClaim || Date.parse(row.task.validUntil) <= Date.now()) fail('INVALID_STATE', '身份、年度权益或任务资格已变化，晋升未执行')
+      if (current.frozen || current.annualStatus !== 'ACTIVE' || row.partnerLevel !== receipt.beforeLevel || row.task?.taskId !== receipt.taskId || !row.task.canClaim || !row.task.validUntil || Date.parse(row.task.validUntil) <= Date.now()) fail('INVALID_STATE', '身份、年度权益或任务资格已变化，晋升未执行')
       applyLevel(row, receipt.targetLevel, 'USER_TASK'); receipt.status = 'SUCCEEDED'; receipt.result = 'Mock服务端任务晋升成功；不新增收益、不续年度、不扣介绍人名额'
     } catch (err) { receipt.status = 'FAILED'; receipt.result = err instanceof Error ? err.message : '晋升失败'; row.version++ }
     receipt.completedAt = new Date().toISOString(); addAudit({ requestId: receipt.requestId, action: 'task-promotion', contextId: row.contextId, targetId: receipt.receiptId, operatorName: receipt.operatorName, reason: receipt.reason, before: title(receipt.beforeLevel), after: `${receipt.status}：${title(row.partnerLevel)}；${receipt.result}` })

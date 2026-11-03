@@ -123,9 +123,9 @@ export default function Transfers() {
 
   const confirm = async () => {
     if (!pending) return
-    const text = reason.trim()
-    if (!text || Array.from(text).length > 200) {
-      setSubmitError('操作原因须填写 1—200 字')
+    const text = reason.trim() || '（无备注）'
+    if (Array.from(reason.trim()).length > 200) {
+      setSubmitError('备注不能超过 200 字')
       return
     }
     let payload: TransferMutation = { ...pending, reason: text }
@@ -441,7 +441,7 @@ export default function Transfers() {
               <Input.TextArea rows={3} maxLength={200} showCount placeholder="回执说明 1—200 字" value={receiptNote} onChange={e => setReceiptNote(e.target.value)} />
             </>
           )}
-          <Input.TextArea rows={3} maxLength={200} showCount placeholder="操作原因 1—200 字（必填）" value={reason} onChange={e => setReason(e.target.value)} />
+          <Input.TextArea rows={3} maxLength={200} showCount placeholder="选填，1—200 字" value={reason} onChange={e => setReason(e.target.value)} />
           {submitError && <Alert type="error" message={submitError} />}
           {blocked && <Button onClick={() => { setPending(null); if (detailId) void loadDetail(detailId); void loadList() }}>刷新后重试</Button>}
         </Space>

@@ -8,13 +8,13 @@ const adapter = apiClient.defaults.adapter
 afterEach(() => { apiClient.defaults.adapter = adapter })
 
 describe('真实业务模块绑定', () => {
-  it('覆盖全部 26 模块、82 个读取与36个业务/账号设置写入；登录注销由认证服务负责', () => {
-    expect(liveModules).toHaveLength(26)
+  it('覆盖全部 30 模块、94 个读取与52个业务/账号设置写入；登录注销由认证服务负责', () => {
+    expect(liveModules).toHaveLength(30)
     const operations = liveModules.flatMap((module) => module.operations)
-    expect(new Set(operations.map((item) => item.key)).size).toBe(118)
-    expect(operations.filter((item) => item.method === 'GET')).toHaveLength(82)
-    expect(operations.filter((item) => item.method === 'POST')).toHaveLength(36)
-    expect(new Set(liveModules.map((module) => module.route)).size).toBe(26)
+    expect(new Set(operations.map((item) => item.key)).size).toBe(146)
+    expect(operations.filter((item) => item.method === 'GET')).toHaveLength(94)
+    expect(operations.filter((item) => item.method === 'POST')).toHaveLength(52)
+    expect(new Set(liveModules.map((module) => module.route)).size).toBe(30)
   })
 
   for (const module of liveModules) {
@@ -45,8 +45,8 @@ describe('真实业务模块绑定', () => {
   }
 
   const operation = liveModules.find((module) => module.name === 'users')!.operations.find((item) => item.method === 'POST')!
-  it('提交前验证原因、版本、action 与备注必填，禁止越界操作', () => {
-    expect(() => buildMutationRequest(operation, { action: 'freeze' }, '', 'key')).toThrow('原因')
+  it('提交前验证版本、action；备注选填（空则占位）；禁止越界操作', () => {
+    expect(buildMutationRequest(operation, { action: 'freeze' }, '', 'key').body.reason).toBe('（无备注）')
     expect(() => buildMutationRequest(operation, { action: 'freeze' }, 'reason', '')).toThrow('请求号')
     expect(() => buildMutationRequest(operation, { action: 'reset-password' }, 'reason', 'key')).toThrow('契约')
     expect(() => buildMutationRequest(operation, { action: 'freeze', version: 1.5 }, 'reason', 'key')).toThrow('版本号')

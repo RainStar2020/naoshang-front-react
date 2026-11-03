@@ -56,6 +56,9 @@ it('目录返回归属代理与地区选项；列表种子与 users/staff 门店
 it('详情含主档、健脑官与任职摘要；密码不回显；费用为分', async () => {
   const detail = await service.detail(token, 'shop-1')
   expect(detail.store).toMatchObject({ storeId: 'shop-1', minimumFeeAmount: 69800, managerName: '李店长' })
+  expect(Array.isArray(detail.owners)).toBe(true)
+  expect(detail.owners.some(row => row.name.includes('陈老板') || row.roleLabel.includes('合店老板') || !!row.ownerId)).toBe(true)
+  expect(detail.store.ownerCount).toBeGreaterThanOrEqual(detail.owners.length)
   expect(detail.coaches.some(row => row.loginAccount === 'demo-coach')).toBe(true)
   expect(detail.staff.some(row => row.roleCode === 'STORE_MANAGER')).toBe(true)
   expect(JSON.stringify(detail)).not.toMatch(/password|Demo@/i)

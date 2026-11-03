@@ -493,7 +493,7 @@ export function mockTraceMutate(
     if (prev.fingerprint === fingerprint) return prev.result
     throw new TraceError('IDEMPOTENCY_CONFLICT', '幂等键已用于其他操作')
   }
-  if (!mutation.reason.trim()) throw new TraceError('INVALID_INPUT', '请填写原因')
+  if (!mutation.reason.trim()) mutation = { ...mutation, reason: '（无备注）' }
 
   let result: TraceMutationResult
 

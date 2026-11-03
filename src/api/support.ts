@@ -74,3 +74,40 @@ export async function postSupportTickets(request: SupportEndpoints['POST /suppor
   })
   return response.data
 }
+
+/** @see GET /api/hq/support/feedback */
+export async function getSupportFeedback(query?: SupportEndpoints['GET /support/feedback']['query'], options: RequestOptions = {}): Promise<SupportEndpoints['GET /support/feedback']['response']> {
+  const response = await apiClient.get<SupportEndpoints['GET /support/feedback']['response']>('/support/feedback', { ...options, params: query })
+  return response.data
+}
+
+/** @see GET /api/hq/support/entry-config */
+export async function getSupportEntryConfig(query?: SupportEndpoints['GET /support/entry-config']['query'], options: RequestOptions = {}): Promise<SupportEndpoints['GET /support/entry-config']['response']> {
+  const response = await apiClient.get<SupportEndpoints['GET /support/entry-config']['response']>('/support/entry-config', { ...options, params: query })
+  return response.data
+}
+
+/** @see POST /api/hq/support/entry-config/mutate */
+export async function postSupportEntryConfigMutate(request: SupportEndpoints['POST /support/entry-config/mutate']['request'], options: RequestOptions = {}): Promise<SupportEndpoints['POST /support/entry-config/mutate']['response']> {
+  const response = await apiClient.post<SupportEndpoints['POST /support/entry-config/mutate']['response']>('/support/entry-config/mutate', request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+
+/** @see GET /api/hq/support/agreements/:agreementId */
+export async function getSupportAgreementsByAgreementId(path: SupportEndpoints['GET /support/agreements/:agreementId']['path'], query?: SupportEndpoints['GET /support/agreements/:agreementId']['query'], options: RequestOptions = {}): Promise<SupportEndpoints['GET /support/agreements/:agreementId']['response']> {
+  const response = await apiClient.get<SupportEndpoints['GET /support/agreements/:agreementId']['response']>(`/support/agreements/${encodeURIComponent(path.agreementId)}`, { ...options, params: query })
+  return response.data
+}
+
+/** @see POST /api/hq/support/agreements/:agreementId/mutate */
+export async function postSupportAgreementsByAgreementIdMutate(path: SupportEndpoints['POST /support/agreements/:agreementId/mutate']['path'], request: SupportEndpoints['POST /support/agreements/:agreementId/mutate']['request'], options: RequestOptions = {}): Promise<SupportEndpoints['POST /support/agreements/:agreementId/mutate']['response']> {
+  const response = await apiClient.post<SupportEndpoints['POST /support/agreements/:agreementId/mutate']['response']>(`/support/agreements/${encodeURIComponent(path.agreementId)}/mutate`, request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+

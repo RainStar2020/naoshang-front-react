@@ -111,13 +111,19 @@ function mapCatalog(raw: unknown) {
 }
 
 export async function realSupportCatalog() {
-  try { return cast(mapCatalog(await unwrapData(await api.getSupportCatalog()))) }
-  catch (error) { return mapHqError(error, SupportError) }
+  try {
+    const catalogRaw = record(await unwrapData(await api.getSupportCatalog()))
+    try {
+      const entry = await unwrapData(await api.getSupportEntryConfig())
+      if (entry != null) catalogRaw.supportConfig = entry
+    } catch { /* entry-config optional enrichment */ }
+    return cast(mapCatalog(catalogRaw))
+  } catch (error) { return mapHqError(error, SupportError) }
 }
 
 export async function realSupportFeedbackList(query: SupportFeedbackQuery) {
   try {
-    const page = asPage(await unwrapData(await api.getSupportTickets({ ...query } as never)), query.page, query.pageSize)
+    const page = asPage(await unwrapData(await api.getSupportFeedback({ ...query } as never)), query.page, query.pageSize)
     return cast({
       items: page.items.map(mapFeedback),
       total: page.total,
@@ -130,8 +136,41 @@ export async function realSupportFeedbackList(query: SupportFeedbackQuery) {
 export async function realSupportMutate(input: SupportMutation) {
   try {
     const action = str((input as { action?: string }).action, 'reply')
-    const ticketId = str((input as { ticketId?: string }).ticketId || (input as { feedbackId?: string }).feedbackId)
+    const agreementId = str((input as { agreementId?: string }).agreementId)
+    const feedbackId = str((input as { feedbackId?: string }).feedbackId)
     const body = mutationBody({ ...record(input as never), action, reason: input.reason, idempotencyKey: input.idempotencyKey, version: (input as any).version })
+
+    if (action === 'save-agreement' || action === 'publish-agreement' || action === 'offline-agreement') {
+      if (!agreementId) throw new SupportError('INVALID_INPUT', '缺少 agreementId')
+      const hqAction = action === 'save-agreement' ? 'update' : action === 'publish-agreement' ? 'publish' : 'offline'
+      const agreementBody = mutationBody({ ...record(input as never), action: hqAction, reason: input.reason, idempotencyKey: input.idempotencyKey, version: (input as any).version })
+      await unwrapData(await api.postSupportAgreementsByAgreementIdMutate({ agreementId }, agreementBody as never))
+      return cast({ action: action as never, mockOnly: false, message: '已提交', catalog: await realSupportCatalog() })
+    }
+
+    if (action === 'save-support-config') {
+      const configBody = mutationBody({
+        action: 'update',
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey,
+        version: (input as any).version,
+        phone: (input as any).phone,
+        description: (input as any).description,
+        feedbackMaxImages: (input as any).feedbackMaxImages,
+      })
+      await unwrapData(await api.postSupportEntryConfigMutate(configBody as never))
+      return cast({ action: action as never, mockOnly: false, message: '已提交', catalog: await realSupportCatalog() })
+    }
+
+    if (action === 'mark-feedback-handled') {
+      // 文档未单独暴露 feedback mutate；沿用工单写口，feedbackId 作为 ticketId 传递。
+      if (!feedbackId) throw new SupportError('INVALID_INPUT', '缺少 feedbackId')
+      const fbBody = mutationBody({ action: 'close', reason: input.reason, idempotencyKey: input.idempotencyKey, version: (input as any).version, note: (input as any).handleNote })
+      await unwrapData(await api.postSupportTicketsByTicketIdMutate({ ticketId: feedbackId }, fbBody as never))
+      return cast({ action: action as never, mockOnly: false, message: '已提交', catalog: await realSupportCatalog() })
+    }
+
+    const ticketId = str((input as { ticketId?: string }).ticketId || feedbackId)
     if (!ticketId) {
       await unwrapData(await api.postSupportTickets(body as never))
       return cast({ action: action as never, mockOnly: false, message: '已提交', catalog: await realSupportCatalog() })

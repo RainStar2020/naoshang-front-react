@@ -32,15 +32,18 @@ describe('用户查询、分页与身份边界', () => {
       expect(result.items[0].accountId).toBe('account-1')
     }
   })
-  it('组合省市区、门店和冻结条件过滤', async () => {
-    const result = await service.list(token, { regionCodes: ['410000', '410100'], storeId: 'shop-2', status: 'frozen', page: 1, pageSize: 10 })
+  it('组合省市区、VIP等级和冻结条件过滤', async () => {
+    // mock：n%15===0 且为安徽区划时才同时满足 vip+冻结（如 account-15）
+    const result = await service.list(token, { regionCodes: ['340000', '340100'], tier: 'vip', status: 'frozen', page: 1, pageSize: 10 })
     expect(result.items.length).toBeGreaterThan(0)
-    expect(result.items.every(item => item.frozen && item.storeId === 'shop-2' && item.regionCodes[0] === '410000')).toBe(true)
+    expect(result.items.every(item => item.frozen && item.tier === 'vip' && item.regionCodes[0] === '340000')).toBe(true)
   })
-  it('支持未绑定门店与空结果', async () => {
-    const result = await service.list(token, { storeId: 'unbound', page: 1, pageSize: 10 })
-    expect(result.total).toBe(4)
-    expect(result.items.every(item => item.storeId === null)).toBe(true)
+  it('支持 VIP 等级筛选与空结果', async () => {
+    const options = await service.options(token)
+    expect(options.tiers.map(tier => tier.value)).toEqual(expect.arrayContaining(['vip', 'parent']))
+    const vip = await service.list(token, { tier: 'vip', page: 1, pageSize: 50 })
+    expect(vip.total).toBeGreaterThan(0)
+    expect(vip.items.every(item => item.tier === 'vip')).toBe(true)
     expect((await service.list(token, { keyword: '不存在的账号', page: 1, pageSize: 10 })).total).toBe(0)
   })
   it('同一账号保留多委任和独立合店合同，不混用孩子ID', async () => {
@@ -111,9 +114,10 @@ describe('写入、追溯与防重复操作', () => {
     }
     expect((await service.detail(token, 'account-1')).audit).toHaveLength(0)
   })
-  it('所有操作必须填写有效原因', async () => {
-    await expect(service.mutate(token, change({ reason: '  ' }))).rejects.toMatchObject({ code: 'INVALID_INPUT' })
-    await expect(service.mutate(token, change({ reason: '字'.repeat(201) }))).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  it('备注可留空，超长仍拒绝', async () => {
+    const blank = await service.mutate(token, change({ reason: '  ' }))
+    expect(blank.operation.reason).toBe('（无备注）')
+    await expect(service.mutate(token, change({ reason: '字'.repeat(201), idempotencyKey: crypto.randomUUID() }))).rejects.toMatchObject({ code: 'INVALID_INPUT' })
   })
   it('模拟密码重置不回显密码，幂等重试不重复产生流水', async () => {
     const input = change({ action: 'reset-password', newPassword: 'New@123456' })

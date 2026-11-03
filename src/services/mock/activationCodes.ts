@@ -69,7 +69,7 @@ function expiry(value: string | null) {
   if (typeof value !== 'string' || !Number.isFinite(Date.parse(value)) || Date.parse(value) <= Date.now()) fail('INVALID_INPUT', '请选择未来的有效期，或明确选择不设到期时间')
   return new Date(value).toISOString()
 }
-function reason(value: string) { if (typeof value !== 'string' || !value.trim() || value.trim().length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因') }
+function reason(value: string) { const t = typeof value === 'string' ? value.trim() : ''; if (t.length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因'); return t || '（无备注）' }
 function selected(items: CodeSelection[]) {
   if (!Array.isArray(items) || !items.length || items.length > limits.maxSelectionSize || new Set(items.map(item => item.codeId)).size !== items.length) fail('INVALID_INPUT', '请选择有效且不重复的激活码，数量不能超过服务返回上限')
   return items.map(item => { const code = find(item.codeId); if (code.version !== item.version) fail('VERSION_CONFLICT', '激活码状态已变化，请刷新后重新操作'); return code })
@@ -79,7 +79,7 @@ function addAudit(action: ActivationAudit['action'], codeIds: string[], batchId:
   audit.push(entry); return entry
 }
 export function mockActivationMutate(input: ActivationMutation, operator: HqAccount): ActivationMutationResult {
-  reason(input.reason)
+  input = { ...input, reason: reason(input.reason) }
   if (!input.idempotencyKey || !['generate', 'issue', 'revoke', 'reissue', 'set-expiry'].includes(input.action)) fail('INVALID_INPUT', '操作类型或请求号无效')
   const key = `${operator.accountId}:${input.idempotencyKey}`, payload = JSON.stringify(input)
   const previous = mutations.get(key)
@@ -134,7 +134,7 @@ export function mockActivationMutate(input: ActivationMutation, operator: HqAcco
   mutations.set(key, { payload, result: copy(result) }); return copy(result)
 }
 export function mockActivationExport(input: ActivationExportRequest, operator: HqAccount): ActivationExport {
-  reason(input.reason)
+  input = { ...input, reason: reason(input.reason) }
   if (!input.idempotencyKey) fail('INVALID_INPUT', '缺少导出请求号')
   const key = `${operator.accountId}:${input.idempotencyKey}`, payload = JSON.stringify(input)
   const previous = exports.get(key)

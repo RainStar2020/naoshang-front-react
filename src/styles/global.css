@@ -591,6 +591,48 @@ button {
   gap: 10px;
 }
 
+
+/* ============ HQ modal body/footer overlap fix ============ */
+/* Keep body scrollable; leave room under TextArea showCount / tables so footer never covers them. */
+.ant-modal .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, calc(100vh - 48px));
+}
+.ant-modal .ant-modal-body {
+  flex: 1 1 auto;
+  max-height: min(70vh, calc(100vh - 220px));
+  overflow-y: auto;
+  padding-bottom: 32px !important;
+}
+.ant-modal .ant-modal-footer {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  background: #fff;
+  margin-top: 0;
+}
+.ant-modal-body .ant-input-textarea-show-count,
+.ant-modal-body .ant-input-affix-wrapper,
+.ant-modal-body .ant-input-textarea {
+  margin-bottom: 8px;
+}
+.ant-modal-body .ant-input-data-count {
+  bottom: -22px;
+}
+.ant-modal-body .ant-table-wrapper {
+  margin-bottom: 8px;
+}
+
+.modal-body {
+  padding-bottom: 28px;
+}
+.modal-footer {
+  position: relative;
+  z-index: 2;
+  background: #fff;
+}
+
 /* ============ Toast ============ */
 .toast-host {
   position: fixed;

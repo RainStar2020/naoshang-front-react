@@ -394,7 +394,7 @@ export function mockPromoMaterialMutate(
     if (prev.fingerprint === fingerprint) return prev.result
     throw new PromoMaterialError('IDEMPOTENCY_CONFLICT', '幂等键已用于其他操作')
   }
-  if (!mutation.reason.trim()) throw new PromoMaterialError('INVALID_INPUT', '请填写原因')
+  if (!mutation.reason.trim()) mutation = { ...mutation, reason: '（无备注）' }
 
   let result: PromoMaterialMutationResult
 

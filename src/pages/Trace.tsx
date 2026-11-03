@@ -180,7 +180,7 @@ export default function Trace() {
             <span>{content}</span>
             <Input.TextArea
               rows={2}
-              placeholder="操作原因（必填）"
+              placeholder="选填，可留空"
               onChange={(e) => { reason = e.target.value }}
             />
           </Space>
@@ -188,11 +188,7 @@ export default function Trace() {
         okText: '确认',
         cancelText: '取消',
         onOk: async () => {
-          const trimmed = reason.trim()
-          if (!trimmed) {
-            message.error('请填写原因')
-            throw new Error('need reason')
-          }
+          const trimmed = reason.trim() || '（无备注）'
           setBusy(true)
           try {
             const result = await traceService.mutate(token, { ...input, reason: trimmed })
@@ -200,7 +196,6 @@ export default function Trace() {
             await reload()
             resolve()
           } catch (err) {
-            if (err instanceof Error && err.message === 'need reason') throw err
             message.error(err instanceof TraceError ? err.message : '操作失败')
             reject(err)
             throw err

@@ -20,7 +20,7 @@ import { arr, asPage, bool, cast, mapHqError, mutationBody, nullableStr, num, re
 const LEVEL_SET = new Set<string>(partnerLevels)
 const PROFILE_STATUSES = new Set(['ACTIVE', 'FROZEN', 'EXPIRED', 'PENDING_ANNUAL'])
 const ANNUAL_STATUSES = new Set(['ACTIVE', 'EXPIRED', 'NOT_OPEN'])
-const TASK_STATUSES = new Set(['IN_PROGRESS', 'READY', 'PROCESSING', 'COMPLETED', 'EXPIRED', 'SUPERSEDED'])
+const TASK_STATUSES = new Set(['IN_PROGRESS', 'READY', 'PROCESSING', 'COMPLETED', 'EXPIRED', 'SUPERSEDED', 'ONGOING'])
 const RECEIPT_STATUSES = new Set(['PROCESSING', 'SUCCEEDED', 'FAILED'])
 const RECEIPT_SOURCES = new Set(['HQ_MANUAL', 'USER_TASK'])
 const AUDIT_ACTIONS = new Set(['upgrade', 'save-benefits', 'save-level-names', 'task-promotion'])
@@ -67,7 +67,54 @@ function asAnnualStatus(value: unknown): PartnerProfile['annualStatus'] {
 
 function asTaskStatus(value: unknown): PartnerPromotionTask['status'] {
   const raw = str(value, 'IN_PROGRESS').toUpperCase()
-  return TASK_STATUSES.has(raw) ? (raw as PartnerPromotionTask['status']) : 'IN_PROGRESS'
+  if (TASK_STATUSES.has(raw)) return raw as PartnerPromotionTask['status']
+  return raw || 'IN_PROGRESS'
+}
+
+const LEGACY_STATUS_LABELS: Record<string, string> = {
+  IN_PROGRESS: '进行中',
+  ONGOING: '进行中',
+  READY: '可申请',
+  PROCESSING: '处理中',
+  COMPLETED: '已完成',
+  EXPIRED: '已过期',
+  SUPERSEDED: '已由人工升级替代',
+}
+
+function tierToLevel(value: unknown, fallback: PartnerLevel = 'DEMO-VIP'): PartnerLevel {
+  const raw = str(value).toLowerCase()
+  const aliases: Record<string, PartnerLevel> = {
+    vip: 'DEMO-VIP',
+    angel: 'DEMO-ANGEL',
+    private: 'DEMO-BOARD',
+    board: 'DEMO-BOARD',
+    cofounder: 'DEMO-FOUNDER',
+    founder: 'DEMO-FOUNDER',
+    'demo-vip': 'DEMO-VIP',
+    'demo-angel': 'DEMO-ANGEL',
+    'demo-board': 'DEMO-BOARD',
+    'demo-founder': 'DEMO-FOUNDER',
+  }
+  return aliases[raw] ?? asLevel(value, fallback)
+}
+
+function mapTaskItems(raw: unknown): PartnerPromotionTask['items'] {
+  return arr(raw).map((item, index) => {
+    const r = record(item)
+    const required = Math.max(0, num(r.required ?? r.target ?? r.goal, 0))
+    const current = Math.max(0, num(r.current ?? r.progress ?? r.count, 0))
+    const progressText = str(r.progressText || (required || current ? `${current}/${required}` : ''))
+    const percent = num(r.percent, required > 0 ? Math.round((current / required) * 1000) / 10 : 0)
+    return {
+      key: str(r.key || r.code || `item-${index}`),
+      label: str(r.label || r.name || r.title || `指标${index + 1}`),
+      required,
+      current,
+      reached: bool(r.reached, required > 0 && current >= required),
+      progressText,
+      percent,
+    }
+  })
 }
 
 function asReceiptStatus(value: unknown): PartnerReceipt['status'] {
@@ -123,20 +170,63 @@ export function mapPartnerPromotionTask(raw: unknown): PartnerPromotionTask | nu
   if (raw == null) return null
   const r = record(raw)
   if (!Object.keys(r).length) return null
-  const beforeLevel = asLevel(r.beforeLevel || r.fromLevel || r.currentLevel)
-  const targetLevel = asLevel(r.targetLevel || r.toLevel || r.nextLevel, LEVEL_DEFAULTS[beforeLevel].nextLevel ?? beforeLevel)
+  const items = mapTaskItems(r.items || r.progressItems || r.metrics)
+  const beforeLevel = asLevel(
+    r.beforeLevel || r.fromLevel || r.currentLevel || r.startTier,
+    tierToLevel(r.startTier, 'DEMO-VIP'),
+  )
+  const nextDefault = LEVEL_DEFAULTS[beforeLevel].nextLevel ?? beforeLevel
+  const targetLevel = asLevel(
+    r.targetLevel || r.toLevel || r.nextLevel || r.targetTier || r.grantedTier,
+    r.targetTier == null && r.targetLevel == null ? nextDefault : tierToLevel(r.targetTier, nextDefault),
+  )
+  const progress = Math.max(0, num(r.progress ?? r.currentProgress, items[0]?.current ?? 0))
+  const target = Math.max(0, num(r.target ?? r.goal ?? r.taskTarget, items[0]?.required ?? 0))
+  const status = asTaskStatus(r.status || r.taskStatus)
+  const canApply = bool(r.canApply ?? r.canClaim ?? r.claimable, false)
+  const enabled = bool(r.enabled, true)
+  const synthesizedItems = items.length
+    ? items
+    : target > 0 || progress > 0
+      ? [{
+          key: 'legacy',
+          label: str(r.itemLabel || '直推进度'),
+          required: target,
+          current: progress,
+          reached: target > 0 && progress >= target,
+          progressText: `${progress}/${target}`,
+          percent: target > 0 ? Math.round((progress / target) * 1000) / 10 : 0,
+        }]
+      : []
+  const statusLabel = str(r.statusLabel || LEGACY_STATUS_LABELS[String(status).toUpperCase()] || status)
+  const text = str(r.text || r.description || r.qualificationNote || r.note || r.message)
   return {
     taskId: str(r.taskId || r.id),
+    enabled,
+    status,
+    statusLabel,
+    achieved: bool(r.achieved, canApply || (target > 0 && progress >= target)),
+    items: synthesizedItems,
+    daysLeft: r.daysLeft == null || r.daysLeft === '' ? null : Math.max(0, num(r.daysLeft, 0)),
+    validUntil: nullableStr(r.validUntil ?? r.endAt ?? r.expiresAt),
+    startTier: nullableStr(r.startTier ?? r.beforeLevel ?? r.fromLevel),
+    startTierLabel: nullableStr(r.startTierLabel),
+    targetTier: nullableStr(r.targetTier ?? r.targetLevel ?? r.toLevel),
+    targetTierLabel: nullableStr(r.targetTierLabel),
+    isMax: bool(r.isMax, !LEVEL_DEFAULTS[beforeLevel].nextLevel),
+    canApply,
+    grantedTier: nullableStr(r.grantedTier),
+    grantRule: str(r.grantRule),
+    deadlineText: str(r.deadlineText),
+    text,
     version: Math.max(1, num(r.version, 1)),
     beforeLevel,
     targetLevel,
-    progress: Math.max(0, num(r.progress ?? r.currentProgress, 0)),
-    target: Math.max(0, num(r.target ?? r.goal ?? r.taskTarget, 0)),
-    canClaim: bool(r.canClaim ?? r.claimable, false),
+    progress,
+    target,
+    canClaim: canApply,
     startedAt: str(r.startedAt || r.startAt || r.createdAt),
-    validUntil: str(r.validUntil || r.endAt || r.expiresAt),
-    status: asTaskStatus(r.status || r.taskStatus),
-    qualificationNote: str(r.qualificationNote || r.note || r.qualification || r.message),
+    qualificationNote: str(r.qualificationNote || r.note || r.qualification || text),
   }
 }
 
@@ -172,6 +262,8 @@ export function mapPartnerProfile(raw: unknown): PartnerProfile {
           accountId: superiorId,
           contextId: nullableStr(superiorRaw.contextId ?? superiorRaw.businessContextId ?? r.superiorContextId),
           name: str(superiorRaw.name || superiorRaw.nickname || superiorRaw.displayName || superiorId),
+          phone: nullableStr(superiorRaw.phone ?? superiorRaw.mobile ?? superiorRaw.loginAccount),
+          displayId: nullableStr(superiorRaw.displayId ?? superiorRaw.userNo ?? superiorRaw.accountNo),
         }
       : null,
     version: Math.max(1, num(r.version, 1)),
@@ -248,12 +340,25 @@ export function mapPartnerList(raw: unknown, page: number, pageSize: number): Pa
   }
 }
 
-export function mapPartnerDetail(raw: unknown): PartnerDetail {
+export function mapPartnerDetail(raw: unknown, fallbackContextId?: string): PartnerDetail {
   const r = record(raw)
-  const profileSource = r.profile != null ? r.profile : raw
+  // HQ detail envelope is { partner, receipts, audit }; keep profile alias for older payloads.
+  const nested = r.partner ?? r.profile
+  const nestedRec = nested != null ? record(nested) : null
+  const profileSource =
+    nestedRec != null
+      ? {
+          ...nestedRec,
+          contextId: nestedRec.contextId || nestedRec.businessContextId || r.contextId || fallbackContextId || '',
+        }
+      : raw
+  const profile = mapPartnerProfile(profileSource)
+  if (!profile.contextId && fallbackContextId) profile.contextId = fallbackContextId
   return {
-    profile: mapPartnerProfile(profileSource),
-    taskHistory: arr(r.taskHistory || r.tasks || r.historyTasks).map((item) => mapPartnerPromotionTask(item)).filter((item): item is PartnerPromotionTask => !!item),
+    profile,
+    taskHistory: arr(r.taskHistory || r.tasks || r.historyTasks || (nestedRec ? nestedRec.taskHistory : undefined))
+      .map((item) => mapPartnerPromotionTask(item))
+      .filter((item): item is PartnerPromotionTask => !!item),
     receipts: arr(r.receipts || r.receiptList || r.promotionReceipts).map(mapPartnerReceipt),
     audit: arr(r.audit || r.operations || r.logs).map(mapPartnerAudit),
   }
@@ -277,7 +382,7 @@ export async function realPartnerList(query: PartnerQuery) {
 
 export async function realPartnerDetail(contextId: string) {
   try {
-    return cast(mapPartnerDetail(await unwrapData(await api.getPartnersByContextId({ contextId }))))
+    return cast(mapPartnerDetail(await unwrapData(await api.getPartnersByContextId({ contextId })), contextId))
   } catch (error) {
     return mapHqError(error, PartnerError)
   }

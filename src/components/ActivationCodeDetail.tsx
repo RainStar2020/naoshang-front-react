@@ -21,7 +21,7 @@ export default function ActivationCodeDetail({ codeId, token, refresh, onClose }
     <Descriptions bordered size="small" column={2} items={[
       { key: 'id', label: '码ID', children: code.codeId, span: 2 }, { key: 'code', label: '脱敏码', children: code.maskedCode }, { key: 'status', label: '状态', children: <Tag>{codeStatusNames[code.status]}</Tag> },
       { key: 'batch', label: '批次', children: `${data!.batch.name} · ${code.batchId}`, span: 2 }, { key: 'type', label: '类型', children: code.codeType === 'membership-tier' ? '会员等级码' : '专栏码' }, { key: 'target', label: '目标', children: code.targetName },
-      { key: 'expiry', label: '码有效期', children: code.expiresAt ? formatUserDate(code.expiresAt) : '不设到期时间' }, { key: 'version', label: '版本', children: code.version },
+      { key: 'expiry', label: '码有效期', children: code.expiresAt ? formatUserDate(code.expiresAt) : '不设到期时间' },
       { key: 'issued', label: '交付对象', children: code.issuedTo ?? '未分发', span: 2 }, { key: 'account', label: '绑定账号', children: code.issuedToAccountId ?? '未绑定' }, { key: 'member', label: '绑定孩子', children: code.issuedToMemberId ?? '未指定' },
       { key: 'store', label: '交付门店ID', children: code.storeId ?? '未关联' }, { key: 'issuedAt', label: '分发时间', children: formatUserDate(code.issuedAt) },
       { key: 'usedBy', label: '使用账号 / 学员', children: `${code.usedByAccountId ?? '—'} / ${code.usedByMemberId ?? '—'}`, span: 2 }, { key: 'usedAt', label: '使用时间', children: formatUserDate(code.usedAt) }, { key: 'order', label: '来源订单ID', children: code.sourceOrderId ?? '无订单关联' },

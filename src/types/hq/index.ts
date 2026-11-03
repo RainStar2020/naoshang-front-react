@@ -25,6 +25,10 @@ export * from './invitations'
 export * from './costore'
 export * from './support'
 export * from './trace'
+export * from './redemptions'
+export * from './assets'
+export * from './regionAgents'
+export * from './agents'
 
 import type { AuthEndpoints } from './auth'
 import type { UsersEndpoints } from './users'
@@ -52,6 +56,10 @@ import type { InvitationsEndpoints } from './invitations'
 import type { CostoreEndpoints } from './costore'
 import type { SupportEndpoints } from './support'
 import type { TraceEndpoints } from './trace'
+import type { AgentsEndpoints } from './agents'
+import type { RegionAgentsEndpoints } from './regionAgents'
+import type { AssetsEndpoints } from './assets'
+import type { RedemptionsEndpoints } from './redemptions'
 
 /** 路径均相对于 /api/hq。 */
-export type HqEndpoints = AuthEndpoints & UsersEndpoints & MembersEndpoints & CourseEndpoints & ColumnsEndpoints & AnnouncementsEndpoints & MaterialsEndpoints & ActivationCodesEndpoints & SoftwareCardsEndpoints & QuotasEndpoints & ProductsEndpoints & DeliveryEndpoints & OrdersEndpoints & CouponsEndpoints & PaymentsEndpoints & RevenueEndpoints & WithdrawalsEndpoints & StaffEndpoints & StoresEndpoints & TrainingEndpoints & TransfersEndpoints & PartnersEndpoints & InvitationsEndpoints & CostoreEndpoints & SupportEndpoints & TraceEndpoints
+export type HqEndpoints = AuthEndpoints & UsersEndpoints & MembersEndpoints & CourseEndpoints & ColumnsEndpoints & AnnouncementsEndpoints & MaterialsEndpoints & ActivationCodesEndpoints & SoftwareCardsEndpoints & QuotasEndpoints & ProductsEndpoints & DeliveryEndpoints & OrdersEndpoints & CouponsEndpoints & PaymentsEndpoints & RevenueEndpoints & WithdrawalsEndpoints & StaffEndpoints & StoresEndpoints & TrainingEndpoints & TransfersEndpoints & PartnersEndpoints & InvitationsEndpoints & CostoreEndpoints & SupportEndpoints & TraceEndpoints & AgentsEndpoints & RegionAgentsEndpoints & AssetsEndpoints & RedemptionsEndpoints

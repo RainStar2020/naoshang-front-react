@@ -20,4 +20,14 @@ export interface SupportEndpoints {
   'POST /support/tickets/:ticketId/mutate': Endpoint<{ ticketId: string }, never, SupportMutationRequest, MutationData>
   /** 新建工单。 */
   'POST /support/tickets': Endpoint<never, never, MutationRequest, MutationData>
+  /** 意见反馈分页列表。 */
+  'GET /support/feedback': Endpoint<never, SupportListQuery, never, PageData>
+  /** 客服入口配置。 */
+  'GET /support/entry-config': Endpoint<never, UndocumentedFields, never, unknown>
+  /** 客服入口配置变更。 */
+  'POST /support/entry-config/mutate': Endpoint<never, never, MutationRequest, MutationData>
+  /** 协议详情。 */
+  'GET /support/agreements/:agreementId': Endpoint<{ agreementId: string }, UndocumentedFields, never, unknown>
+  /** 协议写操作：保存/发布/下架等。 */
+  'POST /support/agreements/:agreementId/mutate': Endpoint<{ agreementId: string }, never, MutationRequest, MutationData>
 }

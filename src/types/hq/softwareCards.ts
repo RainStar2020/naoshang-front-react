@@ -20,4 +20,10 @@ export interface SoftwareCardsEndpoints {
   'POST /software-cards/batches': Endpoint<never, never, MutationRequest, MutationData>
   /** 软件卡写操作：激活/停用/作废/绑定用户。 */
   'POST /software-cards/mutate': Endpoint<never, never, SoftwareCardsMutationRequest, MutationData>
+  /** 软件卡密导出。 */
+  'POST /software-cards/exports': Endpoint<never, never, MutationRequest, unknown>
+  /** 软件卡设置读取。 */
+  'GET /software-cards/settings': Endpoint<never, UndocumentedFields, never, unknown>
+  /** 软件卡设置保存。 */
+  'POST /software-cards/settings/mutate': Endpoint<never, never, MutationRequest, MutationData>
 }

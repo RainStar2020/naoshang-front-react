@@ -196,12 +196,12 @@ describe('权限、版本、资源和审计', () => {
     await expect(mutate(command('offline', 'level-2', 2))).rejects.toMatchObject({ code: 'INVALID_STATE' })
     expect((await cms.catalog(token)).audit).toHaveLength(1)
   })
-  it('校验重复编号、重复章节ID和操作原因', async () => {
+  it('校验重复编号、重复章节ID和备注长度', async () => {
     const value = await draft(); value.number = 1
     await expect(mutate(save(value))).rejects.toMatchObject({ code: 'INVALID_INPUT' })
     value.number = 2; value.chapters.push(structuredClone(value.chapters[0]))
     await expect(mutate(save(value))).rejects.toMatchObject({ code: 'INVALID_INPUT' })
-    await expect(mutate({ ...command('publish'), reason: ' ' })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+    await expect(mutate({ ...command('publish'), reason: 'x'.repeat(201) })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
   })
   it('返回副本且记录总部操作者、原因和版本', async () => {
     const catalog = await mutate(command('publish'))

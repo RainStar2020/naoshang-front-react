@@ -289,7 +289,7 @@ export function mockSupportMutate(
     if (prev.fingerprint === fingerprint) return prev.result
     throw new SupportError('IDEMPOTENCY_CONFLICT', '幂等键已用于其他操作')
   }
-  if (!mutation.reason.trim()) throw new SupportError('INVALID_INPUT', '请填写原因')
+  if (!mutation.reason.trim()) mutation = { ...mutation, reason: '（无备注）' }
 
   let result: SupportMutationResult
 

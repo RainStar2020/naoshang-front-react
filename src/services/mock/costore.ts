@@ -123,7 +123,7 @@ function validateQuery(query: CostoreQuery) {
 
 function validateRequest(reason: string, idempotencyKey: string) {
   if (!reason.trim() || reason.trim().length > 200 || !idempotencyKey) {
-    fail('INVALID_INPUT', '请填写1至200字操作原因和请求号')
+    fail('INVALID_INPUT', '请填写有效请求号；备注可选且不超过200字')
   }
 }
 

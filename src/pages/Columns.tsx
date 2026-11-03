@@ -30,9 +30,9 @@ export default function Columns() {
   useEffect(() => { let alive = true; setLoading(true); setError(''); columnsService.catalog(token).then(value => { if (alive) setCatalog(value) }).catch(err => { if (alive) setError(err.message) }).finally(() => { if (alive) setLoading(false) }); return () => { alive = false } }, [token, refresh])
   const request = (value: ColumnMutation) => { setPending({ ...value, idempotencyKey: crypto.randomUUID() }); setReason(''); setSubmitError(''); setBlocked(false) }
   const confirm = async () => {
-    if (!pending || !reason.trim()) { setSubmitError('请填写操作原因'); return }
+    if (!pending) return
     setBusy(true)
-    try { await columnsService.mutate(token, { ...pending, reason: reason.trim() }); setCatalog(await columnsService.catalog(token)); setPending(null); setEditor(null); api.success('专栏Mock操作已完成') }
+    try { await columnsService.mutate(token, { ...pending, reason: reason.trim() || '（无备注）' }); setCatalog(await columnsService.catalog(token)); setPending(null); setEditor(null); api.success('专栏Mock操作已完成') }
     catch (err) { setSubmitError(err instanceof Error ? err.message : '结果未知，请保留请求号重试'); setBlocked(err instanceof ColumnError && ['VERSION_CONFLICT', 'IDEMPOTENCY_CONFLICT'].includes(err.code)) }
     finally { setBusy(false) }
   }
@@ -51,7 +51,7 @@ export default function Columns() {
     {catalog && editor && <ColumnEditor column={editor === 'new' ? null : editor} catalog={catalog} token={token} onClose={() => setEditor(null)} onSave={request} />}{preview && <Preview column={preview} close={() => setPreview(null)} />}{catalog && records && <ColumnRecordsDrawer column={records} catalog={catalog} token={token} onClose={() => setRecords(null)} />}
     {pending && <Modal open title={labels[pending.action]} onCancel={() => { if (!busy) setPending(null) }} onOk={() => void confirm()} confirmLoading={busy} okText="确认操作" cancelText="返回修改" maskClosable={false} cancelButtonProps={{ disabled: busy }} okButtonProps={{ disabled: blocked }}>
       <p>对象：{pending.action === 'save' ? pending.value.title : catalog?.columns.find(row => row.draft.columnId === pending.columnId)?.draft.title}<br />当前版本：V{pending.version}</p><Alert type={pending.action === 'offline' ? 'warning' : 'info'} message={pending.action === 'save' ? '仅保存草稿，发布后更新学习内容。' : pending.action === 'offline' ? '下线后停止读取内容，保留账号授权、订单与学习进度（不因下线清空）。' : '发布当前草稿；稳定章节ID对应的历史进度保留，复购不重置。'} />
-      {submitError && <Alert type="error" message={submitError} />}{blocked && <Button onClick={() => { setPending(null); setEditor(null); setRefresh(value => value + 1) }}>关闭并刷新</Button>}<Input.TextArea aria-label="专栏操作原因" placeholder="请填写操作原因" rows={3} maxLength={200} showCount value={reason} disabled={busy || blocked} onChange={event => setReason(event.target.value)} style={{ marginTop: 16 }} />
+      {submitError && <Alert type="error" message={submitError} />}{blocked && <Button onClick={() => { setPending(null); setEditor(null); setRefresh(value => value + 1) }}>关闭并刷新</Button>}<Input.TextArea aria-label="备注" placeholder="选填，可留空" rows={3} maxLength={200} showCount value={reason} disabled={busy || blocked} onChange={event => setReason(event.target.value)} style={{ marginTop: 16 }} />
     </Modal>}
   </Space>
 }

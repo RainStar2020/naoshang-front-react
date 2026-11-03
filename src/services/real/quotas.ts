@@ -36,39 +36,74 @@ function mapEligibility(raw: unknown): QuotaEligibility {
 export function mapQuotaOwner(raw: unknown): QuotaOwner {
   const r = record(raw)
   const owner = record(r.owner)
+  const quotaId = str(r.quotaId || owner.quotaId || r.id)
+  const ownerId = str(r.ownerId || owner.ownerId || r.ownerAccountId || owner.ownerAccountId || r.accountId || quotaId)
+  const ownerType = str(r.ownerType || owner.ownerType, 'partner')
+  const standard = num(r.standard ?? owner.standard)
+  const activityTotal = num(r.activityTotal ?? owner.activityTotal)
+  const quotaTotal = num(r.total ?? owner.total, standard + activityTotal)
+  const frozen = num(r.frozen ?? owner.frozen)
+  const available = num(r.available ?? owner.available ?? r.remaining)
+  const allowedActions = stringList(r.allowedActions ?? owner.allowedActions)
+  const quotaStatus = str(r.status || owner.status || r.quotaStatus, 'ACTIVE').toUpperCase()
   const balancesSrc = arr(r.balances ?? owner.balances)
   const balances = balancesSrc.length ? balancesSrc.map(mapBalance) : [
-    mapBalance({ quotaType: 'STANDARD' }),
-    mapBalance({ quotaType: 'ACTIVITY' }),
+    mapBalance({ quotaType: 'STANDARD', total: standard, remaining: Math.max(0, available - activityTotal), reserved: frozen, used: 0, transferred: 0 }),
+    mapBalance({ quotaType: 'ACTIVITY', total: activityTotal, remaining: Math.max(0, Math.min(activityTotal, available)), reserved: 0, used: 0, transferred: 0 }),
   ]
-  const eligibility = mapEligibility(r.eligibility ?? owner.eligibility ?? {})
-  const partnerLevel = str(r.partnerLevel || owner.partnerLevel || r.level, 'VIP') as QuotaOwner['partnerLevel']
-  const partnerStatus = str(r.partnerStatus || owner.partnerStatus || r.status, 'ACTIVE') as QuotaOwner['partnerStatus']
+  const canAdjust = allowedActions.includes('adjust')
+  const eligibilityRaw = r.eligibility ?? owner.eligibility
+  const eligibility = eligibilityRaw != null
+    ? mapEligibility(eligibilityRaw)
+    : {
+        qualified: canAdjust,
+        canRecharge: canAdjust,
+        reason: canAdjust ? '允许调整/充值' : (allowedActions.includes('freeze') ? '仅允许冻结操作' : '当前无可用写操作'),
+        allowedTypes: canAdjust ? (['STANDARD', 'ACTIVITY'] as QuotaType[]) : [],
+        perOperationLimit: canAdjust ? 1000000 : 0,
+        remainingLimit: canAdjust ? 1000000 : 0,
+        limitLabel: '',
+      }
+  const partnerLevel = str(r.partnerLevel || owner.partnerLevel || r.level, 'DEMO-VIP') as QuotaOwner['partnerLevel']
+  const partnerStatus = str(r.partnerStatus || owner.partnerStatus || quotaStatus, 'ACTIVE') as QuotaOwner['partnerStatus']
   return {
-    ownerAccountId: str(r.ownerAccountId || owner.ownerAccountId || r.accountId || r.id),
-    contextId: str(r.contextId || owner.contextId),
-    name: str(r.name || owner.name || r.nickname, '未命名'),
+    ownerAccountId: ownerId,
+    contextId: str(r.contextId || owner.contextId || (ownerType && ownerId ? `${ownerType}:${ownerId}` : '')),
+    name: str(r.name || owner.name || r.nickname || ownerId, '未命名'),
     phone: str(r.phone || owner.phone || r.mobile),
-    displayId: str(r.displayId || owner.displayId || r.userNo),
+    displayId: str(r.displayId || owner.displayId || r.userNo || quotaId || ownerId),
     partnerLevel,
     partnerStatus,
     version: num(r.version ?? owner.version, 1),
     balances,
     eligibility,
+    quotaId: quotaId || ownerId,
+    ownerType,
+    standard,
+    activityTotal,
+    quotaTotal,
+    frozen,
+    available,
+    quotaStatus,
+    allowedActions,
   }
 }
 
 function mapListSummary(raw: unknown, items: QuotaOwner[]) {
   const r = record(raw)
-  const standardRemaining = items.reduce((sum, item) => sum + (item.balances.find((b) => b.quotaType === 'STANDARD')?.remaining ?? 0), 0)
-  const activityRemaining = items.reduce((sum, item) => sum + (item.balances.find((b) => b.quotaType === 'ACTIVITY')?.remaining ?? 0), 0)
-  const reserved = items.reduce((sum, item) => sum + item.balances.reduce((s, b) => s + b.reserved, 0), 0)
+  const standardRemaining = items.reduce((sum, item) => sum + (item.standard || (item.balances.find((b) => b.quotaType === 'STANDARD')?.remaining ?? 0)), 0)
+  const activityRemaining = items.reduce((sum, item) => sum + (item.activityTotal || (item.balances.find((b) => b.quotaType === 'ACTIVITY')?.remaining ?? 0)), 0)
+  const reserved = items.reduce((sum, item) => sum + (item.frozen || item.balances.reduce((s, b) => s + b.reserved, 0)), 0)
+  const totalQuotaFallback = items.reduce((sum, item) => sum + (item.quotaTotal || item.standard + item.activityTotal), 0)
+  const frozenQuotaFallback = items.reduce((sum, item) => sum + item.frozen, 0)
   return {
-    owners: num(r.owners, items.length),
-    rechargeable: num(r.rechargeable, items.filter((i) => i.eligibility.canRecharge).length),
+    owners: num(r.owners ?? r.total, items.length),
+    rechargeable: num(r.rechargeable, items.filter((i) => i.eligibility.canRecharge || i.allowedActions.includes('adjust')).length),
     standardRemaining: num(r.standardRemaining, standardRemaining),
     activityRemaining: num(r.activityRemaining, activityRemaining),
-    reserved: num(r.reserved, reserved),
+    reserved: num(r.reserved ?? r.frozenQuota, reserved),
+    totalQuota: num(r.totalQuota, totalQuotaFallback),
+    frozenQuota: num(r.frozenQuota, frozenQuotaFallback),
   }
 }
 

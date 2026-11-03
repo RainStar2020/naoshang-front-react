@@ -67,8 +67,8 @@ export default function Agents() {
 
   const submit = async () => {
     if (!pending) return
-    const trimmed = reason.trim()
-    if (!trimmed) { setSubmitError('请填写操作原因'); return }
+    const trimmed = reason.trim() || '（无备注）'
+    
     let input: AgentMutation
     if (pending.kind === 'set-exclusivity') {
       input = { action: 'set-exclusivity', territoryId: pending.territory.territoryId, exclusive: pending.exclusive, reason: trimmed, version: pending.territory.version, idempotencyKey }
@@ -259,8 +259,8 @@ export default function Agents() {
         {pending && pending.kind !== 'set-exclusivity' && <Typography.Paragraph>对象：{pending.agent.name}（{pending.agent.agentId}）· 版本 V{pending.agent.version}</Typography.Paragraph>}
         {pending && pending.kind === 'set-exclusivity' && <Typography.Paragraph>区域：{pending.territory.name} · 版本 V{pending.territory.version} → {pending.exclusive ? '独占' : '非独占'}</Typography.Paragraph>}
         <Form layout="vertical">
-          <Form.Item label="操作原因" required>
-            <Input.TextArea rows={3} maxLength={200} showCount value={reason} onChange={(e) => setReason(e.target.value)} placeholder="说明监管变更依据" />
+          <Form.Item label="备注">
+            <Input.TextArea rows={3} maxLength={200} showCount value={reason} onChange={(e) => setReason(e.target.value)} placeholder="选填，可留空" />
           </Form.Item>
           <Form.Item label="幂等请求号">
             <Input value={idempotencyKey} readOnly />

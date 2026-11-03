@@ -84,7 +84,7 @@ it('新建商品进入草稿目录，不直接可购买', async () => {
   expect(created.status).toBe('draft'); expect(() => mock.readMockProduct(created.draft.productId)).toThrow()
 })
 it('发布校验封面正文及启用分类', async () => {
-  const value = await draft(); value.coverUrl = ''; await service.mutate(token, save(value)); await expect(service.mutate(token, command('on-sale', 2))).rejects.toThrow('封面')
+  const value = await draft(); value.coverUrl = ''; value.carouselUrls = []; await service.mutate(token, save(value)); await expect(service.mutate(token, command('on-sale', 2))).rejects.toThrow('封面')
 })
 it('富文本安全过滤脚本，拒绝不安全资源地址', async () => {
   const value = await draft(); value.content.nodes.push({ name: 'script', children: [{ type: 'text', text: 'evil()' }] } as never); await service.mutate(token, save(value)); expect(JSON.stringify((await service.catalog(token)).products[1].draft.content)).not.toContain('evil')

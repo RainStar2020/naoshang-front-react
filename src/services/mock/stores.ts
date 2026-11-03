@@ -8,6 +8,7 @@ import {
   type StoreDetail,
   type StoreList,
   type StoreMutation,
+  type StoreOwner,
   type StoreProfile,
   type StoreQuery,
   type StoreStaffBrief,
@@ -103,6 +104,37 @@ function staffForStore(storeId: string): StoreStaffBrief[] {
   }
 }
 
+
+function ownersForStore(storeId: string): StoreOwner[] {
+  try {
+    const fromStaff = mockStaffList({ page: 1, pageSize: 20, storeId, roleCode: 'STORE_OWNER' }).items
+      .filter((item) => item.status !== 'LEFT')
+      .map((item) => ({
+        ownerId: item.assignmentId,
+        accountId: item.linkedAccountId,
+        displayId: item.linkedAccountId || item.loginAccount,
+        name: item.displayName,
+        phone: '',
+        roleLabel: item.roleTitle || '合店老板',
+      }))
+    if (fromStaff.length) return fromStaff
+  } catch {
+    /* staff module may be unavailable during isolated bootstrap */
+  }
+  const row = profiles.get(storeId)
+  if (row?.ownerAccountId) {
+    return [{
+      ownerId: row.ownerAccountId,
+      accountId: row.ownerAccountId,
+      displayId: row.ownerAccountId,
+      name: row.managerName || row.ownerAccountId,
+      phone: row.contact || '',
+      roleLabel: '合店老板',
+    }]
+  }
+  return []
+}
+
 function coachesForStore(storeId: string): StoreCoach[] {
   try {
     return mockStaffList({ page: 1, pageSize: 20, storeId, roleCode: 'COACH' }).items.map(item => ({
@@ -137,10 +169,13 @@ function view(storeId: string): StoreProfile {
 }
 
 function ensureReason(reason: string, key: string) {
-  const text = reason.trim()
-  if (!text || Array.from(text).length > 200) fail('INVALID_INPUT', '请填写1—200字操作原因')
-  if (!key.trim()) fail('INVALID_INPUT', '缺少幂等请求号')
+  let text = (reason ?? '').trim()
+  if (Array.from(text).length > 200) fail('INVALID_INPUT', '备注不能超过200字')
+  if (!text) text = '（无备注）'
+  if (!key?.trim()) fail('INVALID_INPUT', '请填写请求号')
+  return text
 }
+
 
 function ensureProfile(input: Extract<StoreMutation, { action: 'save-profile' }>) {
   const name = input.name.trim()
@@ -216,8 +251,10 @@ export function mockStoreList(query: StoreQuery): StoreList {
 
 export function mockStoreDetail(storeId: string): StoreDetail {
   const store = view(storeId)
+  const owners = ownersForStore(storeId)
   return copy({
-    store,
+    store: { ...store, ownerCount: Math.max(store.ownerCount, owners.length) },
+    owners,
     coaches: coachesForStore(storeId),
     staff: staffForStore(storeId),
     audit: audit.filter(item => item.targetId === storeId || item.targetId.startsWith(`${storeId}:`)),
@@ -225,7 +262,7 @@ export function mockStoreDetail(storeId: string): StoreDetail {
 }
 
 export function mockStoreMutate(input: StoreMutation, operator: HqAccount) {
-  ensureReason(input.reason, input.idempotencyKey)
+  input = { ...input, reason: ensureReason(input.reason, input.idempotencyKey) }
   return idempotent(operator.accountId, input.idempotencyKey, input, () => {
     if (input.action === 'save-profile') {
       ensureProfile(input)

@@ -97,26 +97,26 @@ export default function Training() {
   function closeEditors() { if (busy) return; setProxyOpen(false); setConsumeTarget(null); setWithdrawTarget(null); setPending(null); setReason(''); setSubmitError(''); setBlocked(false) }
 
   function prepareProxy() {
-    if (!proxyMemberId || !proxyTitle.trim() || !proxyBody.trim() || !reason.trim()) { message.warning('请填写学员、标题、正文与原因'); return }
+    if (!proxyMemberId || !proxyTitle.trim() || !proxyBody.trim()) { message.warning('请填写学员、标题与正文'); return }
     setPending({
       action: 'proxy-feedback', memberId: proxyMemberId, kind: proxyKind, title: proxyTitle.trim(), body: proxyBody.trim(),
-      reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
+      reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
     })
     setSubmitError(''); setBlocked(false)
   }
   function prepareConsume() {
-    if (!consumeTarget || !reason.trim() || !Number.isInteger(consumeQty) || consumeQty < 1) { message.warning('请填写核销数量与原因'); return }
+    if (!consumeTarget || !Number.isInteger(consumeQty) || consumeQty < 1) { message.warning('请填写核销数量'); return }
     setPending({
       action: 'consume-lessons', memberId: consumeTarget.memberId, bucket: consumeBucket, quantity: consumeQty,
-      version: consumeTarget.version, reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
+      version: consumeTarget.version, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
     })
     setSubmitError(''); setBlocked(false)
   }
   function prepareWithdraw() {
-    if (!withdrawTarget || !reason.trim()) { message.warning('请填写撤回原因'); return }
+    if (!withdrawTarget) { message.warning('请选择撤回目标'); return }
     setPending({
       action: 'withdraw-feedback', feedbackId: withdrawTarget.feedbackId, version: withdrawTarget.version,
-      reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
+      reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
     })
     setSubmitError(''); setBlocked(false)
   }
@@ -274,7 +274,7 @@ export default function Training() {
           <Select style={{ width: '100%' }} options={Object.entries(kindLabel).map(([value, label]) => ({ value, label }))} value={proxyKind} onChange={value => setProxyKind(value as FeedbackKind)} />
           <Input maxLength={80} placeholder="反馈标题" value={proxyTitle} onChange={event => setProxyTitle(event.target.value)} />
           <Input.TextArea rows={5} maxLength={3000} placeholder="反馈正文" value={proxyBody} onChange={event => setProxyBody(event.target.value)} />
-          <Input.TextArea rows={2} maxLength={200} placeholder="操作原因（必填）" value={reason} onChange={event => setReason(event.target.value)} />
+          <Input.TextArea rows={2} maxLength={200} placeholder="选填，可留空" value={reason} onChange={event => setReason(event.target.value)} />
         </Space>
       </Modal>
 
@@ -303,7 +303,7 @@ export default function Training() {
         {pending && <Space direction="vertical">
           <Typography.Paragraph>
             操作：{pending.action}<br />
-            原因：{pending.reason}<br />
+            备注：{pending.reason || '（无）'}<br />
             请求号：{pending.idempotencyKey}
           </Typography.Paragraph>
           {submitError && <Alert type="error" showIcon message={submitError} />}

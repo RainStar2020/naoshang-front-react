@@ -224,7 +224,6 @@ export default function Support() {
                       dataIndex: 'status',
                       render: (s: AgreementStatus) => <Tag color={statusColor[s]}>{statusLabel[s]}</Tag>,
                     },
-                    { title: '数据版本', dataIndex: 'version' },
                     {
                       title: '发布时间',
                       dataIndex: 'publishedAt',
@@ -251,7 +250,7 @@ export default function Support() {
                                       <span>将发布「{row.title}」，同类型已发布版本会自动下线。</span>
                                       <Input.TextArea
                                         id="pub-reason"
-                                        placeholder="操作原因"
+                                        placeholder="选填，可留空"
                                         rows={2}
                                         onChange={(e) => { (window as unknown as { __pubReason?: string }).__pubReason = e.target.value }}
                                       />
@@ -259,11 +258,7 @@ export default function Support() {
                                   ),
                                   okText: '确认发布',
                                   onOk: async () => {
-                                    const reason = ((window as unknown as { __pubReason?: string }).__pubReason ?? '').trim()
-                                    if (!reason) {
-                                      message.error('请填写原因')
-                                      throw new Error('need reason')
-                                    }
+                                    const reason = (((window as unknown as { __pubReason?: string }).__pubReason ?? '').trim() || '（无备注）')
                                     setBusy(true)
                                     try {
                                       const result = await supportService.mutate(token, {
@@ -276,7 +271,6 @@ export default function Support() {
                                       message.success(result.message)
                                       await reload()
                                     } catch (err) {
-                                      if (err instanceof Error && err.message === 'need reason') throw err
                                       message.error(err instanceof SupportError ? err.message : '发布失败')
                                       throw err
                                     } finally {
@@ -302,7 +296,7 @@ export default function Support() {
                                       <span>下线后小程序应展示「内容暂未发布」。</span>
                                       <Input.TextArea
                                         id="off-reason"
-                                        placeholder="操作原因"
+                                        placeholder="选填，可留空"
                                         rows={2}
                                         onChange={(e) => { (window as unknown as { __offReason?: string }).__offReason = e.target.value }}
                                       />
@@ -310,11 +304,7 @@ export default function Support() {
                                   ),
                                   okText: '确认下线',
                                   onOk: async () => {
-                                    const reason = ((window as unknown as { __offReason?: string }).__offReason ?? '').trim()
-                                    if (!reason) {
-                                      message.error('请填写原因')
-                                      throw new Error('need reason')
-                                    }
+                                    const reason = (((window as unknown as { __offReason?: string }).__offReason ?? '').trim() || '（无备注）')
                                     setBusy(true)
                                     try {
                                       const result = await supportService.mutate(token, {
@@ -327,7 +317,6 @@ export default function Support() {
                                       message.success(result.message)
                                       await reload()
                                     } catch (err) {
-                                      if (err instanceof Error && err.message === 'need reason') throw err
                                       message.error(err instanceof SupportError ? err.message : '下线失败')
                                       throw err
                                     } finally {
@@ -366,7 +355,6 @@ export default function Support() {
                     <Descriptions.Item label="完整客服">
                       <Tag color="orange">未实现（fullCustomerServicePending）</Tag>
                     </Descriptions.Item>
-                    <Descriptions.Item label="数据版本">{catalog.supportConfig.version}</Descriptions.Item>
                     <Descriptions.Item label="更新时间">{formatTime(catalog.supportConfig.updatedAt)}</Descriptions.Item>
                   </Descriptions>
                 )}
@@ -508,7 +496,7 @@ export default function Support() {
           <Form.Item name="bodyText" label="正文（纯文本，按空行分段）" rules={[{ required: true, message: '请填写正文' }]}>
             <Input.TextArea rows={10} />
           </Form.Item>
-          <Form.Item name="reason" label="操作原因" rules={[{ required: true, message: '请填写原因' }]}>
+          <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -553,7 +541,7 @@ export default function Support() {
           >
             <InputNumber min={0} max={9} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="reason" label="操作原因" rules={[{ required: true, message: '请填写原因' }]}>
+          <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -594,7 +582,7 @@ export default function Support() {
           <Form.Item name="handleNote" label="处理说明" rules={[{ required: true, message: '请填写处理说明' }]}>
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item name="reason" label="操作原因" rules={[{ required: true, message: '请填写原因' }]}>
+          <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>

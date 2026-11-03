@@ -164,10 +164,10 @@ export default function Withdrawals() {
           ...pending,
           receipt,
           voucherUrl: receipt === 'SUCCESS' ? voucherUrl.trim() || undefined : undefined,
-          reason: reason.trim(),
+          reason: reason.trim() || '（无备注）',
         }
       } else {
-        input = { ...pending, reason: reason.trim() }
+        input = { ...pending, reason: reason.trim() || '（无备注）' }
       }
       const result = await withdrawalService.mutate(token, input)
       message.success(
@@ -533,7 +533,7 @@ export default function Withdrawals() {
           )}
           <Input.TextArea
             rows={3}
-            placeholder={pending?.action === 'reject' ? '拒绝原因（必填）' : '操作原因（必填）'}
+            placeholder="选填，可留空"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />

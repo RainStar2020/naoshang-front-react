@@ -34,14 +34,21 @@ function owner(ownerAccountId: string): QuotaOwner {
   const qualified = !!grant?.enabled && profile.partnerLevel === 'DEMO-FOUNDER'
   const remainingLimit = grant ? Math.max(0, grant.limit - grant.issued) : 0
   const active = profile.partnerStatus === 'ACTIVE', canRecharge = qualified && active && remainingLimit > 0
-  return { ownerAccountId, contextId: profile.contextId, name: profile.name, phone: profile.phone, displayId: profile.displayId, partnerLevel: profile.partnerLevel, partnerStatus: profile.partnerStatus, version: versions.get(ownerAccountId)!, balances: types.map(type => balance(ownerAccountId, type)), eligibility: { qualified, canRecharge, reason: !qualified ? '未获特定充值资格（联创身份不自动获权）' : !active ? '经营身份冻结或年度权益未生效' : !remainingLimit ? '演示授权累计限额已用完' : '已获特定资格，仍需总部充值权限', allowedTypes: qualified ? [...grant!.allowedTypes] : [], perOperationLimit: qualified ? grant!.perOperationLimit : 0, remainingLimit, limitLabel: 'Mock授权累计限额，不代表生产限额或自动按月重置' } }
+  return (() => {
+    const balances = types.map(type => balance(ownerAccountId, type))
+    const standard = balances[0]?.remaining ?? 0
+    const activityTotal = balances[1]?.remaining ?? 0
+    const frozen = balances.reduce((n, item) => n + item.reserved, 0)
+    const available = balances.reduce((n, item) => n + item.remaining, 0)
+    return { ownerAccountId, contextId: profile.contextId, name: profile.name, phone: profile.phone, displayId: profile.displayId, partnerLevel: profile.partnerLevel, partnerStatus: profile.partnerStatus, version: versions.get(ownerAccountId)!, balances, eligibility: { qualified, canRecharge, reason: !qualified ? '未获特定充值资格（联创身份不自动获权）' : !active ? '经营身份冻结或年度权益未生效' : !remainingLimit ? '演示授权累计限额已用完' : '已获特定资格，仍需总部充值权限', allowedTypes: qualified ? [...grant!.allowedTypes] : [], perOperationLimit: qualified ? grant!.perOperationLimit : 0, remainingLimit, limitLabel: 'Mock授权累计限额，不代表生产限额或自动按月重置' }, quotaId: ownerAccountId, ownerType: 'partner', standard, activityTotal, quotaTotal: standard + activityTotal, frozen, available, quotaStatus: profile.partnerStatus, allowedActions: canRecharge ? ['adjust', 'freeze'] : ['freeze'] }
+  })()
 }
 function bump(ownerAccountId: string) { versions.set(ownerAccountId, versions.get(ownerAccountId)! + 1) }
 function count(quantity: number) { if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 1000000) fail('INVALID_INPUT', '名额数量必须为1至1000000的整数') }
 export function mockQuotaList(query: QuotaQuery) {
   if (!Number.isInteger(query.page) || query.page < 1 || ![5, 10, 20].includes(query.pageSize) || query.eligibility && !['ALLOWED', 'DENIED'].includes(query.eligibility)) fail('INVALID_INPUT', '分页或资格筛选无效')
   const keyword = query.keyword?.trim().toLowerCase() ?? '', rows = ownerIds.map(owner).filter(row => (!keyword || `${row.ownerAccountId} ${row.displayId} ${row.name} ${row.phone}`.toLowerCase().includes(keyword)) && (!query.eligibility || row.eligibility.canRecharge === (query.eligibility === 'ALLOWED')))
-  return copy({ items: rows.slice((query.page - 1) * query.pageSize, query.page * query.pageSize), total: rows.length, summary: { owners: rows.length, rechargeable: rows.filter(row => row.eligibility.canRecharge).length, standardRemaining: rows.reduce((sum, row) => sum + row.balances[0].remaining, 0), activityRemaining: rows.reduce((sum, row) => sum + row.balances[1].remaining, 0), reserved: rows.reduce((sum, row) => sum + row.balances.reduce((n, item) => n + item.reserved, 0), 0) } })
+  return copy({ items: rows.slice((query.page - 1) * query.pageSize, query.page * query.pageSize), total: rows.length, summary: { owners: rows.length, rechargeable: rows.filter(row => row.eligibility.canRecharge).length, standardRemaining: rows.reduce((sum, row) => sum + row.balances[0].remaining, 0), activityRemaining: rows.reduce((sum, row) => sum + row.balances[1].remaining, 0), reserved: rows.reduce((sum, row) => sum + row.balances.reduce((n, item) => n + item.reserved, 0), 0), totalQuota: rows.reduce((sum, row) => sum + row.quotaTotal, 0), frozenQuota: rows.reduce((sum, row) => sum + row.frozen, 0) } })
 }
 export function mockQuotaDetail(ownerAccountId: string): QuotaDetail { return copy({ owner: owner(ownerAccountId), batches: batches.filter(row => row.ownerAccountId === ownerAccountId).reverse(), ledger: ledger.filter(row => row.ownerAccountId === ownerAccountId).reverse(), orders: orders.filter(row => row.ownerAccountId === ownerAccountId).reverse(), recharges: recharges.filter(row => row.ownerAccountId === ownerAccountId).reverse(), activityServiceFeePerQuota: 200000 }) }
 export function mockQuotaRecharge(input: QuotaRechargeInput, operator: HqAccount) {

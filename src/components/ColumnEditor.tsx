@@ -2,11 +2,25 @@ import { useState } from 'react'
 import { Alert, Button, Card, Input, Modal, Select, Space, Typography } from 'antd'
 import type { ColumnCatalog, ColumnDraft, ColumnMutation, ManagedColumn } from '../types/columns'
 import { columnsService } from '../services/columns'
-import { emptyContent } from '../utils/richContent'
+import { emptyContent, normalizeContent } from '../utils/richContent'
 import CmsContentEditor, { CmsAssetInput } from './CmsContentEditor'
 
 export default function ColumnEditor({ column, catalog, token, onClose, onSave }: { column: ManagedColumn | null; catalog: ColumnCatalog; token: string; onClose: () => void; onSave: (request: ColumnMutation) => void }) {
-  const [draft, setDraft] = useState<ColumnDraft>(() => structuredClone(column?.draft ?? { columnId: crypto.randomUUID(), productId: '', title: '', summary: '', coverUrl: '', content: emptyContent(), chapters: [] }))
+  const [draft, setDraft] = useState<ColumnDraft>(() => {
+    const base = structuredClone(column?.draft ?? { columnId: crypto.randomUUID(), productId: '', title: '', summary: '', coverUrl: '', content: emptyContent(), chapters: [] })
+    const safe = (content: unknown) => { try { return normalizeContent(content ?? emptyContent()) } catch { return emptyContent() } }
+    return {
+      ...base,
+      content: safe(base.content),
+      chapters: (base.chapters ?? []).map((chapter) => ({
+        ...chapter,
+        content: safe(chapter.content),
+        videoUrl: chapter.videoUrl ?? '',
+        posterUrl: chapter.posterUrl ?? '',
+        title: chapter.title ?? '',
+      })),
+    }
+  })
   const [error, setError] = useState<string | null>(null)
   const change = (value: Partial<ColumnDraft>) => setDraft(current => ({ ...current, ...value }))
   const chapterChange = (index: number, value: Partial<ColumnDraft['chapters'][number]>) => change({ chapters: draft.chapters.map((chapter, i) => i === index ? { ...chapter, ...value } : chapter) })

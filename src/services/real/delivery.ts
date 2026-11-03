@@ -139,7 +139,19 @@ export async function realDeliveryMutate(input: DeliveryMutation) {
       'update-logistics': 'update-tracking',
     }
     const uiAction = str((input as { action?: string }).action)
-    if (uiAction === 'save-policy') unsupported(DeliveryError, 'save-policy', '交付策略保存未在 HQ delivery API 暴露')
+    if (uiAction === 'save-policy') {
+      const productId = str((input as { productId?: string }).productId)
+      if (!productId) unsupported(DeliveryError, 'save-policy', '缺少 productId')
+      const body = mutationBody({
+        action: 'save-policy',
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey,
+        version: (input as { version?: number }).version,
+        deliveryMode: (input as { deliveryMode?: string }).deliveryMode,
+      })
+      await unwrapData(await api.postDeliveryPoliciesByProductIdMutate({ productId }, body as never))
+      return realDeliveryCatalog()
+    }
     const action = actionMap[uiAction] || 'ship'
     const shipmentId = str((input as { shipmentId?: string }).shipmentId || (input as { orderId?: string }).orderId)
     const body = mutationBody({ ...record(input as never), action, reason: input.reason, idempotencyKey: input.idempotencyKey, version: (input as { version?: number }).version })

@@ -36,6 +36,15 @@ export interface StoreProfile {
   mockOnly: boolean
 }
 
+export interface StoreOwner {
+  ownerId: string
+  accountId: string | null
+  displayId: string
+  name: string
+  phone: string
+  roleLabel: string
+}
+
 export interface StoreCoach {
   coachId: string
   storeId: string
@@ -91,6 +100,8 @@ export interface StoreCatalog {
 
 export interface StoreDetail {
   store: StoreProfile
+  /** 合店老板详情（接口 owners / coOwners 等） */
+  owners: StoreOwner[]
   coaches: StoreCoach[]
   /** 本店任职只读摘要；完整角色/任职维护见 HQ-18 /staff-roles */
   staff: StoreStaffBrief[]

@@ -6,6 +6,7 @@ import {
   type StoreDetail,
   type StoreList,
   type StoreMutation,
+  type StoreOwner,
   type StoreProfile,
   type StoreQuery,
   type StoreStaffBrief,
@@ -57,7 +58,17 @@ export function mapStoreProfile(raw: unknown): StoreProfile {
     agentId: nullableStr(r.agentId),
     agentName: nullableStr(r.agentName),
     ownerAccountId: nullableStr(r.ownerAccountId ?? r.ownerId ?? r.bossAccountId),
-    ownerCount: num(r.ownerCount),
+        ownerCount: Math.max(
+      0,
+      num(
+        r.ownerCount ??
+          r.coOwnerCount ??
+          r.bossCount ??
+          r.ownerTotal ??
+          (Array.isArray(r.owners) ? r.owners.length : undefined) ??
+          (Array.isArray(r.coOwners) ? r.coOwners.length : undefined),
+      ),
+    ),
     coachActive: num(r.coachActive ?? r.activeCoachCount),
     coachFrozen: num(r.coachFrozen ?? r.frozenCoachCount),
     staffTotal: num(r.staffTotal ?? r.staffCount),
@@ -67,6 +78,24 @@ export function mapStoreProfile(raw: unknown): StoreProfile {
   }
 }
 
+
+export function mapStoreOwner(raw: unknown): StoreOwner {
+  const r = record(raw)
+  const accountId = nullableStr(r.accountId ?? r.userId ?? r.ownerAccountId ?? r.id)
+  return {
+    ownerId: str(r.ownerId || r.assignmentId || r.staffId || r.id || accountId),
+    accountId,
+    displayId: str(r.displayId || r.number || r.code || r.loginAccount || accountId),
+    name: str(r.name || r.displayName || r.nickname || r.ownerName),
+    phone: str(r.phone || r.mobile || r.contact || r.managerPhone),
+    roleLabel: str(r.roleLabel || r.roleTitle || r.roleName || '合店老板'),
+  }
+}
+
+function ownersFromRaw(raw: Record<string, unknown>): StoreOwner[] {
+  const list = arr(raw.owners ?? raw.coOwners ?? raw.storeOwners ?? raw.bosses ?? raw.ownerList)
+  return list.map(mapStoreOwner)
+}
 function mapCoach(raw: unknown): StoreCoach {
   const r = record(raw)
   const statusRaw = str(r.status, 'ACTIVE').toUpperCase()
@@ -140,9 +169,19 @@ export function mapStoreCatalog(raw: unknown): StoreCatalog {
 
 export function mapStoreDetail(raw: unknown): StoreDetail {
   const r = record(raw)
+  const storeRaw = record(r.store ?? r.profile ?? r)
+  const topOwners = ownersFromRaw(r)
+  const owners = topOwners.length ? topOwners : ownersFromRaw(storeRaw)
+  const store = mapStoreProfile({
+    ...storeRaw,
+    ownerCount: storeRaw.ownerCount ?? storeRaw.coOwnerCount ?? (owners.length ? owners.length : undefined),
+    owners: storeRaw.owners ?? (owners.length ? owners : undefined),
+  })
+  if (!store.ownerCount && owners.length) store.ownerCount = owners.length
   return {
-    store: mapStoreProfile(r.store ?? r.profile ?? r),
-    coaches: arr(r.coaches).map(mapCoach),
+    store,
+    owners,
+    coaches: arr(r.coaches ?? r.brainCoaches ?? storeRaw.coaches).map(mapCoach),
     staff: arr(r.staff ?? r.assignments).map(mapStaffBrief),
     audit: arr(r.audit).map(mapAudit),
   }

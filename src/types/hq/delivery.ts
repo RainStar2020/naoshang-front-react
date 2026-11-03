@@ -20,4 +20,6 @@ export interface DeliveryEndpoints {
   'POST /delivery/shipments/:shipmentId/mutate': Endpoint<{ shipmentId: string }, never, DeliveryMutationRequest, MutationData>
   /** 新建发货单。 */
   'POST /delivery/shipments': Endpoint<never, never, MutationRequest, MutationData>
+  /** 商品履约策略保存。 */
+  'POST /delivery/policies/:productId/mutate': Endpoint<{ productId: string }, never, MutationRequest, MutationData>
 }

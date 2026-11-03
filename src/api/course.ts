@@ -74,3 +74,19 @@ export async function postCourseEntitlements(request: CourseEndpoints['POST /cou
   })
   return response.data
 }
+
+/** @see GET /api/hq/course/cms/catalog */
+export async function getCourseCmsCatalog(query?: CourseEndpoints['GET /course/cms/catalog']['query'], options: RequestOptions = {}): Promise<CourseEndpoints['GET /course/cms/catalog']['response']> {
+  const response = await apiClient.get<CourseEndpoints['GET /course/cms/catalog']['response']>('/course/cms/catalog', { ...options, params: query })
+  return response.data
+}
+
+/** @see POST /api/hq/course/cms/mutate */
+export async function postCourseCmsMutate(request: CourseEndpoints['POST /course/cms/mutate']['request'], options: RequestOptions = {}): Promise<CourseEndpoints['POST /course/cms/mutate']['response']> {
+  const response = await apiClient.post<CourseEndpoints['POST /course/cms/mutate']['response']>('/course/cms/mutate', request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+

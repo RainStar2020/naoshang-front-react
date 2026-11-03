@@ -12,7 +12,7 @@ const products: ManagedProduct[] = categories.map((category, i) => {
   const amounts = [158000, 30000, 108000, 20000, 7900], standards = [198000, 36000, 128000, 20000, 9900]
   const type: FulfillmentType = ['PHYSICAL', 'ACTIVATION_CODE', 'OFFLINE_SERVICE', 'OFFLINE_SERVICE', 'COLUMN_ACCESS'][i] as FulfillmentType
   const options = (i === 1 ? ['月卡', '年卡'] : ['默认', '进阶版']).map((label, j) => ({ id: `opt-${j + 1}`, label }))
-  const value: ProductDraft = { productId: `product-${category.categoryId}`, categoryId: category.categoryId, title: ['平板', 'xxx软件卡', 'xxxxxx集训营', 'XXX期训练营行政费', 'BZ-《记忆基础》'][i], summary: '商品配置演示，规格及价格需总部确认。', coverUrl: 'https://mock-assets.invalid/demo-cover', content: content(), fulfillmentType: type, costAmount: Math.floor(amounts[i] * 0.6), requiresMember: i === 2 || i === 3, pricePresentation: i === 3 ? 'standard-only' : 'tiered', originalAmount: standards[i], standardAmount: standards[i], activityAmount: amounts[i], memberPrices: [{ id: 'vip', label: 'VIP', discountLabel: '演示标签', amount: amounts[i] }], rolePrices: [], specGroups: [{ id: 'spec', label: '规格', options }], skus: options.map((option, j) => ({ id: `sku-${category.categoryId}-${j + 1}`, label: option.label, specs: { spec: option.id }, amount: j === 1 && i === 1 ? 120000 : amounts[i], stock: j === 0 ? 20 : 8 })) }
+  const value: ProductDraft = { productId: `product-${category.categoryId}`, categoryId: category.categoryId, title: ['平板', 'xxx软件卡', 'xxxxxx集训营', 'XXX期训练营行政费', 'BZ-《记忆基础》'][i], summary: '商品配置演示，规格及价格需总部确认。', coverUrl: 'https://mock-assets.invalid/demo-cover', carouselUrls: ['https://mock-assets.invalid/demo-cover'], content: content(), fulfillmentType: type, costAmount: Math.floor(amounts[i] * 0.6), requiresMember: i === 2 || i === 3, pricePresentation: i === 3 ? 'standard-only' : 'tiered', originalAmount: standards[i], standardAmount: standards[i], activityAmount: amounts[i], memberPrices: [{ id: 'vip', label: 'VIP', discountLabel: '演示标签', amount: amounts[i] }], rolePrices: [], specGroups: [{ id: 'spec', label: '规格', options }], skus: options.map((option, j) => ({ id: `sku-${category.categoryId}-${j + 1}`, label: option.label, specs: { spec: option.id }, amount: j === 1 && i === 1 ? 120000 : amounts[i], stock: j === 0 ? 20 : 8 })) }
   return { draft: value, version: 1, status: 'on-sale', publication: { revision: 1, publishedAt: '2026-10-01T09:00:00+08:00', value: copy(value) } }
 })
 // 保留HQ-07既有测试目标ID，统一来源后不改变专栏绑定。
@@ -25,6 +25,10 @@ function clean(value: ProductDraft, publishing: boolean): ProductDraft {
   const draft = copy(value)
   if (!draft.title.trim() || draft.title.length > 80 || draft.summary.length > 500 || !categories.some(row => row.categoryId === draft.categoryId) || !fulfillmentTypes.includes(draft.fulfillmentType) || typeof draft.requiresMember !== 'boolean' || !['standard-only', 'tiered'].includes(draft.pricePresentation)) fail('INVALID_INPUT', '商品标题、分类、类型或展示配置无效')
   if (draft.coverUrl && !isMediaUrl(draft.coverUrl)) fail('INVALID_INPUT', '封面必须为HTTPS地址')
+  if (!Array.isArray(draft.carouselUrls)) draft.carouselUrls = []
+  if (draft.carouselUrls.length > 12) fail('INVALID_INPUT', '首页轮播图最多12张')
+  for (const url of draft.carouselUrls) { if (!isMediaUrl(url)) fail('INVALID_INPUT', '轮播图必须为HTTPS地址') }
+  if (!draft.coverUrl && draft.carouselUrls[0]) draft.coverUrl = draft.carouselUrls[0]
   if (!amount(draft.costAmount) || !amount(draft.standardAmount) || draft.activityAmount !== null && !amount(draft.activityAmount) || draft.originalAmount !== null && !amount(draft.originalAmount)) fail('INVALID_INPUT', '成本价/售价等金额必须为0至1000000000的整数分')
   try { assertProductContentAllowsSave(draft.content) } catch (error) { fail('INVALID_INPUT', error instanceof Error ? error.message : '商品详情含禁止媒体') }
   for (const tiers of [draft.memberPrices, draft.rolePrices]) {

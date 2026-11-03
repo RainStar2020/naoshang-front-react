@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mapManagedAnnouncement, mapAnnouncementCatalog, mapAnnouncementStats } from './announcements'
-import { mapStoreProfile, mapStoreCatalog, mapStoreDetail } from './stores'
+import { mapStoreProfile, mapStoreCatalog, mapStoreDetail, mapStoreOwner } from './stores'
 import { mapSoftwareCard, mapSoftwareCatalog } from './softwareCards'
 import { mapPromoTemplate, mapPromoCatalog, mapPromoDetail } from './promo-materials'
 import { asPage, stringList } from './bridge'
@@ -16,7 +16,8 @@ describe('v2 real adapters defensive defaults', () => {
     expect(Array.isArray(catalog.audit)).toBe(true)
     const detail = mapStoreDetail({ id: 's1' })
     expect(detail.store.regionNames).toEqual(['', '', ''])
-    expect(Array.isArray(detail.coaches)).toBe(true)
+    expect(Array.isArray(detail.owners)).toBe(true)
+      expect(Array.isArray(detail.coaches)).toBe(true)
     expect(Array.isArray(detail.staff)).toBe(true)
     expect(Array.isArray(detail.audit)).toBe(true)
   })
@@ -31,6 +32,26 @@ describe('v2 real adapters defensive defaults', () => {
     const stats = mapAnnouncementStats({ recipients: [{ accountId: 'u1', nickname: 'n', phone: '1' }] })
     expect(Array.isArray(stats.recipients)).toBe(true)
     expect(Array.isArray(stats.recipients[0].roles)).toBe(true)
+  })
+
+  
+  it('stores: ownerCount from owners array; detail owners mapped', () => {
+    const store = mapStoreProfile({
+      id: 's2',
+      name: '浦东店',
+      owners: [
+        { id: 'p7', name: '合店老板甲', phone: '13800000007', displayId: 'SD0007' },
+        { accountId: 'p8', displayName: '合店老板乙', mobile: '13800000008' },
+      ],
+    })
+    expect(store.ownerCount).toBe(2)
+    const detail = mapStoreDetail({
+      store: { storeId: 's2', name: '浦东店', ownerCount: 2 },
+      owners: [{ id: 'p7', name: '合店老板甲', phone: '13800000007', displayId: 'SD0007' }],
+    })
+    expect(detail.owners).toHaveLength(1)
+    expect(detail.owners[0]).toMatchObject({ name: '合店老板甲', phone: '13800000007', displayId: 'SD0007' })
+    expect(mapStoreOwner({ id: 'x', name: '测' }).roleLabel).toBe('合店老板')
   })
 
   it('software cards: options.stores/accounts always arrays', () => {

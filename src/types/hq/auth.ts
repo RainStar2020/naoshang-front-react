@@ -26,5 +26,5 @@ export interface AuthEndpoints {
   /** 返回当前管理员资料与 token 过期时间。 */
   'GET /auth/me': Endpoint<never, UndocumentedFields, never, CurrentAdmin>
   /** 修改当前管理员口令（校验原口令；改密后强制重登）。 */
-  'POST /auth/password': Endpoint<never, never, UndocumentedFields, unknown>
+  'POST /auth/password': Endpoint<never, never, { oldPassword: string; newPassword: string; reason?: string }, { ok: boolean }>
 }

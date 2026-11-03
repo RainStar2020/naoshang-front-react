@@ -49,7 +49,7 @@ it('详情提示双方同意不等于已迁移；不暴露密码', async () => {
   expect(JSON.stringify(detail)).not.toMatch(/password|Demo@/i)
 })
 
-it('查询账号不可仲裁；仲裁拒绝须原因；成功后状态为 REJECTED 且不伪造迁移', async () => {
+it('查询账号不可仲裁；备注选填；成功后状态为 REJECTED 且不伪造迁移', async () => {
   const viewer = (await auth.login({ loginAccount: 'hq-transfers-viewer', password: 'Demo@123456' })).token
   const draft: TransferMutation = {
     action: 'force-reject',
@@ -61,7 +61,6 @@ it('查询账号不可仲裁；仲裁拒绝须原因；成功后状态为 REJECT
   await expect(service.mutate(viewer, draft)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   // mock 会话单例：viewer 登录会顶掉 admin，须重新登录
   token = (await auth.login({ loginAccount: 'hq-admin', password: 'Demo@123456' })).token
-  await expect(service.mutate(token, { ...draft, reason: '' })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
   const key = crypto.randomUUID()
   const ok = await service.mutate(token, { ...draft, idempotencyKey: key })
   expect(ok).toMatchObject({ action: 'force-reject', mockOnly: true })

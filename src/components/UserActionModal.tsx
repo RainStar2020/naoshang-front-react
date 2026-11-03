@@ -38,7 +38,7 @@ export default function UserActionModal({ request: { account, action }, stores, 
     setBusy(true)
     setError(null)
     try {
-      const base = { accountId: account.accountId, version: account.version, idempotencyKey: requestId, reason: values.reason.trim() }
+      const base = { accountId: account.accountId, version: account.version, idempotencyKey: requestId, reason: (values.reason || '').trim() || '（无备注）' }
       const input: UserMutation = action === 'freeze' ? { ...base, action, frozen: !account.frozen }
         : action === 'change-store' ? { ...base, action, storeId: values.storeId! }
         : action === 'change-display-id' ? { ...base, action, prefix: values.prefix!, serial: values.serial! }
@@ -65,7 +65,7 @@ export default function UserActionModal({ request: { account, action }, stores, 
         <Form.Item name="serial" label="4 位序号" rules={[{ required: true, message: '请输入序号' }, { pattern: /^\d{4}$/, message: '须恰好 4 位数字' }]}><Input aria-label="账号编号序号" maxLength={4} placeholder="0000–9999" /></Form.Item>
         <Typography.Paragraph type="secondary">预览新编号：<strong>{prefix && serial && /^\d{4}$/.test(serial) ? `${prefix}${serial}` : '—'}</strong></Typography.Paragraph>
       </>}
-      <Form.Item name="reason" label="操作原因" rules={[{ required: true, whitespace: true, message: '请填写操作原因' }, { max: 200, message: '操作原因不能超过200字' }]}><Input.TextArea rows={3} showCount maxLength={200} placeholder="请填写原因，便于后续追溯" /></Form.Item>
+      <Form.Item name="reason" label="备注" rules={[{ max: 200, message: "备注不能超过200字" }]}><Input.TextArea rows={3} showCount maxLength={200} placeholder="选填，可留空" /></Form.Item>
     </Form>
     <Typography.Text type="secondary" style={{ fontSize: 12 }}>请求号：{requestId}</Typography.Text>
   </Modal>

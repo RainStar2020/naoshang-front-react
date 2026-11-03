@@ -86,6 +86,17 @@ export const liveModules: LiveModule[] = [
       title: '新建课程权益发放记录。', params: [], actions: [],
       invoke: (input) => api.postCourseEntitlements(input.request as HqEndpoints['POST /course/entitlements']['request'], input.options),
     },
+
+    {
+      key: 'GET /course/cms/catalog', method: 'GET', path: '/course/cms/catalog',
+      title: '课程 CMS 目录。', params: [], actions: [],
+      invoke: (input) => api.getCourseCmsCatalog(input.query, input.options),
+    },
+    {
+      key: 'POST /course/cms/mutate', method: 'POST', path: '/course/cms/mutate',
+      title: '课程 CMS 写操作。', params: [], actions: ['save-tier', 'save-course', 'publish', 'offline'],
+      invoke: (input) => api.postCourseCmsMutate(input.request as HqEndpoints['POST /course/cms/mutate']['request'], input.options),
+    },
   ] },
   { name: 'columns', title: '专栏内容', route: '/columns', operations: [
     {
@@ -226,7 +237,24 @@ export const liveModules: LiveModule[] = [
       title: '软件卡写操作：激活/停用/作废/绑定用户。', params: [], actions: ['activate', 'deactivate', 'revoke', 'bind'],
       invoke: (input) => api.postSoftwareCardsMutate(input.request as HqEndpoints['POST /software-cards/mutate']['request'], input.options),
     },
-  ] },
+
+    {
+      key: 'POST /software-cards/exports', method: 'POST', path: '/software-cards/exports',
+      title: '软件卡密导出。', params: [], actions: ['export'],
+      invoke: (input) => api.postSoftwareCardsExports(input.request as HqEndpoints['POST /software-cards/exports']['request'], input.options),
+    },
+    {
+      key: 'GET /software-cards/settings', method: 'GET', path: '/software-cards/settings',
+      title: '软件卡设置。', params: [], actions: [],
+      invoke: (input) => api.getSoftwareCardsSettings(input.query, input.options),
+    },
+    {
+      key: 'POST /software-cards/settings/mutate', method: 'POST', path: '/software-cards/settings/mutate',
+      title: '软件卡设置保存。', params: [], actions: ['update'],
+      invoke: (input) => api.postSoftwareCardsSettingsMutate(input.request as HqEndpoints['POST /software-cards/settings/mutate']['request'], input.options),
+    },
+]},
+
   { name: 'quotas', title: '配额', route: '/quotas', operations: [
     {
       key: 'GET /quotas', method: 'GET', path: '/quotas',
@@ -275,7 +303,19 @@ export const liveModules: LiveModule[] = [
       title: '商品写操作：改资料/上下架/改价。', params: ['productId'], actions: ['create', 'update', 'on-shelf', 'off-shelf', 'update-price'],
       invoke: (input) => api.postProductsByProductIdMutate({ productId: requiredPath(input, 'productId') }, input.request as HqEndpoints['POST /products/:productId/mutate']['request'], input.options),
     },
-  ] },
+
+    {
+      key: 'POST /products/categories/mutate', method: 'POST', path: '/products/categories/mutate',
+      title: '商品分类维护。', params: [], actions: ['save-category'],
+      invoke: (input) => api.postProductsCategoriesMutate(input.request as HqEndpoints['POST /products/categories/mutate']['request'], input.options),
+    },
+    {
+      key: 'POST /products/types/:code/mutate', method: 'POST', path: '/products/types/:code/mutate',
+      title: '履约类型改名。', params: ['code'], actions: ['rename-type'],
+      invoke: (input) => api.postProductsTypesByCodeMutate({ code: requiredPath(input, 'code') }, input.request as HqEndpoints['POST /products/types/:code/mutate']['request'], input.options),
+    },
+]},
+
   { name: 'delivery', title: '履约发货', route: '/delivery', operations: [
     {
       key: 'GET /delivery/shipments', method: 'GET', path: '/delivery/shipments',
@@ -302,7 +342,14 @@ export const liveModules: LiveModule[] = [
       title: '新建发货单。', params: [], actions: [],
       invoke: (input) => api.postDeliveryShipments(input.request as HqEndpoints['POST /delivery/shipments']['request'], input.options),
     },
-  ] },
+
+    {
+      key: 'POST /delivery/policies/:productId/mutate', method: 'POST', path: '/delivery/policies/:productId/mutate',
+      title: '商品履约策略保存。', params: ['productId'], actions: ['save-policy'],
+      invoke: (input) => api.postDeliveryPoliciesByProductIdMutate({ productId: requiredPath(input, 'productId') }, input.request as HqEndpoints['POST /delivery/policies/:productId/mutate']['request'], input.options),
+    },
+]},
+
   { name: 'orders', title: '订单', route: '/orders', operations: [
     {
       key: 'GET /orders', method: 'GET', path: '/orders',
@@ -623,6 +670,31 @@ export const liveModules: LiveModule[] = [
       title: '新建工单。', params: [], actions: [],
       invoke: (input) => api.postSupportTickets(input.request as HqEndpoints['POST /support/tickets']['request'], input.options),
     },
+    {
+      key: 'GET /support/feedback', method: 'GET', path: '/support/feedback',
+      title: '意见反馈分页列表。', params: [], actions: [],
+      invoke: (input) => api.getSupportFeedback(input.query, input.options),
+    },
+    {
+      key: 'GET /support/entry-config', method: 'GET', path: '/support/entry-config',
+      title: '客服入口配置。', params: [], actions: [],
+      invoke: (input) => api.getSupportEntryConfig(input.query, input.options),
+    },
+    {
+      key: 'POST /support/entry-config/mutate', method: 'POST', path: '/support/entry-config/mutate',
+      title: '客服入口配置变更。', params: [], actions: ['update'],
+      invoke: (input) => api.postSupportEntryConfigMutate(input.request as HqEndpoints['POST /support/entry-config/mutate']['request'], input.options),
+    },
+    {
+      key: 'GET /support/agreements/:agreementId', method: 'GET', path: '/support/agreements/:agreementId',
+      title: '协议详情。', params: ['agreementId'], actions: [],
+      invoke: (input) => api.getSupportAgreementsByAgreementId({ agreementId: requiredPath(input, 'agreementId') }, input.query, input.options),
+    },
+    {
+      key: 'POST /support/agreements/:agreementId/mutate', method: 'POST', path: '/support/agreements/:agreementId/mutate',
+      title: '协议写操作：保存/发布/下架。', params: ['agreementId'], actions: ['update', 'publish', 'offline'],
+      invoke: (input) => api.postSupportAgreementsByAgreementIdMutate({ agreementId: requiredPath(input, 'agreementId') }, input.request as HqEndpoints['POST /support/agreements/:agreementId/mutate']['request'], input.options),
+    },
   ] },
   { name: 'trace', title: '追踪溯源', route: '/trace', operations: [
     {
@@ -644,6 +716,89 @@ export const liveModules: LiveModule[] = [
       key: 'GET /trace/by-request/:requestId', method: 'GET', path: '/trace/by-request/:requestId',
       title: '按请求 ID 追溯。', params: ['requestId'], actions: [],
       invoke: (input) => api.getTraceByRequestByRequestId({ requestId: requiredPath(input, 'requestId') }, input.query, input.options),
+    },
+  ] },
+  { name: 'agents', title: '代理商联创', route: '/agents-hq', operations: [
+    {
+      key: 'GET /agents/catalog', method: 'GET', path: '/agents/catalog',
+      title: '代理商目录。', params: [], actions: [],
+      invoke: (input) => api.getAgentsCatalog(input.query, input.options),
+    },
+    {
+      key: 'GET /agents/:agentId', method: 'GET', path: '/agents/:agentId',
+      title: '代理商详情。', params: ['agentId'], actions: [],
+      invoke: (input) => api.getAgentsByAgentId({ agentId: requiredPath(input, 'agentId') }, input.query, input.options),
+    },
+    {
+      key: 'POST /agents/mutate', method: 'POST', path: '/agents/mutate',
+      title: '代理商写操作。', params: [], actions: ['create', 'update', 'suspend', 'resume', 'appoint', 'revoke'],
+      invoke: (input) => api.postAgentsMutate(input.request as HqEndpoints['POST /agents/mutate']['request'], input.options),
+    },
+    {
+      key: 'GET /agents/:agentId/commission', method: 'GET', path: '/agents/:agentId/commission',
+      title: '佣金台账。', params: ['agentId'], actions: [],
+      invoke: (input) => api.getAgentsByAgentIdCommission({ agentId: requiredPath(input, 'agentId') }, input.query, input.options),
+    },
+    {
+      key: 'POST /agents/:agentId/commission/preview', method: 'POST', path: '/agents/:agentId/commission/preview',
+      title: '佣金预览。', params: ['agentId'], actions: ['preview'],
+      invoke: (input) => api.postAgentsByAgentIdCommissionPreview({ agentId: requiredPath(input, 'agentId') }, input.request as HqEndpoints['POST /agents/:agentId/commission/preview']['request'], input.options),
+    },
+    {
+      key: 'POST /agents/:agentId/commission/settle', method: 'POST', path: '/agents/:agentId/commission/settle',
+      title: '佣金结算。', params: ['agentId'], actions: ['settle'],
+      invoke: (input) => api.postAgentsByAgentIdCommissionSettle({ agentId: requiredPath(input, 'agentId') }, input.request as HqEndpoints['POST /agents/:agentId/commission/settle']['request'], input.options),
+    },
+  ] },
+  { name: 'regionAgents', title: '区域代理', route: '/agents', operations: [
+    {
+      key: 'GET /region-agents/catalog', method: 'GET', path: '/region-agents/catalog',
+      title: '区域代理目录。', params: [], actions: [],
+      invoke: (input) => api.getRegionAgentsCatalog(input.query, input.options),
+    },
+    {
+      key: 'GET /region-agents/:agentId', method: 'GET', path: '/region-agents/:agentId',
+      title: '区域代理详情。', params: ['agentId'], actions: [],
+      invoke: (input) => api.getRegionAgentsByAgentId({ agentId: requiredPath(input, 'agentId') }, input.query, input.options),
+    },
+    {
+      key: 'POST /region-agents/:agentId/mutate', method: 'POST', path: '/region-agents/:agentId/mutate',
+      title: '区域代理写操作。', params: ['agentId'], actions: ['suspend', 'resume', 'update', 'appoint', 'revoke'],
+      invoke: (input) => api.postRegionAgentsByAgentIdMutate({ agentId: requiredPath(input, 'agentId') }, input.request as HqEndpoints['POST /region-agents/:agentId/mutate']['request'], input.options),
+    },
+    {
+      key: 'POST /region-agents/territories/:territoryId/mutate', method: 'POST', path: '/region-agents/territories/:territoryId/mutate',
+      title: '辖区独占等写操作。', params: ['territoryId'], actions: ['set-exclusivity', 'update'],
+      invoke: (input) => api.postRegionAgentsTerritoriesByTerritoryIdMutate({ territoryId: requiredPath(input, 'territoryId') }, input.request as HqEndpoints['POST /region-agents/territories/:territoryId/mutate']['request'], input.options),
+    },
+  ] },
+  { name: 'assets', title: '素材上传', route: '/assets', operations: [
+    {
+      key: 'POST /assets/upload-intents', method: 'POST', path: '/assets/upload-intents',
+      title: '登记上传意图。', params: [], actions: ['create-intent'],
+      invoke: (input) => api.postAssetsUploadIntents(input.request as HqEndpoints['POST /assets/upload-intents']['request'], input.options),
+    },
+    {
+      key: 'POST /assets/:assetId/completions', method: 'POST', path: '/assets/:assetId/completions',
+      title: '上传完成回调。', params: ['assetId'], actions: ['complete'],
+      invoke: (input) => api.postAssetsByAssetIdCompletions({ assetId: requiredPath(input, 'assetId') }, input.request as HqEndpoints['POST /assets/:assetId/completions']['request'], input.options),
+    },
+  ] },
+  { name: 'redemptions', title: '兑换核销', route: '/redemptions', operations: [
+    {
+      key: 'GET /redemptions/catalog', method: 'GET', path: '/redemptions/catalog',
+      title: '兑换目录。', params: [], actions: [],
+      invoke: (input) => api.getRedemptionsCatalog(input.query, input.options),
+    },
+    {
+      key: 'GET /redemptions/:redemptionId', method: 'GET', path: '/redemptions/:redemptionId',
+      title: '兑换详情。', params: ['redemptionId'], actions: [],
+      invoke: (input) => api.getRedemptionsByRedemptionId({ redemptionId: requiredPath(input, 'redemptionId') }, input.query, input.options),
+    },
+    {
+      key: 'POST /redemptions/:redemptionId/mutate', method: 'POST', path: '/redemptions/:redemptionId/mutate',
+      title: '兑换写操作。', params: ['redemptionId'], actions: ['approve', 'reject', 'fulfill', 'cancel', 'note'],
+      invoke: (input) => api.postRedemptionsByRedemptionIdMutate({ redemptionId: requiredPath(input, 'redemptionId') }, input.request as HqEndpoints['POST /redemptions/:redemptionId/mutate']['request'], input.options),
     },
   ] },
 ]

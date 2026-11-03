@@ -1,5 +1,5 @@
 ﻿import * as api from '../../api'
-import { UserServiceError, type BusinessIdentity, type UserAccount, type UserDetail, type UserFilterOptions, type UserListQuery, type UserListResult, type UserMutation, type UserMutationResult } from '../../types/users'
+import { UserServiceError, type BusinessIdentity, type TierOption, type UserAccount, type UserAuditEntry, type UserDetail, type UserFilterOptions, type UserListQuery, type UserListResult, type UserMutation, type UserMutationResult } from '../../types/users'
 import { arr, asPage, bool, cast, mapHqError, mutationBody, num, record, str, unsupported, unwrapData } from './bridge'
 
 function stringList(value: unknown): string[] {
@@ -78,6 +78,78 @@ function businessContextsOf(r: Record<string, unknown>, profile: Record<string, 
   })
 }
 
+
+/** Flatten API scalars/objects (e.g. {frozen, note}) into table-safe display text. */
+export function displayValue(value: unknown): string {
+  if (value == null || value === '') return '—'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    const parts = value.map((item) => displayValue(item)).filter((item) => item && item !== '—')
+    return parts.length ? parts.join('、') : '—'
+  }
+  const row = record(value)
+  if ('frozen' in row || 'note' in row) {
+    const parts: string[] = []
+    if ('frozen' in row) parts.push(bool(row.frozen) ? '冻结' : '正常')
+    const note = str(row.note)
+    if (note) parts.push(`备注：${note}`)
+    for (const [key, nested] of Object.entries(row)) {
+      if (key === 'frozen' || key === 'note') continue
+      const text = displayValue(nested)
+      if (text && text !== '—') parts.push(`${key}：${text}`)
+    }
+    return parts.join('；') || '—'
+  }
+  const parts = Object.entries(row).map(([key, nested]) => {
+    const text = displayValue(nested)
+    return text && text !== '—' ? `${key}：${text}` : ''
+  }).filter(Boolean)
+  return parts.length ? parts.join('；') : '—'
+}
+
+function frozenFlag(raw: unknown): boolean | null {
+  if (typeof raw === 'boolean') return raw
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && 'frozen' in (raw as object)) {
+    return bool((raw as Record<string, unknown>).frozen)
+  }
+  if (typeof raw === 'string') {
+    const upper = raw.toUpperCase()
+    if (upper === 'FROZEN' || upper === 'INACTIVE' || upper === 'DISABLED') return true
+    if (upper === 'ACTIVE' || upper === 'NORMAL' || upper === 'UNFROZEN') return false
+  }
+  if (raw === 1 || raw === '1') return true
+  if (raw === 0 || raw === '0') return false
+  return null
+}
+
+function mapAuditAction(raw: unknown): UserMutation['action'] {
+  const value = str(raw).toLowerCase()
+  if (value === 'change-store' || value === 'change_store' || value === 'bind-store') return 'change-store'
+  if (value === 'reset-password' || value === 'reset_password') return 'reset-password'
+  if (value === 'change-display-id' || value === 'change_display_id' || value === 'update-display-id') return 'change-display-id'
+  return 'freeze'
+}
+
+export function mapAuditEntry(raw: unknown, index = 0, fallbackAccountId = ''): UserAuditEntry {
+  const row = record(raw)
+  const operationId = str(row.operationId || row.id || row.requestId || `audit-${fallbackAccountId || 'unknown'}-${index}`)
+  const requestId = str(row.requestId || row.idempotencyKey || operationId)
+  const accountId = str(row.accountId || fallbackAccountId)
+  return {
+    operationId,
+    requestId,
+    accountId,
+    action: mapAuditAction(row.action || row.type || row.op),
+    operatorId: str(row.operatorId || row.operatorAccountId || row.adminId),
+    operatorName: str(row.operatorName || row.operator || row.adminName || '总部操作'),
+    reason: displayValue(row.reason ?? row.note ?? row.remark),
+    before: displayValue(row.before ?? row.from ?? row.previous),
+    after: displayValue(row.after ?? row.to ?? row.next ?? row.current),
+    occurredAt: str(row.occurredAt || row.createdAt || row.time || row.operatedAt),
+  }
+}
+
 /** Normalize HQ users payload (v1/v2) into dedicated UI UserAccount shape. */
 export function mapAccount(raw: unknown): UserAccount {
   const r = record(raw)
@@ -104,7 +176,29 @@ export function mapAccount(raw: unknown): UserAccount {
     regionNames: regionNamesOf(r, profile),
     storeId,
     storeName,
-    frozen: bool(r.frozen ?? r.isFrozen ?? profile.frozen ?? (str(r.status || profile.status).toUpperCase() === 'FROZEN')),
+    frozen: (() => {
+      const flags = [
+        frozenFlag(r.frozen),
+        frozenFlag(r.isFrozen),
+        frozenFlag(profile.frozen),
+        frozenFlag(r.status),
+        frozenFlag(profile.status),
+      ]
+      for (const flag of flags) {
+        if (flag != null) return flag
+      }
+      return false
+    })(),
+    tier: (() => {
+      const value = r.tier ?? profile.tier
+      if (value == null || value === '') return null
+      return str(value)
+    })(),
+    tierLabel: (() => {
+      const value = r.tierLabel ?? profile.tierLabel ?? r.tier_name ?? profile.tier_name
+      if (value == null || value === '') return null
+      return str(value)
+    })(),
     version: num(r.version ?? profile.version, 1),
     businessContexts: businessContextsOf(r, profile, accountId || 'unknown'),
     createdAt: str(r.createdAt || profile.createdAt),
@@ -119,13 +213,42 @@ export async function realListUsers(query: UserListQuery): Promise<UserListResul
       pageSize: query.pageSize,
       keyword: query.keyword || undefined,
       frozen: query.status === 'frozen' ? true : query.status === 'active' ? false : undefined,
-      storeId: query.storeId || undefined,
-    } as never))
+      tier: query.tier || undefined,
+    }))
     const page = asPage(data, query.page, query.pageSize)
     return { items: page.items.map(mapAccount), total: page.total, page: page.page, pageSize: page.pageSize }
   } catch (error) {
     return mapHqError(error, UserServiceError)
   }
+}
+
+export function mapTierOptions(rawCatalog: unknown): TierOption[] {
+  const raw = record(rawCatalog)
+  const sources = [
+    ...arr(raw.tiers),
+    ...arr(raw.vipTiers),
+    ...arr(raw.partnerTiers),
+    ...arr(raw.levels),
+    ...arr(raw.partnerLevels),
+  ]
+  const seen = new Set<string>()
+  const tiers: TierOption[] = []
+  for (const item of sources) {
+    if (typeof item === 'string') {
+      const value = item.trim()
+      if (!value || seen.has(value)) continue
+      seen.add(value)
+      tiers.push({ value, label: value })
+      continue
+    }
+    const row = record(item)
+    const value = str(row.tier || row.value || row.code || row.id || row.partnerLevel || row.level)
+    if (!value || seen.has(value)) continue
+    const label = str(row.tierLabel || row.label || row.name || row.title || value) || value
+    seen.add(value)
+    tiers.push({ value, label })
+  }
+  return tiers
 }
 
 export async function realUserOptions(): Promise<UserFilterOptions> {
@@ -138,6 +261,7 @@ export async function realUserOptions(): Promise<UserFilterOptions> {
         return { storeId: str(row.storeId || row.id), name: str(row.name), number: str(row.number || row.code), active: row.active !== false }
       }),
       regions: arr(raw.regions).map((r) => cast(r)),
+      tiers: mapTierOptions(raw),
     }
   } catch (error) {
     return mapHqError(error, UserServiceError)
@@ -148,7 +272,12 @@ export async function realUserDetail(accountId: string): Promise<UserDetail> {
   try {
     const data = await unwrapData(await api.getUsersByAccountId({ accountId }))
     const raw = record(data)
-    return { account: mapAccount(raw.account ?? raw.profile ?? raw), audit: arr(raw.audit).map((a) => cast(a)) }
+    const account = mapAccount(raw.account ?? raw.profile ?? raw)
+    const auditSource = arr(raw.audit ?? raw.audits ?? raw.operations ?? raw.logs)
+    return {
+      account,
+      audit: auditSource.map((item, index) => mapAuditEntry(item, index, account.accountId)),
+    }
   } catch (error) {
     return mapHqError(error, UserServiceError)
   }
@@ -175,20 +304,22 @@ export async function realMutateUser(input: UserMutation): Promise<UserMutationR
     const body = mutationBody({ action, reason: input.reason, idempotencyKey: input.idempotencyKey, version: (input as any).version, ...extra })
     const data = await unwrapData(await api.postUsersByAccountIdMutate({ accountId: input.accountId }, body as never))
     const raw = record(data)
+    const account = mapAccount(raw.account ?? raw.profile ?? raw)
+    const operationRaw = raw.operation ?? {
+      operationId: str(raw.operationId, input.idempotencyKey),
+      requestId: input.idempotencyKey,
+      accountId: input.accountId,
+      action: input.action,
+      operatorId: '',
+      operatorName: '',
+      reason: input.reason,
+      before: raw.before,
+      after: raw.after,
+      occurredAt: new Date().toISOString(),
+    }
     return {
-      account: mapAccount(raw.account ?? raw.profile ?? raw),
-      operation: cast(raw.operation ?? {
-        operationId: str(raw.operationId, input.idempotencyKey),
-        requestId: input.idempotencyKey,
-        accountId: input.accountId,
-        action: input.action,
-        operatorId: '',
-        operatorName: '',
-        reason: input.reason,
-        before: '',
-        after: '',
-        occurredAt: new Date().toISOString(),
-      }),
+      account,
+      operation: mapAuditEntry(operationRaw, 0, account.accountId || input.accountId),
       mockOnly: false,
     }
   } catch (error) {

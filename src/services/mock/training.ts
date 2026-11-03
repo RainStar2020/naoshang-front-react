@@ -213,8 +213,9 @@ export function mockTrainingFeedbackDetail(feedbackId: string): TrainingFeedback
 
 export function mockTrainingMutate(input: TrainingMutation, operator: HqAccount): TrainingMutationResult {
   ensureSeed()
-  const reason = input.reason?.trim() ?? ''
-  if (!reason || reason.length > 200) fail('INVALID_INPUT', '请填写 1—200 字操作原因')
+  let reason = input.reason?.trim() ?? ''
+  if (reason.length > 200) fail('INVALID_INPUT', '备注不能超过 200 字')
+  if (!reason) reason = '（无备注）'
   if (!input.idempotencyKey?.trim()) fail('INVALID_INPUT', '缺少幂等请求号')
 
   const key = `${operator.accountId}:${input.idempotencyKey}`

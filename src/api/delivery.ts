@@ -74,3 +74,13 @@ export async function postDeliveryShipments(request: DeliveryEndpoints['POST /de
   })
   return response.data
 }
+
+/** @see POST /api/hq/delivery/policies/:productId/mutate */
+export async function postDeliveryPoliciesByProductIdMutate(path: DeliveryEndpoints['POST /delivery/policies/:productId/mutate']['path'], request: DeliveryEndpoints['POST /delivery/policies/:productId/mutate']['request'], options: RequestOptions = {}): Promise<DeliveryEndpoints['POST /delivery/policies/:productId/mutate']['response']> {
+  const response = await apiClient.post<DeliveryEndpoints['POST /delivery/policies/:productId/mutate']['response']>(`/delivery/policies/${encodeURIComponent(path.productId)}/mutate`, request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+

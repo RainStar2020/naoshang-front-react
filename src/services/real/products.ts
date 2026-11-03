@@ -24,7 +24,17 @@ function mapDraft(raw: unknown): ProductDraft {
     categoryId: str(r.categoryId, 'default'),
     title: str(r.title || r.name, '未命名商品'),
     summary: str(r.summary || r.description),
-    coverUrl: str(r.coverUrl || r.cover),
+    coverUrl: str(r.coverUrl || r.cover || (arr(r.carouselUrls || r.bannerUrls || r.galleryUrls || r.images)[0] as string | undefined)),
+    carouselUrls: (() => {
+      const list = arr(r.carouselUrls || r.bannerUrls || r.galleryUrls || r.images).map((item) => {
+        if (typeof item === 'string') return item
+        const row = record(item)
+        return str(row.url || row.src || row.coverUrl)
+      }).filter(Boolean)
+      const cover = str(r.coverUrl || r.cover)
+      if (!list.length && cover) return [cover]
+      return list
+    })(),
     content: (r.content as ProductDraft['content']) || { blocks: [] },
     fulfillmentType: (str(r.fulfillmentType, 'PHYSICAL') as ProductDraft['fulfillmentType']),
     requiresMember: Boolean(r.requiresMember),
@@ -104,15 +114,38 @@ export async function realProductCatalog(): Promise<ProductCatalog> {
 
 export async function realProductMutate(input: ProductMutation): Promise<ProductCatalog> {
   try {
-    if (input.action === 'save-category' || input.action === 'rename-type') {
-      return unsupported(ProductError, input.action, '商品分类/履约类型改名当前 HQ products API 未暴露')
+    if (input.action === 'save-category') {
+      const value = record((input as { value?: unknown }).value)
+      const body = mutationBody({
+        action: 'save-category',
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey,
+        version: num((input as { version?: number }).version ?? value.version, 1),
+        ...value,
+      })
+      await unwrapData(await api.postProductsCategoriesMutate(body as never))
+      return realProductCatalog()
+    }
+    if (input.action === 'rename-type') {
+      const code = str((input as { code?: string }).code || (input as { value?: { code?: string } }).value?.code)
+      if (!code) return unsupported(ProductError, 'rename-type', '缺少履约类型 code')
+      const body = mutationBody({
+        action: 'rename-type',
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey,
+        version: (input as { version?: number }).version,
+        title: (input as { title?: string }).title ?? (input as { value?: { title?: string } }).value?.title,
+      })
+      await unwrapData(await api.postProductsTypesByCodeMutate({ code }, body as never))
+      return realProductCatalog()
     }
     if (input.action === 'save-product') {
       const draft = input.value
       const payload = {
         title: draft.title,
         summary: draft.summary,
-        coverUrl: draft.coverUrl,
+        coverUrl: draft.coverUrl || draft.carouselUrls[0] || '',
+        carouselUrls: draft.carouselUrls,
         categoryId: draft.categoryId,
         fulfillmentType: draft.fulfillmentType,
         requiresMember: draft.requiresMember,
@@ -145,8 +178,14 @@ export async function realProductMutate(input: ProductMutation): Promise<Product
   }
 }
 
-export async function realProductUpload(_file: File): Promise<{ assetId: string; url: string; previewUrl: string; kind: 'image' | 'video'; mockOnly: boolean }> {
-  return unsupported(ProductError, 'upload', '商品素材上传需走专栏/资料 assets 接口')
+export async function realProductUpload(file: File): Promise<{ assetId: string; url: string; previewUrl: string; kind: 'image' | 'video'; mockOnly: boolean }> {
+  try {
+    const { realUploadAsset } = await import('./assets')
+    const uploaded = await realUploadAsset(file, 'product')
+    return { assetId: uploaded.assetId, url: uploaded.url, previewUrl: uploaded.previewUrl, kind: uploaded.kind === 'video' ? 'video' : 'image', mockOnly: false }
+  } catch (error) {
+    return mapHqError(error, ProductError)
+  }
 }
 
 export function realProductAssetUrl(url: string): string {

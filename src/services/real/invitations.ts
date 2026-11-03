@@ -34,7 +34,7 @@ function mapInitialBinding(raw: unknown, superior: ReturnType<typeof mapAccountO
     source: (source === 'REGISTRATION_INVITE' ? 'REGISTRATION_INVITE' : 'NO_INVITE') as 'REGISTRATION_INVITE' | 'NO_INVITE',
     inviteCode,
     superior: mapAccountOrNull(r.superior) ?? superior,
-    boundAt: str(r.boundAt || r.createdAt || r.effectiveAt),
+    boundAt: str(r.boundAt || r.invitedAt || r.bindTime || r.inviteTime || r.createdAt || r.effectiveAt),
     mockOnly: false,
   }
 }
@@ -53,7 +53,12 @@ function mapRelation(raw: unknown) {
     account,
     superior,
     inviteCode,
-    initialBinding: mapInitialBinding(r.initialBinding ?? r.binding, superior),
+    initialBinding: mapInitialBinding(r.initialBinding ?? r.binding ?? {
+      boundAt: r.boundAt || r.invitedAt || r.bindTime || r.inviteTime || r.createdAt || r.effectiveAt,
+      inviteCode: r.registeredInviteCode ?? r.regInviteCode,
+      source: r.bindingSource,
+      superior: r.initialSuperior,
+    }, superior),
     version: num(r.version, 1),
     graphVersion: num(r.graphVersion ?? r.relationVersion, 1),
     effectiveAt: str(r.effectiveAt || r.updatedAt || r.createdAt),

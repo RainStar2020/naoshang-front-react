@@ -59,8 +59,8 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
   }
 
   function prepare() {
-    if (!member || !mode || !reason.trim()) { setSubmitError('请填写操作原因'); return }
-    const base = { memberId: member.memberId, version: member.version, reason: reason.trim(), idempotencyKey: crypto.randomUUID() }
+    if (!member || !mode) { setSubmitError('无可提交操作'); return }
+    const base = { memberId: member.memberId, version: member.version, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID() }
     if (mode === 'update-profile') {
       const grade = (options?.grades ?? []).find(g => g.code === gradeCode)
       const genderLabel = genderCode === 'MALE' ? '男' : genderCode === 'FEMALE' ? '女' : '未披露'
@@ -106,12 +106,18 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
         <Tag>{member.displayId}</Tag>
         <Tag color={(member.status ?? 'ACTIVE') === 'ACTIVE' ? 'green' : 'default'}>{(member.status ?? 'ACTIVE') === 'ACTIVE' ? '有效' : '停用'}</Tag>
       </Space>
+      <div>
+        <Typography.Title level={5}>学员</Typography.Title>
+        <Descriptions size="small" bordered column={2} items={[
+          { key: 'displayId', label: '编号', children: member.displayId },
+          { key: 'displayName', label: '显示名称', children: member.name },
+        ]} />
+      </div>
       <Descriptions size="small" bordered column={2} items={[
-        { key: 'member', label: '学员 ID', children: member.memberId }, { key: 'account', label: '家长账号 ID', children: member.accountId },
-        { key: 'context', label: '学习身份 ID', children: member.contextId, span: 2 },
+        { key: 'account', label: '家长账号 ID', children: member.accountId },
+        { key: 'context', label: '学习身份 ID', children: member.contextId },
         { key: 'grade', label: '年级 / 性别', children: `${member.gradeLabel} / ${member.genderLabel}` },
         { key: 'birthday', label: '生日', children: member.birthday ?? '未设置' },
-        { key: 'version', label: '数据版本', children: member.version },
         { key: 'status', label: '档案状态', children: (member.status ?? 'ACTIVE') === 'ACTIVE' ? '有效' : '停用' },
         { key: 'parent', label: '所属家长', children: `${member.parentName} · ${member.parentPhone}`, span: 2 },
         { key: 'store', label: '学员所属门店', children: member.storeName ?? '未绑定门店', span: 2 },
@@ -157,7 +163,7 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
       open={!!mode && !pending} onCancel={closeEditors}
       footer={<Space><Button onClick={closeEditors}>取消</Button><Button type="primary" onClick={prepare}>核对变更</Button></Space>}>
       {member && mode && <Space direction="vertical" style={{ width: '100%' }} size={12}>
-        <Typography.Text type="secondary">{member.name} · {member.memberId} · V{member.version}</Typography.Text>
+        <Typography.Text type="secondary">{member.name} · {member.displayId}</Typography.Text>
         {mode === 'update-profile' && <>
           <Input aria-label="学员姓名" placeholder="姓名" maxLength={24} value={name} onChange={e => setName(e.target.value)} />
           <Input aria-label="学员生日" placeholder="生日 YYYY-MM-DD（可空）" value={birthday} onChange={e => setBirthday(e.target.value)} />
@@ -175,7 +181,7 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
           <Select aria-label="档案状态" style={{ width: '100%' }} value={status} onChange={setStatus}
             options={[{ value: 'ACTIVE', label: '有效 ACTIVE' }, { value: 'INACTIVE', label: '停用 INACTIVE' }]} />
         )}
-        <Input.TextArea aria-label="档案操作原因" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="填写原因（必填）" />
+        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="选填，可留空" />
         {submitError && <Alert type="error" message={submitError} />}
       </Space>}
     </Modal>
@@ -189,7 +195,7 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
       onCancel={() => { if (!submitting && (!submitError || blocked)) { if (blocked) { closeEditors(); setRetry(n => n + 1); onRefresh?.() }; setPending(null); setSubmitError('') } }}
       onOk={submit}>
       {pending && <Space direction="vertical" style={{ width: '100%' }}>
-        <Typography.Paragraph>操作：{pending.action}<br />原因：{pending.reason}<br />请求号：{pending.idempotencyKey}<br />版本：{pending.version}</Typography.Paragraph>
+        <Typography.Paragraph>操作：{pending.action}<br />备注：{pending.reason || '（无）'}<br />请求号：{pending.idempotencyKey}<br />版本：{pending.version}</Typography.Paragraph>
         {submitError && <Alert type="error" message={submitError} />}
       </Space>}
     </Modal>

@@ -23,7 +23,7 @@ export default function SoftwareCardDetail({ cardId, token, refresh, onClose }: 
       { key: 'recipient', label: '交付账号', children: card.accountId ? `${card.accountName} / ${card.accountId}` : '未分配', span: 2 },
       { key: 'mode', label: '交付方', children: card.deliveryMode === 'hq' ? '总部交付' : card.deliveryMode === 'store' ? `门店 ${card.deliveryStoreId}` : '未配置' }, { key: 'order', label: '来源订单ID', children: card.sourceOrderId ?? '总部人工分配 / 未关联' },
       { key: 'assigned', label: '分配时间', children: formatUserDate(card.assignedAt) }, { key: 'delivered', label: '记录交付时间', children: formatUserDate(card.deliveredAt) },
-      { key: 'exported', label: '首次完整码导出', children: formatUserDate(card.secretExportedAt) }, { key: 'version', label: '库存版本', children: card.version },
+      { key: 'exported', label: '首次完整码导出', children: formatUserDate(card.secretExportedAt) },
       { key: 'old', label: '替代旧卡ID', children: card.replacesCardId ?? '—', span: 2 }, { key: 'new', label: '补发新卡ID', children: card.replacementCardId ?? '—', span: 2 },
     ]} />
     <Table rowKey="operationId" size="small" dataSource={data!.audit} scroll={{ x: 750 }} pagination={{ pageSize: 5, hideOnSinglePage: true }} locale={{ emptyText: '暂无本轮操作记录；预置卡请查看上方演示字段' }} columns={[

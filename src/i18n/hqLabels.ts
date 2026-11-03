@@ -35,7 +35,7 @@ export const fieldLabels: Record<string, string> = {
   version: '版本',
   note: '备注',
   remark: '备注',
-  reason: '原因',
+  reason: '备注',
   description: '描述',
   content: '内容',
   summary: '汇总',

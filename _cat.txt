@@ -1,0 +1,48 @@
+const categoryOptions = useMemo(() => {
+    return productCategoryOptions.map((fixed) => {
+      const matched =
+        catalog.categories.find((item) => item.categoryId === fixed.categoryId) ||
+        catalog.categories.find((item) => item.categoryLabel === fixed.categoryLabel)
+      const categoryId = matched?.categoryId || fixed.categoryId
+      const enabled = matched ? matched.enabled : true
+      return {
+        value: categoryId,
+        label: fixed.categoryLabel + (enabled ? '' : '（已停用）'),
+        disabled: !enabled && categoryId !== draft.categoryId,
+      }
+    })
+  }, [catalog.categories, draft.categoryId])
+
+  const saleBelowCost = isSaleBelowCost(draft.standardAmount, draft.costAmount)
+  const profitLabel = formatProfitYuan(draft.standardAmount, draft.costAmount)
+
+  const generate = () => {
+    try {
+      change({ skus: generateProductSkus(draft) })
+      setRegenerate(f
+----
+const validateDraft = () => {
+    if (!(fulfillmentTypes as readonly string[]).includes(draft.fulfillmentType)) {
+      setError('请先选择履约类型')
+      return false
+    }
+    if (!draft.title.trim() || !draft.categoryId) {
+      setError('请填写标题并选择商品分类')
+      return false
+    }
+    const category = catalog.categories.find((item) => item.categoryId === draft.categoryId)
+    if (!category?.enabled && isNew) {
+      setError('新建商品只能选择启用中的商品分类')
+      return false
+    }
+    try {
+      assertProductContentAllowsSave(draft.content)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '详细简介含禁止媒体')
+      return false
+    }
+    setError('')
+    return true
+  }
+
+  const cacheLocalOnly =

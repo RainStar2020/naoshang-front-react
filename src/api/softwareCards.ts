@@ -72,3 +72,28 @@ export async function postSoftwareCardsMutate(request: SoftwareCardsEndpoints['P
   })
   return response.data
 }
+
+/** @see POST /api/hq/software-cards/exports */
+export async function postSoftwareCardsExports(request: SoftwareCardsEndpoints['POST /software-cards/exports']['request'], options: RequestOptions = {}): Promise<SoftwareCardsEndpoints['POST /software-cards/exports']['response']> {
+  const response = await apiClient.post<SoftwareCardsEndpoints['POST /software-cards/exports']['response']>('/software-cards/exports', request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+
+/** @see GET /api/hq/software-cards/settings */
+export async function getSoftwareCardsSettings(query?: SoftwareCardsEndpoints['GET /software-cards/settings']['query'], options: RequestOptions = {}): Promise<SoftwareCardsEndpoints['GET /software-cards/settings']['response']> {
+  const response = await apiClient.get<SoftwareCardsEndpoints['GET /software-cards/settings']['response']>('/software-cards/settings', { ...options, params: query })
+  return response.data
+}
+
+/** @see POST /api/hq/software-cards/settings/mutate */
+export async function postSoftwareCardsSettingsMutate(request: SoftwareCardsEndpoints['POST /software-cards/settings/mutate']['request'], options: RequestOptions = {}): Promise<SoftwareCardsEndpoints['POST /software-cards/settings/mutate']['response']> {
+  const response = await apiClient.post<SoftwareCardsEndpoints['POST /software-cards/settings/mutate']['response']>('/software-cards/settings/mutate', request.body, {
+    ...options,
+    headers: mergeRequestHeaders(options, request.headers),
+  })
+  return response.data
+}
+

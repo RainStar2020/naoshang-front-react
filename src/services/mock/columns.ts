@@ -6,7 +6,7 @@ import { mockColumnProductOptions } from './products'
 
 const copy = <T,>(value: T): T => structuredClone(value)
 const fail = (code: ColumnError['code'], message: string): never => { throw new ColumnError(code, message) }
-const paragraph = (text: string) => normalizeContent({ version: 1, format: 'nodes', nodes: [{ name: 'p', children: [{ type: 'text', text }] }] })
+const paragraph = (text: string) => normalizeContent({ version: 1, format: 'nodes', nodes: [{ name: 'p', attrs: {}, children: [{ type: 'text', text }] }] })
 const initial: ColumnDraft = { columnId: 'demo-column-memory', productId: 'product-column', title: '《记忆基础》专栏', summary: '专栏介绍与章节由总部发布，购买后联系门店取码并主动激活。', coverUrl: 'https://mock-assets.invalid/demo-cover', content: paragraph('专栏内容演示。授权属于账号，独立于孩子学习等级。'), chapters: [
   { id: 'column-memory-article', title: '图文：联想记忆入门', type: 'article', order: 1, accessibility: 'column-required', content: paragraph('通过观察和联想练习记忆。'), videoUrl: '', posterUrl: '' },
   { id: 'column-memory-video', title: '视频：观察与回忆练习', type: 'video', order: 2, accessibility: 'column-required', content: emptyContent(), videoUrl: 'https://mock-assets.invalid/demo-column-video', posterUrl: 'https://mock-assets.invalid/demo-cover' },

@@ -20,4 +20,8 @@ export interface CourseEndpoints {
   'POST /course/entitlements/:entitlementId/mutate': Endpoint<{ entitlementId: string }, never, CourseMutationRequest, MutationData>
   /** 新建课程权益发放记录。 */
   'POST /course/entitlements': Endpoint<never, never, MutationRequest, MutationData>
+  /** 课程 CMS 目录（档位/课程草稿）。 */
+  'GET /course/cms/catalog': Endpoint<never, UndocumentedFields, never, unknown>
+  /** 课程 CMS 写操作：保存档位/课程、发布/下架。 */
+  'POST /course/cms/mutate': Endpoint<never, never, MutationRequest, MutationData>
 }

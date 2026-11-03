@@ -1,7 +1,16 @@
 import type { ContentNode, RichContent, RichTag } from '../types/cms'
 
 export const emptyContent = (): RichContent => ({ version: 1, format: 'nodes', nodes: [] })
-export const isMediaUrl = (value: unknown): value is string => typeof value === 'string' && /^https:\/\/[^\s<>"'\\]+$/i.test(value)
+export const isMediaUrl = (value: unknown): value is string => {
+  if (typeof value !== 'string' || !value) return false
+  // 远端 HTTPS；商品编辑本地预览还允许 data:/blob:（提交前再上传替换）
+  return (
+    /^https:\/\/[^\s<>"'\\]+$/i.test(value) ||
+    /^data:(image|video)\/[a-z0-9+.-]+(;charset=[^;]+)?;base64,/i.test(value) ||
+    /^data:(image|video)\/[a-z0-9+.-]+,/i.test(value) ||
+    /^blob:[^\s<>"'\\]+$/i.test(value)
+  )
+}
 /** 课程允许 video；商品详情另用 assertProductContentAllowsSave 在保存前拒绝 video。 */
 const tags = new Set<RichTag>(['p', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'br', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'img', 'video'])
 const typography: Partial<Record<RichTag, string>> = {

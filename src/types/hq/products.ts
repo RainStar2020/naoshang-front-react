@@ -20,4 +20,8 @@ export interface ProductsEndpoints {
   'POST /products/mutate': Endpoint<never, never, ProductsMutationRequest, MutationData>
   /** 商品写操作：改资料/上下架/改价。 */
   'POST /products/:productId/mutate': Endpoint<{ productId: string }, never, ProductsMutationRequest, MutationData>
+  /** 商品分类维护。 */
+  'POST /products/categories/mutate': Endpoint<never, never, MutationRequest, MutationData>
+  /** 履约类型改名（不改编码）。 */
+  'POST /products/types/:code/mutate': Endpoint<{ code: string }, never, MutationRequest, MutationData>
 }

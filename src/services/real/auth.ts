@@ -1,4 +1,4 @@
-import { getAuthMe, postAuthLogin, postAuthLogout } from '../../api/auth'
+import { getAuthMe, postAuthLogin, postAuthLogout, postAuthPassword } from '../../api/auth'
 import { ApiError } from '../../api/client'
 import { AuthError, hqPermissions, type HqLoginRequest, type HqSession } from '../../types/auth'
 import type { Admin } from '../../types/hq/auth'
@@ -59,5 +59,15 @@ export const realAuthService = {
       if (error instanceof ApiError && error.code === 40100) return
       authError(error)
     }
+  },
+  async changePassword(input: { oldPassword: string; newPassword: string; reason?: string }): Promise<void> {
+    try {
+      const result = await postAuthPassword({
+        oldPassword: input.oldPassword,
+        newPassword: input.newPassword,
+        reason: input.reason || 'change-password',
+      } as never)
+      if (result.code !== 0) throw new ApiError(result)
+    } catch (error) { return authError(error) }
   },
 }

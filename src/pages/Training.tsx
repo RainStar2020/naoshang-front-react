@@ -146,7 +146,7 @@ export default function Training() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <div>
-        <Typography.Title level={3} style={{ margin: 0 }}>训练反馈与课时核销</Typography.Title>
+        <Typography.Title level={3} style={{ margin: 0 }}>学习反馈</Typography.Title>
         <Typography.Text type="secondary">HQ-20：总部代写/撤回训练反馈与课时核销监管；禁止超余量与负库存；不替代门店日常训练录入。学员档案见 <Link to="/members">孩子会员档案</Link>，门店侧日常不在此替代。</Typography.Text>
       </div>
       <HqDataSourceAlert mockMessage="Mock 演示边界" mockDescription="成功仅表示内存 Mock 状态机通过：不代表真实课时扣减、家长可见反馈或附件已上传。附件仅保留审计字段。写操作须原因/版本/幂等；不伪造核销终态。" />
@@ -169,10 +169,10 @@ export default function Training() {
             <Table<TrainingMemberBalance> rowKey="memberId" loading={loading} dataSource={balances}
               pagination={{ current: balancePage, pageSize: 10, total: balanceTotal, onChange: setBalancePage }}
               columns={[
-                { title: '学员', key: 'm', render: (_, row) => <Space direction="vertical" size={0}><strong>{row.memberName}</strong><span>{row.displayId}</span></Space> },
+                { title: '学员', dataIndex: 'memberName' }, { title: '编号', dataIndex: 'displayId', width: 120 },
                 { title: '门店', dataIndex: 'storeName', render: (value: string | null) => value || '—' },
-                { title: '陪练（已用/总量）', key: 't', render: (_, row) => `${row.trainingUsed}/${row.trainingTotal}（剩 ${row.trainingRemaining}）` },
-                { title: '专项（已用/总量）', key: 's', render: (_, row) => `${row.specialUsed}/${row.specialTotal}（剩 ${row.specialRemaining}）` },
+                { title: '陪练已用', dataIndex: 'trainingUsed', width: 90 }, { title: '陪练总量', dataIndex: 'trainingTotal', width: 90 }, { title: '陪练剩余', dataIndex: 'trainingRemaining', width: 90 },
+                { title: '专项已用', dataIndex: 'specialUsed', width: 90 }, { title: '专项总量', dataIndex: 'specialTotal', width: 90 }, { title: '专项剩余', dataIndex: 'specialRemaining', width: 90 },
                 { title: '版本', dataIndex: 'version', width: 70 },
                 { title: '操作', key: 'op', render: (_, row) => <Space wrap size={0}>
                   <Button type="link" size="small" onClick={() => void openMember(row.memberId)}>详情</Button>

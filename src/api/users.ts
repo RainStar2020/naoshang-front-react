@@ -58,3 +58,30 @@ export async function postUsersByAccountIdMutate(path: UsersEndpoints['POST /use
   })
   return response.data
 }
+
+/**
+ * 查询指定用户门店绑定与可选门店列表（含 HQ）。
+ * @see GET /api/hq/users/:accountId/store-binding
+ */
+export async function getUsersByAccountIdStoreBinding(path: UsersEndpoints['GET /users/:accountId/store-binding']['path'], options: RequestOptions = {}): Promise<UsersEndpoints['GET /users/:accountId/store-binding']['response']> {
+  const response = await apiClient.get<UsersEndpoints['GET /users/:accountId/store-binding']['response']>(`/users/${encodeURIComponent(path.accountId)}/store-binding`, options)
+  return response.data
+}
+
+/**
+ * 绑定或更换门店；一人一店，重复绑定覆盖，不必先解绑。
+ * @see POST /api/hq/users/:accountId/store-binding
+ */
+export async function postUsersByAccountIdStoreBinding(path: UsersEndpoints['POST /users/:accountId/store-binding']['path'], body: UsersEndpoints['POST /users/:accountId/store-binding']['body'], options: RequestOptions = {}): Promise<UsersEndpoints['POST /users/:accountId/store-binding']['response']> {
+  const response = await apiClient.post<UsersEndpoints['POST /users/:accountId/store-binding']['response']>(`/users/${encodeURIComponent(path.accountId)}/store-binding`, body, options)
+  return response.data
+}
+
+/**
+ * 解绑门店。
+ * @see DELETE /api/hq/users/:accountId/store-binding
+ */
+export async function deleteUsersByAccountIdStoreBinding(path: UsersEndpoints['DELETE /users/:accountId/store-binding']['path'], body: UsersEndpoints['DELETE /users/:accountId/store-binding']['body'] = {}, options: RequestOptions = {}): Promise<UsersEndpoints['DELETE /users/:accountId/store-binding']['response']> {
+  const response = await apiClient.delete<UsersEndpoints['DELETE /users/:accountId/store-binding']['response']>(`/users/${encodeURIComponent(path.accountId)}/store-binding`, { ...options, data: body })
+  return response.data
+}

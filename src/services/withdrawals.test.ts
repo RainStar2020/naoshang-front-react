@@ -24,7 +24,7 @@ beforeEach(async () => {
 })
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
-it('目录含待定政策与打款缺口说明；列表覆盖待审/处理中/成功/拒绝/回执失败；金额为分', async () => {
+it('目录含待定政策与打款缺口说明；列表覆盖待审/处理中/成功/拒绝/回执失败；金额为元', async () => {
   const catalog = await service.catalog(token)
   expect(catalog.mockOnly).toBe(true)
   expect(catalog.pendingPolicy.minAmountPending).toBe(true)
@@ -35,6 +35,9 @@ it('目录含待定政策与打款缺口说明；列表覆盖待审/处理中/�
   expect(list.summary.processing).toBeGreaterThanOrEqual(1)
   expect(list.summary.receiptFailed).toBeGreaterThanOrEqual(1)
   expect(list.items.every((row) => row.mockOnly && Number.isInteger(row.amount))).toBe(true)
+  // 金额单位为元：示例申请约数百～数千元，不应再是「分」量级的五位数假数据
+  const sample = list.items.find((row) => row.withdrawalId === 'wd-pending-001')
+  expect(sample?.amount).toBe(567)
 })
 
 it('详情提示不改余额；关联 HQ-22 流水只读；不暴露密码', async () => {
@@ -56,13 +59,13 @@ it('查询账号不可审核；同意后为 PROCESSING 非 SUCCEEDED；幂等可
   }
   await expect(service.mutate(viewer, draft)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   token = (await auth.login({ loginAccount: 'hq-admin', password: 'Demo@123456' })).token
-  await expect(service.mutate(token, { ...draft, reason: '' })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  // 原因可空：Mock/页面会落成「（无备注）」，不再以 INVALID_INPUT 拒绝
   const key = crypto.randomUUID()
-  const ok = await service.mutate(token, { ...draft, idempotencyKey: key })
+  const ok = await service.mutate(token, { ...draft, reason: '', idempotencyKey: key })
   expect(ok).toMatchObject({ action: 'approve', mockOnly: true })
   expect(ok.application).toMatchObject({ status: 'PROCESSING', payoutReceiptStatus: 'NONE' })
   expect(ok.application.status).not.toBe('SUCCEEDED')
-  expect(await service.mutate(token, { ...draft, idempotencyKey: key })).toEqual(ok)
+  expect(await service.mutate(token, { ...draft, reason: '', idempotencyKey: key })).toEqual(ok)
   await expect(service.mutate(token, { ...draft, reason: '改原因', idempotencyKey: key })).rejects.toMatchObject({
     code: 'IDEMPOTENCY_CONFLICT',
   })

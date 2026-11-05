@@ -12,6 +12,7 @@ describe('mapQuotaOwner real HQ list item', () => {
       total: 500,
       frozen: 0,
       available: 500,
+      used: 12,
       status: 'ACTIVE',
       version: 1,
       allowedActions: ['freeze', 'adjust'],
@@ -25,6 +26,7 @@ describe('mapQuotaOwner real HQ list item', () => {
       quotaTotal: 500,
       frozen: 0,
       available: 500,
+      spent: 12,
       quotaStatus: 'ACTIVE',
       version: 1,
       allowedActions: ['freeze', 'adjust'],
@@ -47,6 +49,6 @@ describe('mapQuotaOwner real HQ list item', () => {
       version: 1,
       allowedActions: ['freeze', 'adjust'],
     })
-    expect(row).toMatchObject({ standard: 97, activityTotal: 4, quotaTotal: 101, available: 101 })
+    expect(row).toMatchObject({ standard: 97, activityTotal: 4, quotaTotal: 101, available: 101, spent: 0 })
   })
 })

@@ -15,6 +15,7 @@ import { postAuthLogin } from './auth'
 import { getMaterials } from './materials'
 import { getProducts } from './products'
 import { getUsers, getUsersByAccountId, postUsersByAccountIdMutate } from './users'
+import { getRevenueLedgers } from './revenue'
 import { postMaterialsMutate } from './materials'
 
 const originalAdapter = apiClient.defaults.adapter
@@ -113,6 +114,17 @@ describe('总部 API 请求层', () => {
       expect(config.headers.get('Authorization')).toBe('Bearer explicit')
     })
     await getUsers(undefined, { signal: controller.signal, timeout: 5000, headers: { Authorization: 'Bearer explicit' } })
+  })
+
+  it('收益台账保留通用 Bearer，并补充契约要求的 X-Admin-Token', async () => {
+    setApiToken('hq-token')
+    respond(success, (config) => {
+      expect(config.url).toBe('/revenue/ledgers')
+      expect(config.params).toEqual({ page: 1, pageSize: 10, module: 'agency', period: '2026-10' })
+      expect(config.headers.get('Authorization')).toBe('Bearer hq-token')
+      expect(config.headers.get('X-Admin-Token')).toBe('hq-token')
+    })
+    await getRevenueLedgers({ page: 1, pageSize: 10, module: 'agency', period: '2026-10' })
   })
 
   it('已取消的请求不发送到适配器', async () => {

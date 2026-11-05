@@ -4,6 +4,8 @@ import type { HqPermission } from '../types/auth'
 import { PromoMaterialError, type PromoMaterialMutation, type PromoMaterialQuery } from '../types/promo-materials'
 import { mockPromoMaterialCatalog, mockPromoMaterialDetail, mockPromoMaterialList, mockPromoMaterialMutate } from './mock/promo-materials'
 import * as real from './real/promo-materials'
+import { mockCmsUpload } from './mock/cms'
+import { realUploadAsset } from './real/assets'
 
 async function authorize(token: string, permission: HqPermission = 'materials:access') {
   const { account } = await authService.getSession(token)
@@ -33,5 +35,11 @@ export const promoMaterialService = {
     const account = await authorize(token, 'materials:edit')
     if (isMockAuth) return mockPromoMaterialMutate(input, { operatorId: account.accountId, operatorName: account.nickname })
     return (await real.realPromoMaterialMutate(input)) as Awaited<ReturnType<typeof mockPromoMaterialMutate>>
+  },
+  /** 图片素材底图上传：mock 走演示资产；真实走 HQ assets upload-intents。 */
+  async upload(token: string, file: File) {
+    await authorize(token, 'materials:edit')
+    if (isMockAuth) return mockCmsUpload(file)
+    return realUploadAsset(file, 'promo-material')
   },
 }

@@ -1,4 +1,4 @@
-/** HQ-23 提现审核、打款回执与凭证。字段对齐小程序 wallet/withdraw-* 与 BusinessWithdrawals；金额整数分；不伪造银行打款终态——仅登记回执。最低额/费率/自动打款待定。 */
+/** HQ-23 提现审核、打款回执与凭证。字段对齐小程序 wallet/withdraw-* 与 BusinessWithdrawals；金额单位为元（非分）；不伪造银行打款终态——仅登记回执。最低额/费率/自动打款待定。 */
 export type WithdrawAccountType = 'PERSONAL' | 'COMPANY'
 export type WithdrawStatus = 'PENDING_REVIEW' | 'PROCESSING' | 'SUCCEEDED' | 'REJECTED'
 export type WithdrawModule = 'wholesale' | 'costore' | 'agency'
@@ -6,17 +6,19 @@ export type PayoutReceiptStatus = 'NONE' | 'SUCCESS' | 'FAILED'
 
 export interface WithdrawalApplication {
   withdrawalId: string
+  /** 兑换/申请单号（列表展示优先用此字段） */
+  redemptionNo: string
   title: string
   module: WithdrawModule
   identityLabel: string
   accountId: string
   accountName: string
   phone: string
-  /** 申请金额（分） */
+  /** 申请金额（元） */
   amount: number
-  /** 手续费快照（分）；费率政策待定，仅展示申请时快照 */
+  /** 手续费快照（元）；费率政策待定，仅展示申请时快照 */
   fee: number
-  /** 预计到账（分） */
+  /** 预计到账（元） */
   netAmount: number
   accountType: WithdrawAccountType
   payeeName: string

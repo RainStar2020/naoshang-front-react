@@ -5,6 +5,16 @@ export type RevenueAction = 'adjust' | 'freeze' | 'unfreeze' | 'settle'
 export type RevenueMutationRequest<T extends object = UndocumentedFields> = MutationRequest<{ action: RevenueAction } & T>
 export type RevenueMutationResponse<T extends object = UndocumentedFields> = ApiResponse<MutationData<T>>
 
+/** 收益流水列表；金额由服务端以元返回。 */
+export interface RevenueLedgerQuery extends PaginationQuery {
+  /** wholesale=合伙人；agency=门店/合店与代理混排。 */
+  module?: 'wholesale' | 'agency'
+  ownerId?: string
+  bizType?: 'supply' | 'parity' | 'global' | 'founding' | 'agent' | 'costore' | 'product' | 'hq_adjust' | string
+  period?: string
+  from?: string | number
+  to?: string | number
+}
 export interface RevenueListQuery extends PaginationQuery { }
 export type RevenueListResponse<T = unknown, S = unknown> = ApiResponse<PageData<T, S>>
 export type RevenueDetailResponse<T = unknown> = ApiResponse<T>
@@ -15,7 +25,7 @@ export interface RevenueEndpoints {
   /** 筛选项与汇总。 */
   'GET /revenue/catalog': Endpoint<never, UndocumentedFields, never, unknown>
   /** 收益明细流水。 */
-  'GET /revenue/ledgers': Endpoint<never, UndocumentedFields, never, unknown>
+  'GET /revenue/ledgers': Endpoint<never, RevenueLedgerQuery, never, unknown>
   /** 单账户收益详情。 */
   'GET /revenue/accounts/:accountId': Endpoint<{ accountId: string }, UndocumentedFields, never, unknown>
   /** 收益写操作：调整/冻结/解冻/结算。 */

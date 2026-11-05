@@ -118,9 +118,9 @@ export default function Agents() {
                 scroll={{ x: 1100 }}
                 pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], onChange: (page, pageSize) => setQuery((q) => ({ ...q, page, pageSize })) }}
                 columns={[
-                  { title: '代理', key: 'agent', width: 200, render: (_, r) => <><strong>{r.name}</strong><br />{r.agentId} · {r.phone}</> },
+                  { title: '代理', key: 'agent', width: 160, render: (_, r) => <span>{r.name} / {r.phone}</span> }, { title: '代理ID', dataIndex: 'agentId', width: 120 },
                   { title: '所属合伙人', key: 'partner', width: 140, render: (_, r) => r.partnerName ?? '—' },
-                  { title: '等级 / 区域', key: 'region', width: 220, render: (_, r) => <>{r.levelLabel}<br />{territoryName(r.territoryIds)}</> },
+                  { title: '等级', dataIndex: 'levelLabel', width: 100 }, { title: '区域', key: 'region', width: 160, ellipsis: true, render: (_, r) => territoryName(r.territoryIds) },
                   { title: '直属门店', dataIndex: 'storeCount', width: 90, align: 'center' },
                   { title: '佣金快照', key: 'fee', width: 120, align: 'right', render: (_, r) => money(r.commissionSnapshotCents) },
                   { title: '状态', key: 'status', width: 110, render: (_, r) => <Tag color={r.status === 'ACTIVE' ? 'green' : r.status === 'SUSPENDED' ? 'orange' : 'default'}>{statusLabel[r.status]}</Tag> },
@@ -151,7 +151,7 @@ export default function Agents() {
                 dataSource={catalog?.territories}
                 pagination={false}
                 columns={[
-                  { title: '区域', key: 'name', render: (_, r) => <><strong>{r.name}</strong><br />{r.territoryId}</> },
+                  { title: '区域', dataIndex: 'name' }, { title: '区域ID', dataIndex: 'territoryId', width: 140 },
                   { title: '层级', key: 'level', width: 100, render: (_, r) => levelLabel[r.level] },
                   { title: '独占', key: 'ex', width: 100, render: (_, r) => <Tag color={r.exclusive ? 'blue' : 'default'}>{r.exclusive ? '独占' : '非独占'}</Tag> },
                   { title: '当前在职持有', key: 'holder', width: 160, render: (_, r) => r.holderAgentId ?? '—' },

@@ -19,6 +19,82 @@ it('mapPartnerCatalog maps alternate field names', () => {
   expect(catalog.audit[0]).toMatchObject({ operationId: 'op1', action: 'upgrade' })
 })
 
+
+it('mapPartnerCatalog merges partnerLevels + benefits from real HQ payload', () => {
+  const catalog = mapPartnerCatalog({
+    partnerLevels: [
+      { value: 'DEMO-VIP', label: 'DEMO-VIP' },
+      { value: 'DEMO-ANGEL', label: 'DEMO-ANGEL' },
+      { value: 'DEMO-BOARD', label: 'DEMO-BOARD' },
+      { value: 'DEMO-FOUNDER', label: 'DEMO-FOUNDER' },
+    ],
+    benefits: [
+      {
+        partnerLevel: 'DEMO-FOUNDER',
+        summary: '',
+        content: { version: 1, format: 'nodes', nodes: [{ type: 'text', text: '联创权益' }] },
+        version: 2,
+      },
+      {
+        partnerLevel: 'DEMO-VIP',
+        summary: '',
+        content: { version: 1, format: 'nodes', nodes: [{ type: 'text', text: 'VIP权益' }] },
+        version: 2,
+      },
+      {
+        partnerLevel: 'DEMO-ANGEL',
+        summary: '1',
+        content: { version: 1, format: 'nodes', nodes: [{ type: 'text', text: "131e'q" }] },
+        version: 2,
+      },
+      {
+        partnerLevel: 'DEMO-BOARD',
+        summary: '22',
+        content: { version: 1, format: 'nodes', nodes: [{ type: 'text', text: '私董权益' }] },
+        version: 2,
+      },
+    ],
+    audit: [
+      {
+        id: 'hqal_117',
+        action: 'upgrade',
+        targetId: 'partner:p6',
+        operatorName: '区县代-戊',
+        reason: '升档',
+        before: { partnerLevel: 'DEMO-VIP', frozen: false },
+        after: { partnerLevel: 'DEMO-ANGEL' },
+        occurredAt: '2026-10-01T01:00:00.000Z',
+      },
+    ],
+  })
+  expect(catalog.levels.map((row) => row.partnerLevel)).toEqual([
+    'DEMO-VIP',
+    'DEMO-ANGEL',
+    'DEMO-BOARD',
+    'DEMO-FOUNDER',
+  ])
+  expect(catalog.levels[0]).toMatchObject({
+    partnerLevel: 'DEMO-VIP',
+    title: 'VIP',
+    summary: '',
+    wholesaleLabel: '',
+    quotaOccupancy: 0,
+    nextLevel: null,
+    taskTarget: null,
+    version: 2,
+  })
+  expect(catalog.levels[0].content.nodes.length).toBeGreaterThan(0)
+  expect(catalog.levels[1]).toMatchObject({ partnerLevel: 'DEMO-ANGEL', title: '天使', summary: '1' })
+  expect(catalog.levels[2]).toMatchObject({ partnerLevel: 'DEMO-BOARD', title: '私董', summary: '22' })
+  expect(catalog.levels[3]).toMatchObject({ partnerLevel: 'DEMO-FOUNDER', title: '联创', summary: '' })
+  expect(catalog.audit[0]).toMatchObject({
+    operationId: 'hqal_117',
+    action: 'upgrade',
+    before: 'VIP',
+    after: '天使',
+  })
+})
+
 it('mapPartnerProfile defaults allowedActions/targetLevels arrays', () => {
   const profile = mapPartnerProfile({ contextId: 'c1', accountId: 'a1', nickname: '张三' })
   expect(profile.allowedActions).toEqual([])

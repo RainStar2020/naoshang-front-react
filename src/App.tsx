@@ -53,7 +53,9 @@ const pages: Record<string, React.ComponentType> = {
   '/members': Members,
   '/users': Users,
   '/course': CourseCms,
-  '/materials': Materials,
+  '/materials/image': Materials,
+  '/materials/article': Materials,
+  '/materials/video': Materials,
   '/support': Support,
   '/trace': Trace,
   '/products': Products,
@@ -107,6 +109,7 @@ export default function App() {
                     />
                   )
                 })}
+                <Route path="/materials" element={<Navigate to="/materials/image" replace />} />
                 <Route path="/revenue" element={<Navigate to="/revenue/settlement" replace />} />
                 <Route path="/session" element={<Suspense fallback={<Spin />}><LiveModulePage /></Suspense>} />
                 <Route path="/pricing" element={<Navigate to="/products" replace />} />

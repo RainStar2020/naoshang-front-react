@@ -6,10 +6,10 @@
 
 ## 配置与调用
 
-默认请求地址 `/api/hq`，超时 30 秒。开发环境已通过 Vite 代理转发到 `http://localhost:3000`，配置位于 `.env.development`；修改后重启开发服务器。跨域或独立部署可在 `.env.local` 配置：
+默认请求地址 `/api/hq`，超时 30 秒。开发环境已通过 Vite 代理转发到 `hhttp://192.168.0.44:3000`，配置位于 `.env.development`；修改后重启开发服务器。跨域或独立部署可在 `.env.local` 配置：
 
 ```dotenv
-VITE_HQ_API_BASE_URL=http://localhost:3000/api/hq
+VITE_HQ_API_BASE_URL=hhttp://192.168.0.44:3000/api/hq
 ```
 
 同源部署需要服务端将 `/api/hq` 转发到后端。跨域部署需后端允许前端来源和鉴权、审计请求头。

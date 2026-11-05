@@ -12,7 +12,6 @@ const levelLabels = { 'DEMO-VIP': 'VIP', 'DEMO-ANGEL': '天使', 'DEMO-BOARD': '
 const sourceLabels = { PURCHASE: '购买', ACTIVITY_GRANT: '活动发放', HQ_RECHARGE: '总部充值', TRANSFER: '标准划入' }
 const kindLabels = { PURCHASE: '购买到账', ACTIVITY_GRANT: '活动发放', HQ_RECHARGE: '总部充值', RESERVE: '付款前占用', RELEASE: '未付取消释放', CONSUME: '支付后消耗', TRANSFER_OUT: '标准划出', TRANSFER_IN: '标准划入' }
 const orderLabels = { UNPAID: '待支付', PAID: '支付成功', CANCELLED: '未付已取消' }
-const statusLabels = { ACTIVE: '经营正常', FROZEN: '已冻结', EXPIRED: '年度到期', PENDING_ANNUAL: '年度未开通' }
 const money = (value: number) => `¥${(value / 100).toFixed(2)}`
 function amounts(value: QuotaBalance) { return `可用${value.remaining} / 占用${value.reserved} / 已用${value.used} / 已划出${value.transferred}` }
 function balanceColumns() { return [{ title: '类型', dataIndex: 'quotaType', render: (type: QuotaType) => <Tag color={type === 'ACTIVITY' ? 'purple' : 'blue'}>{typeLabels[type]}</Tag> }, { title: '累计入账', dataIndex: 'total' }, { title: '可用', dataIndex: 'remaining' }, { title: '占用', dataIndex: 'reserved' }, { title: '已消耗', dataIndex: 'used' }, { title: '已划出', dataIndex: 'transferred' }] }
@@ -45,15 +44,15 @@ export default function Quotas() {
     <Card><Space wrap><Input aria-label="名额所属账号搜索" placeholder="昵称 / 手机号 / 账号编号" allowClear value={query.keyword} onChange={event => setQuery(value => ({ ...value, keyword: event.target.value, page: 1 }))} style={{ width: 290 }} /><Select aria-label="筛选充值资格" allowClear placeholder="全部充值资格" value={query.eligibility} onChange={eligibility => setQuery(value => ({ ...value, eligibility, page: 1 }))} style={{ width: 220 }} options={[{ value: 'ALLOWED', label: '当前可总部充值' }, { value: 'DENIED', label: '当前不可总部充值' }]} /><Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>重置筛选</Button></Space></Card>
     {error && <Alert type="error" showIcon message={error} />}
     {list && <Space wrap size={36}>{[{ title: '名额账户数', value: list.summary.owners }, { title: '总名额', value: list.summary.totalQuota }, { title: '冻结名额', value: list.summary.frozenQuota }, { title: '标准合计', value: list.summary.standardRemaining }, { title: '活动合计', value: list.summary.activityRemaining }, { title: '当前可充值', value: list.summary.rechargeable }].map(item => <Statistic key={item.title} {...item} />)}</Space>}
-    <Card title="VIP名额账户"><Table<QuotaOwner> rowKey={(row) => row.quotaId || row.ownerAccountId} loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1100 }} pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page, pageSize })) }} columns={[
-      { title: '名额主体', key: 'owner', width: 220, render: (_, row) => <Space direction="vertical" size={0}><strong>{row.ownerAccountId || row.quotaId}</strong><span>{row.ownerType === 'partner' ? '合伙/批发商' : row.ownerType || '—'}</span><Typography.Text type="secondary">quotaId: {row.quotaId}</Typography.Text></Space> },
-      { title: '标准名额', dataIndex: 'standard', width: 100 },
-      { title: '活动名额', dataIndex: 'activityTotal', width: 100 },
+    <Card title="VIP名额账户"><Table<QuotaOwner> rowKey={(row) => row.quotaId || row.ownerAccountId} loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1200 }} pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page, pageSize })) }} columns={[
+      { title: '账户姓名手机号', key: 'account', width: 160, render: (_, row) => <><div>{row.name || '—'}</div><Typography.Text type="secondary">{row.phone || '—'}</Typography.Text></> },
+      { title: '用户ID', dataIndex: 'displayId', width: 140, render: (value: string) => value || '—' },
       { title: '总名额', dataIndex: 'quotaTotal', width: 100 },
-      { title: '冻结', dataIndex: 'frozen', width: 90 },
-      { title: '可用', dataIndex: 'available', width: 90 },
-      { title: '状态', key: 'status', width: 110, render: (_, row) => <Tag color={row.quotaStatus === 'ACTIVE' ? 'green' : 'default'}>{statusLabels[row.quotaStatus as keyof typeof statusLabels] || row.quotaStatus || '—'}</Tag> },
-      { title: '操作', key: 'action', fixed: 'right', width: 160, render: (_, row) => <Space direction="vertical"><Button size="small" onClick={() => openDetail(row.ownerAccountId || row.quotaId)}>批次与流水</Button>{canRecharge && (row.allowedActions?.includes('adjust') || row.eligibility.canRecharge) && <Button size="small" type="primary" onClick={() => openRecharge(row)}>总部充值</Button>}</Space> },
+      { title: 'VIP名额', dataIndex: 'standard', width: 100 },
+      { title: '活动名额', dataIndex: 'activityTotal', width: 100 },
+      { title: '已花费名额', dataIndex: 'spent', width: 110 },
+      { title: '剩余有效名额', dataIndex: 'available', width: 120 },
+      { title: '操作', key: 'action', fixed: 'right', width: 140, render: (_, row) => <Space direction="vertical"><Button size="small" onClick={() => openDetail(row.ownerAccountId || row.quotaId)}>VIP明细</Button>{canRecharge && (row.allowedActions?.includes('adjust') || row.eligibility.canRecharge) && <Button size="small" type="primary" onClick={() => openRecharge(row)}>充值</Button>}</Space> },
     ]} /></Card>
     <Drawer title="名额余额、批次与流水" width={1150} open={!!ownerId} onClose={() => setOwnerId(null)}>
       {detailError && <Alert type="error" message={detailError} />}{!detail && !detailError && <Typography.Text>正在加载名额档案…</Typography.Text>}
@@ -65,22 +64,57 @@ export default function Quotas() {
         <Space wrap><Select aria-label="名额明细类型" allowClear placeholder="全部名额类型" value={quotaType} style={{ width: 180 }} onChange={setQuotaType} options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))} /><Input aria-label="名额关联记录搜索" placeholder="批次号 / 订单号 / 操作号" allowClear value={recordKeyword} onChange={event => setRecordKeyword(event.target.value)} style={{ width: 280 }} /></Space>
         <Tabs items={[
           { key: 'batches', label: `批次（${detail.batches.length}）`, children: <Table size="small" rowKey="batchId" scroll={{ x: 1100 }} dataSource={detail.batches.filter(matches)} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
-            { title: '批次与来源', key: 'batch', width: 270, render: (_, row) => <Space direction="vertical" size={0}><strong>{row.title}</strong><Typography.Text copyable>{row.batchId}</Typography.Text><span>{sourceLabels[row.source]} · {formatUserDate(row.createdAt)}</span><span>订单：{row.sourceOrderId ?? '—'}</span><span>操作：{row.operationId}</span></Space> },
-            ...balanceColumns(), { title: '有效期与限制', key: 'valid', width: 150, render: (_, row) => <Space direction="vertical" size={0}><Tag color="green">永久有效</Tag><span>{row.transferable ? '标准名额可按API规则划转' : '不可转让、不可退款'}</span></Space> },
+            { title: '批次标题', dataIndex: 'title', width: 140, ellipsis: true },
+            { title: '批次ID', dataIndex: 'batchId', width: 160 },
+            { title: '来源', key: 'source', width: 100, render: (_, row) => sourceLabels[row.source] },
+            { title: '创建时间', key: 'createdAt', width: 160, render: (_, row) => formatUserDate(row.createdAt) },
+            { title: '来源订单', key: 'sourceOrderId', width: 140, render: (_, row) => row.sourceOrderId ?? '—' },
+            { title: '操作号', dataIndex: 'operationId', width: 140 },
+            ...balanceColumns(),
+            { title: '有效期', key: 'valid', width: 100, render: () => <Tag color="green">永久有效</Tag> },
+            { title: '限制', key: 'limit', width: 180, render: (_, row) => row.transferable ? '标准名额可按API规则划转' : '不可转让、不可退款' },
           ]} /> },
-          { key: 'ledger', label: `名额流水（${(detail.ledger ?? []).length}）`, children: <Space direction="vertical" style={{ width: '100%' }}><Select aria-label="筛选名额流水类型" allowClear placeholder="全部流水类型" style={{ width: 200 }} value={ledgerKind} onChange={setLedgerKind} options={Object.entries(kindLabels).map(([value, label]) => ({ value, label }))} /><Table<QuotaLedger> size="small" rowKey="ledgerId" scroll={{ x: 1150 }} dataSource={detail.ledger.filter(row => matches(row) && (!ledgerKind || row.kind === ledgerKind))} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
-            { title: '业务与数量', key: 'kind', width: 150, render: (_, row) => <Space direction="vertical" size={0}><strong>{kindLabels[row.kind]} × {row.quantity}</strong><span>{typeLabels[row.quotaType]}</span><span>{formatUserDate(row.createdAt)}</span></Space> },
-            { title: '关联标识', key: 'ids', width: 330, render: (_, row) => <Space direction="vertical" size={0}><span>批次：{row.batchId}</span><span>操作：{row.operationId}</span><span>请求：{row.requestId}</span><span>订单：{row.sourceOrderId ?? '—'}</span><span>对方账号：{row.targetAccountId ?? '—'}</span></Space> },
-            { title: '批次前后余额', key: 'amounts', width: 300, render: (_, row) => <Space direction="vertical" size={0}><span>前：{amounts(row.before)}</span><span>后：{amounts(row.after)}</span></Space> }, { title: '操作者与原因', key: 'audit', render: (_, row) => <Space direction="vertical" size={0}><span>{row.operatorName}</span><span>{row.reason}</span></Space> },
+          { key: 'ledger', label: `名额流水（${(detail.ledger ?? []).length}）`, children: <Space direction="vertical" style={{ width: '100%' }}><Select aria-label="筛选名额流水类型" allowClear placeholder="全部流水类型" style={{ width: 200 }} value={ledgerKind} onChange={setLedgerKind} options={Object.entries(kindLabels).map(([value, label]) => ({ value, label }))} /><Table<QuotaLedger> size="small" rowKey="ledgerId" scroll={{ x: 1800 }} dataSource={detail.ledger.filter(row => matches(row) && (!ledgerKind || row.kind === ledgerKind))} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
+            { title: '业务', key: 'kind', width: 110, render: (_, row) => kindLabels[row.kind] },
+            { title: '数量', dataIndex: 'quantity', width: 70 },
+            { title: '名额类型', key: 'quotaType', width: 100, render: (_, row) => typeLabels[row.quotaType] },
+            { title: '时间', key: 'createdAt', width: 160, render: (_, row) => formatUserDate(row.createdAt) },
+            { title: '批次', dataIndex: 'batchId', width: 140 },
+            { title: '操作号', dataIndex: 'operationId', width: 140 },
+            { title: '请求号', dataIndex: 'requestId', width: 140 },
+            { title: '订单', key: 'sourceOrderId', width: 140, render: (_, row) => row.sourceOrderId ?? '—' },
+            { title: '对方账号', key: 'targetAccountId', width: 140, render: (_, row) => row.targetAccountId ?? '—' },
+            { title: '变更前余额', key: 'before', width: 160, render: (_, row) => amounts(row.before) },
+            { title: '变更后余额', key: 'after', width: 160, render: (_, row) => amounts(row.after) },
+            { title: '操作人', dataIndex: 'operatorName', width: 100 },
+            { title: '原因', dataIndex: 'reason', width: 160, ellipsis: true },
           ]} /></Space> },
           { key: 'orders', label: `购买与占用订单（${detail.orders.length}）`, children: <Table size="small" rowKey="orderId" scroll={{ x: 1000 }} dataSource={detail.orders.filter(row => matches({ ...row, sourceOrderId: row.orderId }))} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
-            { title: '订单与类型', key: 'order', width: 300, render: (_, row) => <Space direction="vertical" size={0}><Typography.Text copyable>{row.orderId}</Typography.Text><span>{row.kind === 'PURCHASE' ? '标准名额购买' : '活动升级服务费'} · {row.quantity}个</span><span>{row.note}</span></Space> },
-            { title: '支付状态', key: 'status', render: (_, row) => <Space direction="vertical" size={0}><Tag color={row.status === 'PAID' ? 'green' : 'default'}>{orderLabels[row.status]}</Tag><span>回执：{row.paymentReceiptId ?? '尚无支付成功回执'}</span></Space> },
-            { title: '服务端报价', key: 'price', render: (_, row) => <Space direction="vertical" size={0}><span>单价{money(row.unitAmount)}</span><span>应付{money(row.payableAmount)}</span><span>目标：{row.targetAccountId ?? '—'}</span></Space> }, { title: '更新时间', dataIndex: 'updatedAt', render: formatUserDate },
+            { title: '订单号', dataIndex: 'orderId', width: 180 },
+            { title: '类型', key: 'kind', width: 140, render: (_, row) => row.kind === 'PURCHASE' ? '标准名额购买' : '活动升级服务费' },
+            { title: '数量', dataIndex: 'quantity', width: 70 },
+            { title: '备注', dataIndex: 'note', width: 140, ellipsis: true },
+            { title: '支付状态', key: 'status', width: 110, render: (_, row) => <Tag color={row.status === 'PAID' ? 'green' : 'default'}>{orderLabels[row.status]}</Tag> },
+            { title: '支付回执', key: 'receipt', width: 160, render: (_, row) => row.paymentReceiptId ?? '尚无支付成功回执' },
+            { title: '单价', key: 'unit', width: 100, render: (_, row) => money(row.unitAmount) },
+            { title: '应付', key: 'payable', width: 100, render: (_, row) => money(row.payableAmount) },
+            { title: '目标账号', key: 'target', width: 140, render: (_, row) => row.targetAccountId ?? '—' },
+            { title: '更新时间', dataIndex: 'updatedAt', render: formatUserDate },
           ]} /> },
           { key: 'recharges', label: `总部充值记录（${detail.recharges.length}）`, children: <Table size="small" rowKey="operationId" scroll={{ x: 1100 }} dataSource={detail.recharges.filter(matches)} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
-            { title: '充值记录', key: 'recharge', width: 330, render: (_, row) => <Space direction="vertical" size={0}><strong>{typeLabels[row.quotaType]} +{row.quantity}</strong><span>操作：{row.operationId}</span><span>请求：{row.requestId}</span><span>批次：{row.batchId}</span><span>对象：{row.targetAccountId}</span></Space> },
-            { title: '账号前后余额 / 版本', key: 'amounts', width: 300, render: (_, row) => <Space direction="vertical" size={0}><span>前：{amounts(row.before)} · V{row.beforeVersion}</span><span>后：{amounts(row.after)} · V{row.afterVersion}</span></Space> }, { title: '操作信息', key: 'audit', render: (_, row) => <Space direction="vertical" size={0}><span>{row.operatorName}</span><span>{row.reason}</span><span>{formatUserDate(row.createdAt)}</span></Space> },
+            { title: '名额类型', key: 'quotaType', width: 100, render: (_, row) => typeLabels[row.quotaType] },
+            { title: '数量', dataIndex: 'quantity', width: 70 },
+            { title: '操作号', dataIndex: 'operationId', width: 140 },
+            { title: '请求号', dataIndex: 'requestId', width: 140 },
+            { title: '批次', dataIndex: 'batchId', width: 140 },
+            { title: '对象账号', dataIndex: 'targetAccountId', width: 140 },
+            { title: '变更前余额', key: 'before', width: 150, render: (_, row) => amounts(row.before) },
+            { title: '变更前版本', key: 'beforeVersion', width: 100, render: (_, row) => `V${row.beforeVersion}` },
+            { title: '变更后余额', key: 'after', width: 150, render: (_, row) => amounts(row.after) },
+            { title: '变更后版本', key: 'afterVersion', width: 100, render: (_, row) => `V${row.afterVersion}` },
+            { title: '操作人', dataIndex: 'operatorName', width: 100 },
+            { title: '原因', dataIndex: 'reason', width: 140, ellipsis: true },
+            { title: '时间', key: 'createdAt', width: 160, render: (_, row) => formatUserDate(row.createdAt) },
           ]} /> },
         ]} />
       </Space>}

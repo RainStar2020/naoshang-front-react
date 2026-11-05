@@ -57,6 +57,10 @@ export interface StaffAssignment {
   displayName: string
   /** 健脑官/员工登录账号；密码永不回显，仅 credentialSet */
   loginAccount: string
+  /** 手机号；接口未返回时为 null，列表显示 — */
+  phone: string | null
+  /** 最近登录；接口未返回时为 null，列表显示 — */
+  lastLoginAt: string | null
   roleCode: StoreRole
   roleTitle: string
   status: StaffStatus

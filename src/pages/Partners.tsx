@@ -33,7 +33,7 @@ import {
   type PartnerQuery,
 } from "../types/partners";
 import CmsContentEditor from "../components/CmsContentEditor";
-import { ContentPreview } from "../utils/richContent";
+import { hasContent, nodeText } from "../utils/richContent";
 import { formatUserDate } from "../components/UserDetailDrawer";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 const statuses = {
@@ -115,7 +115,6 @@ export default function Partners() {
   const [upgrade, setUpgrade] = useState<PartnerProfile | null>(null),
     [targetLevel, setTargetLevel] = useState<PartnerLevel | undefined>(),
     [benefits, setBenefits] = useState<PartnerLevelBenefits | null>(null),
-    [preview, setPreview] = useState<PartnerLevelBenefits | null>(null),
     [levelNames, setLevelNames] = useState<PartnerLevelNameInput[] | null>(
       null,
     );
@@ -338,30 +337,31 @@ export default function Partners() {
                     }}
                     columns={[
                       {
-                        title: "合伙人 / 账号",
+                        title: "合伙人",
                         key: "account",
-                        width: 200,
+                        width: 160,
                         render: (_, row) => (
-                          <>
-                            <strong>{row.name}</strong>
-                            <br />
-                            {row.phone}
-                            <br />
-                            {row.displayId}
-                          </>
+                          <span>
+                            {row.name} / {row.phone}
+                          </span>
                         ),
                       },
                       {
-                        title: "等级 / 介绍人",
+                        title: "编号",
+                        dataIndex: "displayId",
+                        width: 120,
+                      },
+                      {
+                        title: "等级",
                         key: "level",
-                        width: 190,
-                        render: (_, row) => (
-                          <>
-                            {levelName(row.partnerLevel)}
-                            <br />
-                            介绍人：{row.superior?.name ?? "未绑定"}
-                          </>
-                        ),
+                        width: 120,
+                        render: (_, row) => levelName(row.partnerLevel),
+                      },
+                      {
+                        title: "介绍人",
+                        key: "superior",
+                        width: 120,
+                        render: (_, row) => row.superior?.name ?? "未绑定",
                       },
                       {
                         title: "年度权益",
@@ -429,7 +429,7 @@ export default function Partners() {
             label: "等级权益说明",
             children: (
               <Card
-                title="等级说明与固定业务编码"
+                title="等级权益说明"
                 extra={
                   canBenefits && (
                     <Button
@@ -451,7 +451,7 @@ export default function Partners() {
               >
                 <Alert
                   type="info"
-                  message="稳定编码 DEMO-VIP/ANGEL/BOARD/FOUNDER；展示名可配置（默认 VIP/天使/私董/联创，勿把「秘籍」当唯一正式名）。小批～总批、名额占用与任务目标只读，由服务端配置。"
+                  message="列表以服务端 partnerLevels + benefits 为准；编码稳定为 DEMO-VIP/ANGEL/BOARD/FOUNDER，展示名可配置（默认 VIP/天使/私董/联创）。"
                 />
                 <Table
                   rowKey="partnerLevel"
@@ -459,44 +459,51 @@ export default function Partners() {
                   pagination={false}
                   columns={[
                     {
-                      title: "等级 / 编码",
-                      key: "level",
-                      render: (_, row) => (
-                        <>
-                          {row.title} · {row.wholesaleLabel}
-                          <br />
-                          {row.partnerLevel}
-                        </>
-                      ),
+                      title: "等级编码",
+                      dataIndex: "partnerLevel",
+                      width: 140,
                     },
                     {
-                      title: "名额累计占用（只读）",
-                      dataIndex: "quotaOccupancy",
+                      title: "等级名称",
+                      dataIndex: "title",
+                      width: 120,
                     },
                     {
-                      title: "下一档任务目标（只读）",
-                      dataIndex: "taskTarget",
-                      render: (value) => value ?? "最高等级",
+                      title: "详细说明",
+                      key: "content",
+                      render: (_, row) => {
+                        const text = (row.content?.nodes ?? [])
+                          .map((node) => nodeText(node))
+                          .join("")
+                          .trim();
+                        if (!hasContent(row.content) || !text) return "—";
+                        return (
+                          <Typography.Paragraph
+                            style={{
+                              marginBottom: 0,
+                              maxWidth: 720,
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {text}
+                          </Typography.Paragraph>
+                        );
+                      },
                     },
-                    { title: "摘要", dataIndex: "summary" },
                     {
                       title: "操作",
                       key: "action",
-                      render: (_, row) => (
-                        <Space size={0}>
-                          <Button type="link" onClick={() => setPreview(row)}>
-                            预览说明
+                      width: 120,
+                      render: (_, row) =>
+                        canBenefits ? (
+                          <Button
+                            type="link"
+                            onClick={() => setBenefits(structuredClone(row))}
+                          >
+                            编辑说明
                           </Button>
-                          {canBenefits && (
-                            <Button
-                              type="link"
-                              onClick={() => setBenefits(structuredClone(row))}
-                            >
-                              编辑说明
-                            </Button>
-                          )}
-                        </Space>
-                      ),
+                        ) : null,
                     },
                   ]}
                 />
@@ -518,69 +525,64 @@ export default function Partners() {
                   scroll={{ x: 1150 }}
                   columns={[
                     {
-                      title: "账号 / 来源",
-                      key: "account",
+                      title: "账号",
+                      dataIndex: "accountId",
+                    },
+                    {
+                      title: "来源",
+                      key: "source",
+                      render: (_, row) =>
+                        row.source === "HQ_MANUAL"
+                          ? "总部人工升级"
+                          : "小程序用户任务申请",
+                    },
+                    {
+                      title: "变更前等级",
+                      key: "beforeLevel",
+                      render: (_, row) => levelName(row.beforeLevel),
+                    },
+                    {
+                      title: "变更后等级",
+                      key: "targetLevel",
+                      render: (_, row) => levelName(row.targetLevel),
+                    },
+                    {
+                      title: "状态",
+                      key: "status",
                       render: (_, row) => (
-                        <>
-                          {row.accountId}
-                          <br />
-                          {row.source === "HQ_MANUAL"
-                            ? "总部人工升级"
-                            : "小程序用户任务申请"}
-                        </>
+                        <Tag
+                          color={
+                            row.status === "SUCCEEDED"
+                              ? "green"
+                              : row.status === "FAILED"
+                                ? "red"
+                                : "blue"
+                          }
+                        >
+                          {receiptLabels[row.status]}
+                        </Tag>
                       ),
                     },
                     {
-                      title: "前后等级",
-                      key: "level",
-                      render: (_, row) => (
-                        <>
-                          {levelName(row.beforeLevel)} →{" "}
-                          {levelName(row.targetLevel)}
-                        </>
-                      ),
+                      title: "结果",
+                      dataIndex: "result",
                     },
                     {
-                      title: "状态 / 结果",
-                      key: "result",
-                      render: (_, row) => (
-                        <>
-                          <Tag
-                            color={
-                              row.status === "SUCCEEDED"
-                                ? "green"
-                                : row.status === "FAILED"
-                                  ? "red"
-                                  : "blue"
-                            }
-                          >
-                            {receiptLabels[row.status]}
-                          </Tag>
-                          {row.result}
-                        </>
-                      ),
+                      title: "回执号",
+                      dataIndex: "receiptId",
                     },
                     {
-                      title: "回执 / 请求号",
-                      key: "id",
-                      render: (_, row) => (
-                        <>
-                          {row.receiptId}
-                          <br />
-                          {row.requestId}
-                        </>
-                      ),
+                      title: "请求号",
+                      dataIndex: "requestId",
                     },
                     {
-                      title: "处理人 / 时间",
+                      title: "处理人",
+                      dataIndex: "operatorName",
+                    },
+                    {
+                      title: "时间",
                       key: "time",
-                      render: (_, row) => (
-                        <>
-                          {row.operatorName}
-                          <br />
-                          {formatUserDate(row.createdAt)}
-                        </>
-                      ),
+                      render: (_, row) => formatUserDate(row.createdAt),
                     },
                   ]}
                 />
@@ -597,47 +599,39 @@ export default function Partners() {
                 scroll={{ x: 1000 }}
                 columns={[
                   {
-                    title: "操作 / 对象",
+                    title: "操作",
+                    key: "action",
+                    render: (_, row) => actions[row.action],
+                  },
+                  {
+                    title: "对象",
                     key: "target",
-                    render: (_, row) => (
-                      <>
-                        {actions[row.action]}
-                        <br />
-                        {row.contextId ?? row.targetId}
-                      </>
-                    ),
+                    render: (_, row) => row.contextId ?? row.targetId,
                   },
                   {
-                    title: "前后结果",
-                    key: "change",
-                    render: (_, row) => (
-                      <>
-                        {row.before}
-                        <br />→ {row.after}
-                      </>
-                    ),
+                    title: "变更前",
+                    dataIndex: "before",
                   },
                   {
-                    title: "原因 / 请求号",
-                    key: "reason",
-                    render: (_, row) => (
-                      <>
-                        {row.reason}
-                        <br />
-                        {row.requestId}
-                      </>
-                    ),
+                    title: "变更后",
+                    dataIndex: "after",
                   },
                   {
-                    title: "操作人 / 时间",
-                    key: "operator",
-                    render: (_, row) => (
-                      <>
-                        {row.operatorName}
-                        <br />
-                        {formatUserDate(row.occurredAt)}
-                      </>
-                    ),
+                    title: "原因",
+                    dataIndex: "reason",
+                  },
+                  {
+                    title: "请求号",
+                    dataIndex: "requestId",
+                  },
+                  {
+                    title: "操作人",
+                    dataIndex: "operatorName",
+                  },
+                  {
+                    title: "时间",
+                    key: "time",
+                    render: (_, row) => formatUserDate(row.occurredAt),
                   },
                 ]}
               />
@@ -913,7 +907,7 @@ export default function Partners() {
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <Alert
               type="info"
-              message="只修改展示摘要和正文；等级编码、名额规则、任务目标和年度费保持服务端配置。"
+              message="只修改展示摘要和正文；等级编码与其它业务规则保持服务端配置。"
             />
             <Input.TextArea
               aria-label="合伙等级说明摘要"
@@ -964,7 +958,7 @@ export default function Partners() {
           <Space direction="vertical" size={12} style={{ width: "100%" }}>
             <Alert
               type="info"
-              message="仅改展示名，不改稳定编码、名额占用与任务目标。四档须同时保存。"
+              message="仅改展示名，不改稳定编码。四档须同时保存。"
             />
             {partnerLevels.map((level) => {
               const row = levelNames.find(
@@ -994,21 +988,6 @@ export default function Partners() {
               );
             })}
           </Space>
-        </Modal>
-      )}
-      {preview && (
-        <Modal
-          open
-          width={800}
-          title={preview.title}
-          footer={null}
-          onCancel={() => setPreview(null)}
-        >
-          <Typography.Paragraph>{preview.summary}</Typography.Paragraph>
-          <ContentPreview
-            value={preview.content}
-            resolveUrl={service.resolveAsset}
-          />
         </Modal>
       )}
       {pending && (

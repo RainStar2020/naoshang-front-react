@@ -47,6 +47,11 @@ export function setApiTokenProvider(provider: () => string | null): void {
   tokenProvider = provider
 }
 
+/** 读取当前 HQ 会话，供少数使用专用鉴权头的已声明接口复用。 */
+export function getApiToken(): string | null {
+  return tokenProvider()
+}
+
 /**
  * HQ modules whose GET routes already speak the v2 envelope when
  * `X-API-Version: 2` is present. Mutating / CSV / other modules stay on v1.

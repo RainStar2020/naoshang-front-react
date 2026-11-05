@@ -1,5 +1,5 @@
 /** HQ-16 收益（5 个接口）。仅声明文档明确的契约；未定义的字段保留为 unknown。 */
-import { apiClient, mergeRequestHeaders, type RequestOptions } from './client'
+import { apiClient, getApiToken, mergeRequestHeaders, type RequestOptions } from './client'
 import type { RevenueEndpoints } from '../types/hq/revenue'
 
 /**
@@ -37,7 +37,13 @@ export async function getRevenueCatalog(query?: RevenueEndpoints['GET /revenue/c
  * @throws {ApiError} 后端业务错误；网络、超时和取消保留 Axios 错误。
  */
 export async function getRevenueLedgers(query?: RevenueEndpoints['GET /revenue/ledgers']['query'], options: RequestOptions = {}): Promise<RevenueEndpoints['GET /revenue/ledgers']['response']> {
-  const response = await apiClient.get<RevenueEndpoints['GET /revenue/ledgers']['response']>('/revenue/ledgers', { ...options, params: query })
+  const token = getApiToken()
+  const response = await apiClient.get<RevenueEndpoints['GET /revenue/ledgers']['response']>('/revenue/ledgers', {
+    ...options,
+    params: query,
+    // 收益台账契约指定该头；Authorization 仍由通用拦截器保留以兼容既有后端。
+    headers: { ...options.headers, ...(token ? { 'X-Admin-Token': token } : {}) },
+  })
   return response.data
 }
 

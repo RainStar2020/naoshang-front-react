@@ -47,7 +47,6 @@ export default function StaffRoles() {
   const [editing, setEditing] = useState<StaffAssignment | null>(null)
   const [editForm, setEditForm] = useState({ displayName: '', loginAccount: '', roleCode: 'COACH' as StoreRole, linkedAccountId: '', allowCrossStore: false })
   const [statusTarget, setStatusTarget] = useState<{ row: StaffAssignment; status: StaffStatus } | null>(null)
-  const [resetTarget, setResetTarget] = useState<StaffAssignment | null>(null)
   const [reason, setReason] = useState('')
   const [pending, setPending] = useState<StaffMutation | null>(null)
   const [busy, setBusy] = useState(false)
@@ -134,14 +133,6 @@ export default function StaffRoles() {
       version: statusTarget.row.version, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
     })
   }
-  function prepareReset() {
-    if (!resetTarget) { setSubmitError('无可提交操作'); return }
-    setSubmitError('')
-    setPending({
-      action: 'mark-credential-reset', assignmentId: resetTarget.assignmentId, version: resetTarget.version,
-      reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
-    })
-  }
   async function submit() {
     if (!pending || busy || blocked) return
     setBusy(true); setSubmitError('')
@@ -151,7 +142,7 @@ export default function StaffRoles() {
         const detailResult = result as { detail?: StaffDetail }
         if (detailResult.detail) setDetailId(detailResult.detail.assignment.assignmentId)
       }
-      setEditingRole(null); setCreating(false); setEditing(null); setStatusTarget(null); setResetTarget(null); setPending(null)
+      setEditingRole(null); setCreating(false); setEditing(null); setStatusTarget(null); setPending(null)
       setRefresh(n => n + 1)
       api.success('Mock 操作已完成，密码不会回显；离职/冻结保留任职记录')
     } catch (err) {
@@ -161,14 +152,14 @@ export default function StaffRoles() {
   }
   function closeEditors() {
     if (busy) return
-    setEditingRole(null); setCreating(false); setEditing(null); setStatusTarget(null); setResetTarget(null); setPending(null); setSubmitError(''); setBlocked(false)
+    setEditingRole(null); setCreating(false); setEditing(null); setStatusTarget(null); setPending(null); setSubmitError(''); setBlocked(false)
   }
 
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>{holder}
     <Space style={{ width: '100%', justifyContent: 'space-between' }}>
       <div>
-        <Typography.Title level={3} style={{ margin: 0 }}>员工、门店角色与权限</Typography.Title>
-        <Typography.Text type="secondary">员工与门店角色（非 HQ-18 区域代理）：配置角色能力字典并监管任职；不替代门店主档与训练模块，也不替代小程序日常排班。</Typography.Text>
+        <Typography.Title level={3} style={{ margin: 0 }}>门店员工</Typography.Title>
+        <Typography.Text type="secondary">门店员工（非 HQ-18 区域代理）：配置角色能力字典并监管任职；不替代门店主档与训练模块，也不替代小程序日常排班。</Typography.Text>
       </div>
       <Space>
         {canManage && <Button type="primary" onClick={openCreate}>新增任职</Button>}
@@ -191,22 +182,21 @@ export default function StaffRoles() {
           {error && <Alert type="error" message={error} />}
           {list && <Space size={32}><Statistic title="筛选任职数" value={list.summary.assignments} /><Statistic title="在职" value={list.summary.active} /><Statistic title="冻结" value={list.summary.frozen} /><Statistic title="离职保留" value={list.summary.left} /><Statistic title="跨店开放" value={list.summary.crossStoreAllowed} /></Space>}
           <Card title="任职列表">
-            <Table<StaffAssignment> rowKey="assignmentId" loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1300 }}
+            <Table<StaffAssignment> rowKey="assignmentId" loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1400 }}
               pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}条任职`, onChange: (page, pageSize) => setQuery(v => ({ ...v, page, pageSize })) }}
               columns={[
-                { title: '员工', key: 'person', width: 200, render: (_, row) => <Space direction="vertical" size={0}><strong>{row.displayName}</strong><span>{row.loginAccount}</span><Tag color={statusColor[row.status]}>{statusLabels[row.status]}</Tag></Space> },
-                { title: '门店 / 角色', key: 'store', width: 240, render: (_, row) => <Space direction="vertical" size={0}><span>{row.storeName}</span><span>{row.roleTitle} · {row.storeNumber}</span></Space> },
-                { title: '凭证 / 邀请', key: 'cred', width: 150, render: (_, row) => <Space direction="vertical" size={0}><span>{row.credentialSet ? '已设凭证' : '未设凭证'}</span><span>{row.invitationStatus}</span></Space> },
-                { title: '跨店 / 能力数', key: 'caps', width: 140, render: (_, row) => <Space direction="vertical" size={0}><span>{row.allowCrossStore ? '任职允许跨店' : '仅本店'}</span><span>{row.effectiveCapabilities.length} 项能力</span></Space> },
-                { title: '生效', key: 'ver', width: 180, render: (_, row) => <Space direction="vertical" size={0}><span>{formatUserDate(row.effectiveAt)}</span>{row.leftAt && <span>离职 {formatUserDate(row.leftAt)}</span>}</Space> },
-                { title: '操作', key: 'actions', fixed: 'right', width: 280, render: (_, row) => <Space wrap size={0}>
+                { title: '员工', key: 'person', width: 140, render: (_, row) => <strong>{row.displayName}</strong> },
+                { title: '门店', key: 'store', width: 180, render: (_, row) => <span>{row.storeName || '—'}</span> },
+                { title: '角色', key: 'role', width: 120, render: (_, row) => <span>{row.roleTitle || '—'}</span> },
+                { title: '手机号', key: 'phone', width: 140, render: (_, row) => <span>{row.phone?.trim() ? row.phone : '—'}</span> },
+                { title: '加入时间', key: 'joined', width: 170, render: (_, row) => <span>{row.effectiveAt ? formatUserDate(row.effectiveAt) : '—'}</span> },
+                { title: '最近登录时间', key: 'lastLogin', width: 170, render: (_, row) => <span>{row.lastLoginAt ? formatUserDate(row.lastLoginAt) : '—'}</span> },
+                { title: '状态', key: 'status', width: 100, render: (_, row) => <Tag color={statusColor[row.status]}>{statusLabels[row.status]}</Tag> },
+                { title: '操作', key: 'actions', fixed: 'right', width: 220, render: (_, row) => <Space wrap size={0}>
                   <Button type="link" size="small" onClick={() => setDetailId(row.assignmentId)}>详情</Button>
                   {canManage && row.status !== 'LEFT' && <Button type="link" size="small" onClick={() => openEdit(row)}>编辑</Button>}
                   {canManage && row.status === 'ACTIVE' && <Button type="link" size="small" onClick={() => { setStatusTarget({ row, status: 'FROZEN' }); setReason(''); setPending(null); setSubmitError(''); setBlocked(false) }}>冻结</Button>}
-                  {canManage && row.status === 'FROZEN' && <Button type="link" size="small" onClick={() => { setStatusTarget({ row, status: 'ACTIVE' }); setReason(''); setPending(null); setSubmitError(''); setBlocked(false) }}>解冻</Button>}
-                  {canManage && row.status !== 'LEFT' && <Button type="link" size="small" danger onClick={() => { setStatusTarget({ row, status: 'LEFT' }); setReason(''); setPending(null); setSubmitError(''); setBlocked(false) }}>离职</Button>}
-                  {canManage && row.status === 'LEFT' && <Button type="link" size="small" onClick={() => { setStatusTarget({ row, status: 'ACTIVE' }); setReason(''); setPending(null); setSubmitError(''); setBlocked(false) }}>复职</Button>}
-                  {canManage && row.status !== 'LEFT' && row.credentialSet && <Button type="link" size="small" onClick={() => { setResetTarget(row); setReason(''); setPending(null); setSubmitError(''); setBlocked(false) }}>标记重置凭证</Button>}
+                  {canManage && row.status !== 'LEFT' && <Button type="link" size="small" danger onClick={() => { setStatusTarget({ row, status: 'LEFT' }); setReason(''); setPending(null); setSubmitError(''); setBlocked(false) }}>删除</Button>}
                 </Space> },
               ]}
             />
@@ -218,7 +208,7 @@ export default function StaffRoles() {
         children: <Card title="门店角色（总部可配置经营能力，不可配置收益权限）">
           <Table<StoreRoleDefinition> rowKey="roleCode" dataSource={catalog?.roles ?? []} pagination={false}
             columns={[
-              { title: '角色', key: 'role', render: (_, row) => <Space direction="vertical" size={0}><strong>{row.title}</strong><span>{row.roleCode}</span></Space> },
+              { title: '角色', dataIndex: 'title' }, { title: '角色编码', dataIndex: 'roleCode', width: 140 },
               { title: '说明', dataIndex: 'summary' },
               { title: '跨店默认', key: 'cross', width: 110, render: (_, row) => row.allowCrossStore ? <Tag color="blue">允许</Tag> : <Tag>禁止</Tag> },
               { title: '能力', key: 'caps', render: (_, row) => <Space wrap size={[4, 4]}>{(row.capabilities ?? []).map(code => <Tag key={code}>{storeCapabilityLabels[code]}</Tag>)}</Space> },
@@ -232,40 +222,29 @@ export default function StaffRoles() {
         key: 'audit', label: `操作审计（${catalog?.audit.length ?? 0}）`,
         children: <Table rowKey="operationId" dataSource={catalog?.audit ?? []} scroll={{ x: 1000 }}
           columns={[
-            { title: '操作 / 目标', key: 'a', render: (_, row) => <Space direction="vertical" size={0}><strong>{row.action}</strong><span>{row.targetId}</span></Space> },
-            { title: '变更', key: 'c', render: (_, row) => <Space direction="vertical" size={0}><span>前：{row.before}</span><span>后：{row.after}</span><span>V{row.beforeVersion} → V{row.afterVersion}</span></Space> },
-            { title: '原因 / 请求号', key: 'r', render: (_, row) => <Space direction="vertical" size={0}><span>{row.reason}</span><span>{row.requestId}</span></Space> },
-            { title: '操作人 / 时间', key: 'o', render: (_, row) => <Space direction="vertical" size={0}><span>{row.operatorName}</span><span>{formatUserDate(row.occurredAt)}</span></Space> },
+            { title: '操作', dataIndex: 'action' }, { title: '目标', dataIndex: 'targetId', width: 160 },
+            { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '变更前版本', key: 'bv', width: 100, render: (_, row) => `V${row.beforeVersion}` }, { title: '变更后版本', key: 'av', width: 100, render: (_, row) => `V${row.afterVersion}` },
+            { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId', width: 160 },
+            { title: '操作人', dataIndex: 'operatorName', width: 120 }, { title: '时间', key: 'time', width: 170, render: (_, row) => formatUserDate(row.occurredAt) },
           ]}
         />,
       },
     ]} />
 
-    <Drawer title="任职详情" width={860} open={!!detailId} onClose={() => setDetailId(null)}>
+    <Drawer title="任职详情" width={520} open={!!detailId} onClose={() => setDetailId(null)}>
       {detailError && <Alert type="error" message={detailError} />}
       {!detail && !detailError && <Typography.Text>正在加载…</Typography.Text>}
-      {detail && <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Descriptions bordered size="small" column={1} items={[
-          { key: 'name', label: '姓名 / 登录账号', children: `${detail.assignment.displayName} / ${detail.assignment.loginAccount}` },
-          { key: 'store', label: '门店', children: `${detail.assignment.storeName}（${detail.assignment.storeNumber} / ${detail.assignment.storeId}）` },
-          { key: 'role', label: '角色', children: `${detail.assignment.roleTitle}（${detail.assignment.roleCode}）` },
-          { key: 'status', label: '状态', children: `${statusLabels[detail.assignment.status]} / 邀请 ${detail.assignment.invitationStatus}` },
-          { key: 'cred', label: '凭证', children: detail.assignment.credentialSet ? '已设置（密码不回显）' : '未设置' },
-          { key: 'cross', label: '跨店', children: detail.assignment.allowCrossStore ? '任职允许（仍须角色字典开放）' : '仅本店' },
-          { key: 'link', label: '关联家长账号', children: detail.assignment.linkedAccountId ?? '无（健脑官不得从家长身份推导）' },
-          { key: 'caps', label: '生效能力', children: (detail.assignment.effectiveCapabilities ?? []).map(code => storeCapabilityLabels[code]).join('、') || '无' },
-          { key: 'ver', label: '生效 / 离职', children: `${formatUserDate(detail.assignment.effectiveAt)} / ${formatUserDate(detail.assignment.leftAt)}` },
-        ]} />
-        <Alert type="info" message="角色字典" description={`${detail.role.title} · 跨店默认${detail.role.allowCrossStore ? '允许' : '禁止'}`} />
-        <Table rowKey="operationId" title={() => '相关审计'} dataSource={detail.audit} pagination={{ pageSize: 5 }}
-          columns={[
-            { title: '操作', dataIndex: 'action' },
-            { title: '变更', key: 'c', render: (_, row) => `${row.before} → ${row.after}` },
-            { title: '原因', dataIndex: 'reason' },
-            { title: '时间', key: 't', render: (_, row) => formatUserDate(row.occurredAt) },
-          ]}
-        />
-      </Space>}
+      {detail && <Descriptions bordered size="small" column={1} items={[
+        { key: 'name', label: '姓名', children: detail.assignment.displayName?.trim() || '—' },
+        { key: 'login', label: '登录账号', children: detail.assignment.loginAccount?.trim() || '—' },
+        { key: 'phone', label: '手机号', children: detail.assignment.phone?.trim() || '—' },
+        { key: 'store', label: '门店', children: detail.assignment.storeName?.trim() || '—' },
+        { key: 'role', label: '角色', children: detail.assignment.roleTitle?.trim() || storeRoleLabels[detail.assignment.roleCode] || '—' },
+        { key: 'status', label: '状态', children: <Tag color={statusColor[detail.assignment.status]}>{statusLabels[detail.assignment.status]}</Tag> },
+        ...(detail.assignment.effectiveAt
+          ? [{ key: 'joined', label: '加入时间', children: formatUserDate(detail.assignment.effectiveAt) }]
+          : []),
+      ]} />}
     </Drawer>
 
     <Modal title="维护门店角色能力" open={!!editingRole} onCancel={closeEditors} footer={<Space><Button onClick={closeEditors}>取消</Button><Button type="primary" onClick={prepareRole}>核对变更</Button></Space>}>
@@ -308,17 +287,9 @@ export default function StaffRoles() {
       </Space>}
     </Modal>
 
-    <Modal title={statusTarget ? `确认${statusLabels[statusTarget.status]}` : '状态变更'} open={!!statusTarget && !pending} onCancel={closeEditors} footer={<Space><Button onClick={closeEditors}>取消</Button><Button type="primary" onClick={prepareStatus}>核对状态变更</Button></Space>}>
+    <Modal title={statusTarget ? `确认${statusTarget.status === 'LEFT' ? '删除' : statusLabels[statusTarget.status]}` : '状态变更'} open={!!statusTarget && !pending} onCancel={closeEditors} footer={<Space><Button onClick={closeEditors}>取消</Button><Button type="primary" onClick={prepareStatus}>核对状态变更</Button></Space>}>
       {statusTarget && <Space direction="vertical" style={{ width: '100%' }}>
-        <Typography.Paragraph>对象：{statusTarget.row.displayName} / {statusTarget.row.loginAccount}<br />当前：{statusLabels[statusTarget.row.status]} → 目标：{statusLabels[statusTarget.status]}<br />离职/冻结保留任职与审计，不物理删除。</Typography.Paragraph>
-        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} />
-        {submitError && <Alert type="error" message={submitError} />}
-      </Space>}
-    </Modal>
-
-    <Modal title="标记重置登录凭证" open={!!resetTarget && !pending} onCancel={closeEditors} footer={<Space><Button onClick={closeEditors}>取消</Button><Button type="primary" onClick={prepareReset}>核对重置标记</Button></Space>}>
-      {resetTarget && <Space direction="vertical" style={{ width: '100%' }}>
-        <Typography.Paragraph>将 {resetTarget.displayName} 的 credentialSet 置为未设置。不会展示或生成明文密码；正式密码由门店侧/服务端处理。</Typography.Paragraph>
+        <Typography.Paragraph>对象：{statusTarget.row.displayName} / {statusTarget.row.loginAccount}<br />当前：{statusLabels[statusTarget.row.status]} → 目标：{statusLabels[statusTarget.status]}<br />冻结保留任职与审计；删除对应离职（set-status LEFT），保留记录，不物理删除。</Typography.Paragraph>
         <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} />
         {submitError && <Alert type="error" message={submitError} />}
       </Space>}

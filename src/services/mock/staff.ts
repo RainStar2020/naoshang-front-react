@@ -77,11 +77,13 @@ function viewRole(code: StoreRole): StoreRoleDefinition {
   return copy({ ...role, capabilities: [...role.capabilities] })
 }
 
-function buildAssignment(row: Omit<StaffAssignment, 'roleTitle' | 'effectiveCapabilities' | 'storeName' | 'storeNumber' | 'mockOnly'> & { storeId: string }): StaffAssignment {
+function buildAssignment(row: Omit<StaffAssignment, 'roleTitle' | 'effectiveCapabilities' | 'storeName' | 'storeNumber' | 'mockOnly' | 'phone' | 'lastLoginAt'> & { storeId: string; phone?: string | null; lastLoginAt?: string | null }): StaffAssignment {
   const store = storeOf(row.storeId)
   const role = roleOf(row.roleCode)
   return {
     ...row,
+    phone: row.phone ?? null,
+    lastLoginAt: row.lastLoginAt ?? null,
     storeName: store.name,
     storeNumber: store.number,
     roleTitle: role.title,

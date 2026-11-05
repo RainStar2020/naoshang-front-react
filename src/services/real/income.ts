@@ -20,13 +20,13 @@ import {
   asPage,
   cast,
   mapHqError,
-  moneyToFen,
   mutationBody,
   nullableStr,
   num,
   record,
   str,
   unwrapData,
+  yuanToFen,
 } from './bridge'
 
 const ENGINE_GAP =
@@ -35,7 +35,7 @@ const ENGINE_GAP =
 const MODULES: { value: IncomeModule; label: string }[] = [
   { value: 'wholesale', label: '合伙人' },
   { value: 'costore', label: '合店' },
-  { value: 'agency', label: '代理' },
+  { value: 'agency', label: '门店 / 代理' },
 ]
 const CHANNELS: { value: IncomeChannel; label: string }[] = [
   { value: 'B', label: 'B端' },
@@ -78,6 +78,7 @@ function asChannel(value: unknown): IncomeChannel {
 
 function asSettlement(value: unknown): SettlementStatus {
   const raw = str(value, 'PENDING_ALLOCATION').toUpperCase().replace(/-/g, '_')
+  if (raw === 'PENDING') return 'PENDING_SETTLEMENT'
   return SETTLEMENT_SET.has(raw) ? (raw as SettlementStatus) : 'PENDING_ALLOCATION'
 }
 
@@ -149,13 +150,17 @@ type Looseish = Record<string, unknown>
 
 function mapMoney(raw: Looseish, key: string, altKeys: string[] = []): number {
   for (const k of [key, ...altKeys]) {
-    if (k in raw && raw[k] != null && raw[k] !== '') return moneyToFen(raw[k])
+    // 收益列表契约的金额统一为元；IncomeEntry 沿用页面使用的分。
+    if (k in raw && raw[k] != null && raw[k] !== '') return yuanToFen(raw[k])
   }
   return 0
 }
 
-function mapEntry(raw: unknown): IncomeEntry {
+export function mapIncomeEntry(raw: unknown): IncomeEntry {
   const r = record(raw)
+  const owner = record(r.ownerUser)
+  const store = record(r.store)
+  const region = record(r.region)
   const settlementStatus = asSettlement(r.settlementStatus || r.settleStatus || r.status)
   const allocationStatus = asAllocStatus(r.allocationStatus || r.allocStatus)
   const kind = asKind(r.kind || r.entryKind || r.type)
@@ -167,17 +172,17 @@ function mapEntry(raw: unknown): IncomeEntry {
     kind,
     relatedEntryId: nullableStr(r.relatedEntryId || r.relatedId || r.parentEntryId),
     sourceOrder: str(r.sourceOrder || r.orderId || r.orderNo || r.sourceId),
-    title: str(r.title || r.name || r.remark || '收益流水'),
-    category: str(r.category || r.bizCategory || r.typeLabel || ''),
+    title: str(r.title || r.name || r.remark || `${str(r.identityLabel || r.identity, '收益')}收益`),
+    category: str(r.category || r.bizCategory || r.typeLabel || r.bizType || r.type || ''),
     channel: asChannel(r.channel || r.channelCode),
     module: asModule(r.module || r.bizModule || r.line),
     identityLabel: str(r.identityLabel || r.identity || r.roleLabel || ''),
-    accountId: str(r.accountId || r.ownerAccountId || r.userId || r.partnerId),
-    accountName: str(r.accountName || r.ownerName || r.userName || r.partnerName || ''),
-    phone: str(r.phone || r.mobile || ''),
-    storeId: nullableStr(r.storeId || r.shopId),
-    storeName: nullableStr(r.storeName || r.shopName),
-    regionLabel: nullableStr(r.regionLabel || r.regionName || r.region),
+    accountId: str(r.accountId || r.ownerAccountId || owner.accountId || r.userId || r.partnerId),
+    accountName: str(r.accountName || r.ownerName || owner.name || r.userName || r.partnerName || ''),
+    phone: str(r.phone || r.mobile || owner.phone || ''),
+    storeId: nullableStr(r.storeId || r.shopId || store.id),
+    storeName: nullableStr(r.storeName || r.shopName || store.name),
+    regionLabel: nullableStr(r.regionLabel || r.regionName || region.name || region.code),
     amount: mapMoney(r, 'amount', ['payableAmount', 'incomeAmount', 'value']),
     baseAmount: mapMoney(r, 'baseAmount', ['orderAmount', 'base']),
     rateBps: num(r.rateBps ?? r.rate ?? r.bps, 0),
@@ -185,7 +190,7 @@ function mapEntry(raw: unknown): IncomeEntry {
     allocationKind: asAllocKind(r.allocationKind || r.allocKind || r.kindOfAllocation),
     allocationTarget: nullableStr(r.allocationTarget || r.target || r.targetId),
     allocationAgentId: nullableStr(r.allocationAgentId || r.agentId),
-    beneficiaryName: str(r.beneficiaryName || r.beneficiary || r.accountName || ''),
+    beneficiaryName: str(r.beneficiaryName || r.beneficiary || owner.name || r.accountName || ''),
     settlementStatus,
     pendingNote: nullableStr(r.pendingNote || r.note || r.remark),
     createdAt: str(r.createdAt || r.createTime || r.occurredAt || ''),
@@ -262,8 +267,8 @@ export function mapIncomeDetail(raw: unknown): IncomeDetail {
   const entryRaw = r.entry ?? r.ledger ?? r.item ?? raw
   const relatedSrc = arr(r.related || r.relatedEntries || r.linked || r.children)
   return {
-    entry: mapEntry(entryRaw),
-    related: relatedSrc.map(mapEntry),
+    entry: mapIncomeEntry(entryRaw),
+    related: relatedSrc.map(mapIncomeEntry),
     audit: arr(r.audit || r.audits || r.operations || r.logs || r.history).map(mapAudit),
     engineGapNote: str(r.engineGapNote || r.gapNote || r.notice || ENGINE_GAP, ENGINE_GAP),
   }
@@ -288,8 +293,8 @@ export async function realListIncome(query: IncomeQuery) {
     const summary = {
       ...emptySummary(),
       ...summaryRaw,
-      settledAmount: moneyToFen(summaryRaw.settledAmount ?? summaryRaw.settled),
-      pendingAmount: moneyToFen(summaryRaw.pendingAmount ?? summaryRaw.pending),
+      settledAmount: yuanToFen(summaryRaw.settledAmount ?? summaryRaw.settled),
+      pendingAmount: yuanToFen(summaryRaw.pendingAmount ?? summaryRaw.pending),
       entries: num(summaryRaw.entries ?? page.total, page.total),
       pendingAllocation: num(summaryRaw.pendingAllocation),
       pendingSettlement: num(summaryRaw.pendingSettlement),
@@ -298,7 +303,7 @@ export async function realListIncome(query: IncomeQuery) {
       reversed: num(summaryRaw.reversed),
     }
     return cast({
-      items: arr(page.items).map(mapEntry),
+      items: arr(page.items).map(mapIncomeEntry),
       total: page.total,
       page: page.page,
       pageSize: page.pageSize,

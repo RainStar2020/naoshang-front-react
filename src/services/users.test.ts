@@ -167,3 +167,38 @@ describe('账号编号编辑（HQ-02）', () => {
     expect((await service.detail(token, 'account-2')).account.displayId).toBe(other.account.displayId)
   })
 })
+
+describe('门店绑定 HQ §5', () => {
+  it('可查询绑定状态与门店列表（含 HQ）', async () => {
+    const view = await service.getStoreBinding(token, 'account-1')
+    expect(view.accountId).toBe('account-1')
+    expect(view.stores.some((s) => s.storeId === 'HQ' && s.isHeadquarters)).toBe(true)
+    expect(view.binding).toMatchObject({ bound: expect.any(Boolean) })
+  })
+
+  it('绑定与更换覆盖，解绑后 unbound', async () => {
+    const bound = await service.bindStore(token, { accountId: 'account-6', storeId: 'shop-1', reason: '总部指派' })
+    expect(bound.binding).toMatchObject({ bound: true, storeId: 'shop-1' })
+    expect(bound.operationId).toBeTruthy()
+
+    const changed = await service.bindStore(token, { accountId: 'account-6', storeId: 'HQ', reason: '改绑总部' })
+    expect(changed.binding).toMatchObject({ bound: true, storeId: 'HQ', storeName: '总部服务' })
+
+    const after = await service.getStoreBinding(token, 'account-6')
+    expect(after.binding.storeId).toBe('HQ')
+
+    const unbound = await service.unbindStore(token, { accountId: 'account-6', reason: '账号调整' })
+    expect(unbound.binding.bound).toBe(false)
+    expect(unbound.removed).toBe(1)
+    expect((await service.getStoreBinding(token, 'account-6')).binding.bound).toBe(false)
+  })
+
+  it('拒绝不存在门店与未绑定解绑', async () => {
+    await expect(service.bindStore(token, { accountId: 'account-1', storeId: 'no-such-store' })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+    // account-6 may already be unbound from previous test in same file order — use a known unbound: account multiples of 6 start unbound in mock seed
+    const target = 'account-12'
+    const view = await service.getStoreBinding(token, target)
+    if (view.binding.bound) await service.unbindStore(token, { accountId: target, reason: '准备' })
+    await expect(service.unbindStore(token, { accountId: target, reason: '重复解绑' })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  })
+})

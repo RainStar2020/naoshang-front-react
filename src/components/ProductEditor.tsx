@@ -1021,15 +1021,9 @@ export default function ProductEditor({
           scroll={{ x: 750 }}
           columns={[
             {
-              title: "SKU / 规格",
+              title: "规格",
               key: "sku",
-              render: (_, sku) => (
-                <>
-                  {sku.label}
-                  <br />
-                  <Typography.Text type="secondary">{sku.id}</Typography.Text>
-                </>
-              ),
+              render: (_, sku) => sku.label,
             },
             {
               title: "售价（元）",

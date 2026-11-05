@@ -408,10 +408,10 @@ export default function Stores() {
       <Space style={{ width: "100%", justifyContent: "space-between" }}>
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>
-            门店主档与健脑官监管
+            门店信息
           </Typography.Title>
           <Typography.Text type="secondary">
-            HQ-19：监管门店主档与健脑官异常干预；任职/角色字典见「员工与门店角色」（非
+            HQ-19：监管门店主档与健脑官异常干预；任职/角色字典见「门店员工」（非
             HQ-18 区域代理）。
           </Typography.Text>
         </div>
@@ -429,7 +429,7 @@ export default function Stores() {
         mockDescription={
           <span>
             完整员工角色与任职 CRUD 见{" "}
-            <Link to="/staff-roles">员工与门店角色</Link>
+            <Link to="/staff-roles">门店员工</Link>
             。本页任职列表只读。健脑官创建/改密由门店小程序完成，总部仅监管。
           </span>
         }
@@ -495,7 +495,7 @@ export default function Stores() {
           rowKey="storeId"
           loading={loading}
           dataSource={list?.items ?? []}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1600 }}
           pagination={{
             current: query.page,
             pageSize: query.pageSize,
@@ -510,56 +510,67 @@ export default function Stores() {
             {
               title: "门店",
               key: "s",
-              width: 260,
+              width: 180,
+              ellipsis: true,
+              render: (_, row) => <strong>{row.name}</strong>,
+            },
+            {
+              title: "编号",
+              key: "number",
+              width: 120,
+              render: (_, row) => row.number || "—",
+            },
+            {
+              title: "门店ID",
+              dataIndex: "storeId",
+              width: 120,
+            },
+            {
+              title: "状态",
+              key: "status",
+              width: 100,
               render: (_, row) => (
-                <Space direction="vertical" size={0}>
-                  <strong>{row.name}</strong>
-                  <span>
-                    {row.number} · {row.storeId}
-                  </span>
-                  <Tag color={statusColor[row.status]}>
-                    {storeStatusLabels[row.status]}
-                  </Tag>
-                </Space>
+                <Tag color={statusColor[row.status]}>
+                  {storeStatusLabels[row.status]}
+                </Tag>
               ),
             },
             {
-              title: "地区 / 地址",
-              key: "a",
-              width: 260,
-              render: (_, row) => (
-                <Space direction="vertical" size={0}>
-                  <span>
-                    {(row.regionNames ?? []).filter(Boolean).join(" / ") ||
-                      "未设置"}
-                  </span>
-                  <span>{row.address}</span>
-                </Space>
-              ),
+              title: "地区",
+              key: "region",
+              width: 160,
+              ellipsis: true,
+              render: (_, row) =>
+                (row.regionNames ?? []).filter(Boolean).join(" / ") || "未设置",
+            },
+            {
+              title: "地址",
+              key: "address",
+              width: 200,
+              ellipsis: true,
+              render: (_, row) => row.address || "—",
             },
             {
               title: "负责人",
               key: "m",
-              width: 150,
+              width: 160,
               render: (_, row) => (
-                <Space direction="vertical" size={0}>
-                  <span>{row.managerName}</span>
-                  <span>{row.contact}</span>
-                </Space>
+                <span>
+                  {row.managerName} / {row.contact}
+                </span>
               ),
             },
             {
               title: "合店费用",
               key: "f",
-              width: 160,
-              render: (_, row) => (
-                <Space direction="vertical" size={0}>
-                  <span>
-                    {money(row.feeAmount)}（{row.feeAmount} 分）
-                  </span>
-                  <span>下限 {money(row.minimumFeeAmount)}</span>
-                </Space>
-              ),
+              width: 120,
+              render: (_, row) => money(row.feeAmount),
+            },
+            {
+              title: "费用下限",
+              key: "minFee",
+              width: 120,
+              render: (_, row) => money(row.minimumFeeAmount),
             },
             {
               title: "归属代理",
@@ -567,19 +578,6 @@ export default function Stores() {
               width: 160,
               render: (_, row) => row.agentName ?? "未绑定",
             },
-            {
-              title: "健脑官",
-              key: "c",
-              width: 100,
-              render: (_, row) => row.coachActive,
-            },
-            {
-              title: "合店老板人数",
-              key: "oc",
-              width: 120,
-              render: (_, row) => row.ownerCount,
-            },
-
             {
               title: "操作",
               key: "op",
@@ -709,8 +707,13 @@ export default function Stores() {
                       items={[
                         {
                           key: "n",
-                          label: "名称 / 编号",
-                          children: `${detail.store.name} / ${detail.store.number}`,
+                          label: "名称",
+                          children: detail.store.name,
+                        },
+                        {
+                          key: "num",
+                          label: "编号",
+                          children: detail.store.number,
                         },
                         {
                           key: "st",
@@ -719,18 +722,33 @@ export default function Stores() {
                         },
                         {
                           key: "m",
-                          label: "负责人 / 电话",
-                          children: `${detail.store.managerName} / ${detail.store.contact}`,
+                          label: "负责人",
+                          children: detail.store.managerName,
+                        },
+                        {
+                          key: "contact",
+                          label: "电话",
+                          children: detail.store.contact,
                         },
                         {
                           key: "r",
-                          label: "地区 / 地址",
-                          children: `${(detail.store.regionNames ?? []).filter(Boolean).join(" / ") || "未设置"} · ${detail.store.address}`,
+                          label: "地区",
+                          children: (detail.store.regionNames ?? []).filter(Boolean).join(" / ") || "未设置",
+                        },
+                        {
+                          key: "addr",
+                          label: "地址",
+                          children: detail.store.address,
                         },
                         {
                           key: "f",
                           label: "合店费用",
-                          children: `${money(detail.store.feeAmount)}（${detail.store.feeAmount} 分），下限 ${money(detail.store.minimumFeeAmount)}`,
+                          children: money(detail.store.feeAmount),
+                        },
+                        {
+                          key: "minf",
+                          label: "费用下限",
+                          children: money(detail.store.minimumFeeAmount),
                         },
                         {
                           key: "sf",
@@ -807,14 +825,14 @@ export default function Stores() {
                         render: (value: string) => value || "—",
                       },
                       {
-                        title: "账号编号",
-                        key: "ids",
-                        render: (_: unknown, row: StoreOwner) => (
-                          <Space direction="vertical" size={0}>
-                            <span>{row.displayId || "—"}</span>
-                            <span>{row.accountId || "—"}</span>
-                          </Space>
-                        ),
+                        title: "展示编号",
+                        key: "displayId",
+                        render: (_: unknown, row: StoreOwner) => row.displayId || "—",
+                      },
+                      {
+                        title: "账号ID",
+                        key: "accountId",
+                        render: (_: unknown, row: StoreOwner) => row.accountId || "—",
                       },
                       {
                         title: "身份",
@@ -835,14 +853,14 @@ export default function Stores() {
                     pagination={false}
                     columns={[
                       {
-                        title: "姓名 / 账号",
-                        key: "p",
-                        render: (_, row) => (
-                          <Space direction="vertical" size={0}>
-                            <strong>{row.displayName}</strong>
-                            <span>{row.loginAccount}</span>
-                          </Space>
-                        ),
+                        title: "姓名",
+                        dataIndex: "displayName",
+                        key: "displayName",
+                      },
+                      {
+                        title: "手机号",
+                        dataIndex: "loginAccount",
+                        key: "loginAccount",
                       },
                       {
                         title: "状态",
@@ -850,81 +868,29 @@ export default function Stores() {
                         render: (_, row) => <Tag>{row.status}</Tag>,
                       },
                       {
-                        title: "凭证 / 邀请",
-                        key: "c",
-                        render: (_, row) => (
-                          <span>
-                            {row.credentialSet ? "已设凭证" : "未设凭证"} /{" "}
-                            {row.invitationStatus}
-                          </span>
-                        ),
-                      },
-
-                      {
                         title: "操作",
                         key: "op",
-                        render: (_, row) => (
-                          <Space wrap size={0}>
-                            {canManage &&
-                              detail.store.status !== "CLOSED" &&
-                              row.status === "ACTIVE" && (
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  onClick={() => {
-                                    setCoachStatus({
-                                      coach: row,
-                                      status: "FROZEN",
-                                    });
-                                    setReason("");
-                                    setPending(null);
-                                    setSubmitError("");
-                                    setBlocked(false);
-                                  }}
-                                >
-                                  冻结
-                                </Button>
-                              )}
-                            {canManage &&
-                              detail.store.status !== "CLOSED" &&
-                              row.status === "FROZEN" && (
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  onClick={() => {
-                                    setCoachStatus({
-                                      coach: row,
-                                      status: "ACTIVE",
-                                    });
-                                    setReason("");
-                                    setPending(null);
-                                    setSubmitError("");
-                                    setBlocked(false);
-                                  }}
-                                >
-                                  解冻
-                                </Button>
-                              )}
-                            {canManage &&
-                              detail.store.status !== "CLOSED" &&
-                              row.status !== "LEFT" &&
-                              row.credentialSet && (
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  onClick={() => {
-                                    setCoachReset(row);
-                                    setReason("");
-                                    setPending(null);
-                                    setSubmitError("");
-                                    setBlocked(false);
-                                  }}
-                                >
-                                  标记重置凭证
-                                </Button>
-                              )}
-                          </Space>
-                        ),
+                        render: (_, row) =>
+                          canManage &&
+                          detail.store.status !== "CLOSED" &&
+                          row.status === "ACTIVE" ? (
+                            <Button
+                              type="link"
+                              size="small"
+                              onClick={() => {
+                                setCoachStatus({
+                                  coach: row,
+                                  status: "FROZEN",
+                                });
+                                setReason("");
+                                setPending(null);
+                                setSubmitError("");
+                                setBlocked(false);
+                              }}
+                            >
+                              停用
+                            </Button>
+                          ) : null,
                       },
                     ]}
                   />
@@ -933,7 +899,7 @@ export default function Stores() {
               // {
               //   key: 'staff', label: `任职摘要（${detail.staff.length}）`,
               //   children: <Space direction="vertical" style={{ width: '100%' }}>
-              //     <Alert type="info" showIcon message="只读摘要" description={<span>新建/改角色/离职等请前往 <Link to="/staff-roles">员工与门店角色</Link>。</span>} />
+              //     <Alert type="info" showIcon message="只读摘要" description={<span>新建/改角色/离职等请前往 <Link to="/staff-roles">门店员工</Link>。</span>} />
               //     <Table<StoreStaffBrief> rowKey="assignmentId" dataSource={detail.staff} pagination={false}
               //       columns={[
               //         { title: '姓名', dataIndex: 'displayName' },
@@ -1169,7 +1135,7 @@ export default function Stores() {
       <Modal
         title={
           coachStatus
-            ? `健脑官${coachStatus.status === "FROZEN" ? "冻结" : "解冻"}`
+            ? `健脑官${coachStatus.status === "FROZEN" ? "停用" : "解冻"}`
             : "健脑官状态"
         }
         open={!!coachStatus && !pending}

@@ -70,6 +70,48 @@ export interface UserAuditEntry {
 }
 export interface UserDetail { account: UserAccount; audit: UserAuditEntry[] }
 export interface UserMutationResult { account: UserAccount; operation: UserAuditEntry; mockOnly: boolean }
+
+
+/** HQ §5 用户门店绑定（一人一店）。 */
+export interface UserStoreBindingState {
+  bound: boolean
+  storeId: string | null
+  storeName: string | null
+  storeNo: string | null
+  label: string | null
+}
+
+export interface UserStoreBindingOption {
+  storeId: string
+  storeNo: string
+  name: string
+  isHeadquarters: boolean
+}
+
+export interface UserStoreBindingView {
+  accountId: string
+  profileName: string | null
+  binding: UserStoreBindingState
+  stores: UserStoreBindingOption[]
+}
+
+export interface UserStoreBindInput {
+  accountId: string
+  storeId: string
+  reason?: string
+}
+
+export interface UserStoreUnbindInput {
+  accountId: string
+  reason?: string
+}
+
+export interface UserStoreBindingResult {
+  binding: UserStoreBindingState
+  operationId: string
+  removed?: number
+  mockOnly: boolean
+}
 export type UserErrorCode = 'FORBIDDEN' | 'NOT_FOUND' | 'VERSION_CONFLICT' | 'INVALID_INPUT' | 'IDEMPOTENCY_CONFLICT'
 export class UserServiceError extends Error {
   constructor(public code: UserErrorCode, message: string) { super(message); this.name = 'UserServiceError' }

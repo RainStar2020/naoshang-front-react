@@ -10,7 +10,15 @@ export default defineConfig(({ mode }) => {
       host: true,
       proxy: {
         "/api/hq": {
-          target: env.HQ_API_PROXY_TARGET || "http://192.168.0.44:3000",
+          target: env.HQ_API_PROXY_TARGET || "http://192.168.0.44:3001",
+          changeOrigin: true,
+        },
+        "/agency": {
+          target: env.BUSINESS_API_PROXY_TARGET || env.HQ_API_PROXY_TARGET || "http://192.168.0.44:3001",
+          changeOrigin: true,
+        },
+        "/stores": {
+          target: env.BUSINESS_API_PROXY_TARGET || env.HQ_API_PROXY_TARGET || "http://192.168.0.44:3001",
           changeOrigin: true,
         },
       },

@@ -27,7 +27,7 @@ export default function SoftwareCardDetail({ cardId, token, refresh, onClose }: 
       { key: 'old', label: '替代旧卡ID', children: card.replacesCardId ?? '—', span: 2 }, { key: 'new', label: '补发新卡ID', children: card.replacementCardId ?? '—', span: 2 },
     ]} />
     <Table rowKey="operationId" size="small" dataSource={data!.audit} scroll={{ x: 750 }} pagination={{ pageSize: 5, hideOnSinglePage: true }} locale={{ emptyText: '暂无本轮操作记录；预置卡请查看上方演示字段' }} columns={[
-      { title: '操作 / 时间', key: 'action', render: (_, entry) => <>{softwareActionNames[entry.action]}<br />{formatUserDate(entry.occurredAt)}</> }, { title: '变更 / 原因', key: 'change', render: (_, entry) => <><div>{entry.before} → {entry.after}</div><div>{entry.reason}</div><div>请求号：{entry.requestId}</div></> }, { title: '操作人', key: 'operator', render: (_, entry) => <>{entry.operatorName}<br />{entry.operatorId}</> },
+      { title: '操作', key: 'action', render: (_, entry) => softwareActionNames[entry.action] }, { title: '时间', key: 'time', render: (_, entry) => formatUserDate(entry.occurredAt) }, { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '操作人ID', dataIndex: 'operatorId' },
     ]} />
   </Space>}</Drawer>
 }

@@ -28,7 +28,7 @@ export default function ActivationCodeDetail({ codeId, token, refresh, onClose }
       { key: 'old', label: '替代旧码ID', children: code.replacesCodeId ?? '—', span: 2 }, { key: 'new', label: '补发新码ID', children: code.replacementCodeId ?? '—', span: 2 },
     ]} />
     <Table rowKey="operationId" size="small" dataSource={data!.audit} scroll={{ x: 700 }} pagination={{ pageSize: 5, hideOnSinglePage: true }} locale={{ emptyText: '暂无本轮操作记录；预置演示码请查看上方交付/使用字段' }} columns={[
-      { title: '操作 / 时间', key: 'action', render: (_, item) => <>{activationActionNames[item.action]}<br />{formatUserDate(item.occurredAt)}</> }, { title: '变更 / 原因', key: 'change', render: (_, item) => <><div>{item.before} → {item.after}</div><div>{item.reason}</div><div>请求号：{item.requestId}</div></> }, { title: '操作人', key: 'operator', render: (_, item) => <>{item.operatorName}<br />{item.operatorId}</> },
+      { title: '操作', key: 'action', render: (_, item) => activationActionNames[item.action] }, { title: '时间', key: 'time', render: (_, item) => formatUserDate(item.occurredAt) }, { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '操作人ID', dataIndex: 'operatorId' },
     ]} />
   </Space>}</Drawer>
 }

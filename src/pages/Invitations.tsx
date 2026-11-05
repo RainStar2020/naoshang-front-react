@@ -33,7 +33,7 @@ import {
 import { formatUserDate } from "../components/UserDetailDrawer";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 function person(row: InvitationAccount | null) {
-  return row ? `${row.name} · ${row.displayId} · ${row.phone}` : "未绑定介绍人";
+  return row ? `${row.name} / ${row.phone}` : "未绑定介绍人";
 }
 export default function Invitations() {
   const { session } = useAuth();
@@ -292,34 +292,47 @@ export default function Invitations() {
             {
               title: "账号",
               key: "account",
-              width: 230,
+              width: 160,
               render: (_, row) => (
-                <Space direction="vertical" size={0}>
-                  <strong>{row.account.name}</strong>
-                  <span>
-                    {row.account.phone} · {row.account.displayId}
-                  </span>
-                  <Tag>{row.account.frozen ? "账号冻结" : "账号正常"}</Tag>
-                </Space>
+                <span>
+                  {row.account.name} / {row.account.phone}
+                </span>
+              ),
+            },
+            {
+              title: "编号",
+              key: "displayId",
+              width: 120,
+              render: (_, row) => row.account.displayId,
+            },
+            {
+              title: "状态",
+              key: "frozen",
+              width: 100,
+              render: (_, row) => (
+                <Tag>{row.account.frozen ? "账号冻结" : "账号正常"}</Tag>
               ),
             },
             {
               title: "当前介绍人",
               key: "superior",
-              width: 250,
+              width: 180,
               render: (_, row) => person(row.superior),
             },
             {
-              title: "邀请码 / 团队",
-              key: "team",
-              render: (_, row) => (
-                <Space direction="vertical" size={0}>
-                  <span>{row.inviteCode}</span>
-                  <span>
-                    直属{row.directCount} / 全部下级{row.teamCount}
-                  </span>
-                </Space>
-              ),
+              title: "邀请码",
+              dataIndex: "inviteCode",
+              width: 120,
+            },
+            {
+              title: "直属人数",
+              dataIndex: "directCount",
+              width: 100,
+            },
+            {
+              title: "团队人数",
+              dataIndex: "teamCount",
+              width: 100,
             },
             {
               title: "绑定时间",
@@ -483,46 +496,70 @@ export default function Invitations() {
                       scroll={{ x: 1000 }}
                       columns={[
                         {
-                          title: "对象 / 变更前后",
-                          key: "change",
-                          width: 370,
-                          render: (_, row) => (
-                            <Space direction="vertical" size={0}>
-                              <strong>{person(row.account)}</strong>
-                              <span>前：{person(row.before)}</span>
-                              <span>后：{person(row.after)}</span>
-                              <span>
-                                关系V{row.beforeVersion} → V{row.afterVersion}
-                              </span>
-                            </Space>
-                          ),
+                          title: "对象",
+                          key: "account",
+                          width: 160,
+                          render: (_, row) => person(row.account),
                         },
                         {
-                          title: "原因与生效时间",
-                          key: "reason",
-                          width: 240,
-                          render: (_, row) => (
-                            <Space direction="vertical" size={0}>
-                              <span>{row.operatorName}</span>
-                              <span>{row.reason}</span>
-                              <span>{formatUserDate(row.effectiveAt)}</span>
-                            </Space>
-                          ),
+                          title: "变更前",
+                          key: "before",
+                          width: 160,
+                          render: (_, row) => person(row.before),
                         },
                         {
-                          title: "操作与请求号",
-                          key: "ids",
-                          render: (_, row) => (
-                            <Space direction="vertical" size={0}>
-                              <span>
-                                {row.action === "unbind"
-                                  ? "总部解绑"
-                                  : "总部绑定/换绑"}
-                              </span>
-                              <span>操作：{row.operationId}</span>
-                              <span>请求：{row.requestId}</span>
-                            </Space>
-                          ),
+                          title: "变更后",
+                          key: "after",
+                          width: 160,
+                          render: (_, row) => person(row.after),
+                        },
+                        {
+                          title: "变更前版本",
+                          key: "beforeVersion",
+                          width: 100,
+                          render: (_, row) => `V${row.beforeVersion}`,
+                        },
+                        {
+                          title: "变更后版本",
+                          key: "afterVersion",
+                          width: 100,
+                          render: (_, row) => `V${row.afterVersion}`,
+                        },
+                        {
+                          title: "操作人",
+                          dataIndex: "operatorName",
+                          width: 100,
+                        },
+                        {
+                          title: "原因",
+                          dataIndex: "reason",
+                          width: 160,
+                          ellipsis: true,
+                        },
+                        {
+                          title: "生效时间",
+                          key: "effectiveAt",
+                          width: 160,
+                          render: (_, row) => formatUserDate(row.effectiveAt),
+                        },
+                        {
+                          title: "动作",
+                          key: "action",
+                          width: 120,
+                          render: (_, row) =>
+                            row.action === "unbind"
+                              ? "总部解绑"
+                              : "总部绑定/换绑",
+                        },
+                        {
+                          title: "操作号",
+                          dataIndex: "operationId",
+                          width: 140,
+                        },
+                        {
+                          title: "请求号",
+                          dataIndex: "requestId",
+                          width: 140,
                         },
                       ]}
                     />

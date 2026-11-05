@@ -11,7 +11,7 @@ import {
   type WithdrawalQuery,
   type PayoutReceiptStatus,
 } from '../../types/withdrawals'
-import { arr, asPage, cast, mapHqError, mutationBody, nullableStr, num, record, str, unwrapData, yuanToFen } from './bridge'
+import { arr, asPage, cast, mapHqError, mutationBody, nullableStr, num, record, str, unwrapData } from './bridge'
 
 const DEFAULT_PAYOUT_GAP =
   '打款由服务端/支付通道执行：总部仅审核与登记回执，不得把前端操作当作银行已到账；最低额、费率、自动打款政策待定。'
@@ -40,11 +40,11 @@ const ACCOUNT_TYPES = new Set<WithdrawAccountType>(['PERSONAL', 'COMPANY'])
 const RECEIPTS = new Set<PayoutReceiptStatus>(['NONE', 'SUCCESS', 'FAILED'])
 const ACTIONS = new Set(['approve', 'reject', 'register-receipt'])
 
+/** HQ 提现接口金额单位为元（非分）；原样解析，不做分到元换算。 */
 function moneyAmount(value: unknown): number {
   if (value == null || value === '') return 0
   const n = num(value)
   if (!Number.isFinite(n)) return 0
-  if (!Number.isInteger(n) || (n > 0 && n < 1000)) return Math.max(0, yuanToFen(value))
   return Math.max(0, n)
 }
 
@@ -121,6 +121,7 @@ export function mapWithdrawalApplication(raw: unknown) {
     : Math.max(0, amount - fee)
   return {
     withdrawalId: str(r.withdrawalId || r.id || r.applicationId),
+    redemptionNo: str(r.redemptionNo || r.redemption_no || r.applyNo || r.orderNo),
     title: str(r.title || r.subject || '提现申请'),
     module: asModule(r.module || r.bizModule || r.businessLine),
     identityLabel: str(r.identityLabel || r.identity || r.roleLabel || r.partnerLevelLabel),

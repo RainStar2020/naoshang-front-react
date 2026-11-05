@@ -1,6 +1,6 @@
 ﻿import * as api from '../../api'
-import { UserServiceError, type BusinessIdentity, type TierOption, type UserAccount, type UserAuditEntry, type UserDetail, type UserFilterOptions, type UserListQuery, type UserListResult, type UserMutation, type UserMutationResult } from '../../types/users'
-import { arr, asPage, bool, cast, mapHqError, mutationBody, num, record, str, unsupported, unwrapData } from './bridge'
+import { UserServiceError, type BusinessIdentity, type TierOption, type UserAccount, type UserAuditEntry, type UserDetail, type UserFilterOptions, type UserListQuery, type UserListResult, type UserMutation, type UserMutationResult, type UserStoreBindInput, type UserStoreBindingResult, type UserStoreBindingState, type UserStoreBindingView, type UserStoreUnbindInput } from '../../types/users'
+import { arr, asPage, bool, cast, mapHqError, mutationBody, nullableStr, num, record, str, unsupported, unwrapData } from './bridge'
 
 function stringList(value: unknown): string[] {
   return arr(value).map((item) => str(item)).filter(Boolean)
@@ -326,3 +326,88 @@ export async function realMutateUser(input: UserMutation): Promise<UserMutationR
     return mapHqError(error, UserServiceError)
   }
 }
+
+
+function mapStoreBindingState(raw: unknown): UserStoreBindingState {
+  const r = record(raw)
+  const bound = bool(r.bound ?? !!(r.storeId))
+  const storeId = nullableStr(r.storeId)
+  const storeName = nullableStr(r.storeName ?? r.label)
+  const storeNo = nullableStr(r.storeNo ?? r.storeCode)
+  return {
+    bound,
+    storeId: bound ? storeId : null,
+    storeName: bound ? storeName : null,
+    storeNo: bound ? storeNo : null,
+    label: nullableStr(r.label) ?? (bound ? storeName : '未绑定门店'),
+  }
+}
+
+function mapStoreBindingOption(raw: unknown) {
+  const r = record(raw)
+  const storeId = str(r.id || r.storeId || r.shopId)
+  return {
+    storeId,
+    storeNo: str(r.storeNo || r.number || r.code || storeId),
+    name: str(r.name || r.storeName || storeId),
+    isHeadquarters: bool(r.isHeadquarters) || storeId === 'HQ' || str(r.storeNo).toUpperCase() === 'HQ',
+  }
+}
+
+/** Normalize GET /users/:accountId/store-binding payload. */
+export function mapUserStoreBinding(accountId: string, raw: unknown): UserStoreBindingView {
+  const r = record(raw)
+  const profile = record(r.profile)
+  const bindingRaw = r.binding ?? profile.storeBinding ?? r
+  return {
+    accountId: str(r.accountId || profile.id || profile.accountId || accountId, accountId),
+    profileName: nullableStr(profile.name || profile.nickname || r.name),
+    binding: mapStoreBindingState(bindingRaw),
+    stores: arr(r.stores).map(mapStoreBindingOption).filter((s) => !!s.storeId),
+  }
+}
+
+export async function realUserStoreBinding(accountId: string): Promise<UserStoreBindingView> {
+  try {
+    const data = await unwrapData(await api.getUsersByAccountIdStoreBinding({ accountId }))
+    return mapUserStoreBinding(accountId, data)
+  } catch (error) {
+    return mapHqError(error, UserServiceError)
+  }
+}
+
+export async function realBindUserStore(input: UserStoreBindInput): Promise<UserStoreBindingResult> {
+  try {
+    const data = await unwrapData(await api.postUsersByAccountIdStoreBinding(
+      { accountId: input.accountId },
+      { storeId: input.storeId, reason: input.reason?.trim() || undefined },
+    ))
+    const raw = record(data)
+    return {
+      binding: mapStoreBindingState(raw.binding ?? raw),
+      operationId: str(raw.operationId, ''),
+      mockOnly: false,
+    }
+  } catch (error) {
+    return mapHqError(error, UserServiceError)
+  }
+}
+
+export async function realUnbindUserStore(input: UserStoreUnbindInput): Promise<UserStoreBindingResult> {
+  try {
+    const data = await unwrapData(await api.deleteUsersByAccountIdStoreBinding(
+      { accountId: input.accountId },
+      { reason: input.reason?.trim() || undefined },
+    ))
+    const raw = record(data)
+    return {
+      binding: mapStoreBindingState(raw.binding ?? { bound: false }),
+      operationId: str(raw.operationId, ''),
+      removed: num(raw.removed, 1),
+      mockOnly: false,
+    }
+  } catch (error) {
+    return mapHqError(error, UserServiceError)
+  }
+}
+

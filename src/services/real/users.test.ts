@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from 'vitest'
-import { displayValue, mapAccount, mapAuditEntry, mapTierOptions } from './users'
+import { displayValue, mapAccount, mapAuditEntry, mapTierOptions, mapUserStoreBinding } from './users'
 
 describe('real users mapAccount', () => {
   it('fills missing regionNames/businessContexts and aliases mobile to phone', () => {
@@ -167,5 +167,33 @@ describe('real users displayValue / mapAuditEntry', () => {
       reason: '补充说明',
       action: 'freeze',
     })
+  })
+})
+
+describe('mapUserStoreBinding', () => {
+  it('maps profile/binding/stores including HQ', () => {
+    const view = mapUserStoreBinding('p2', {
+      profile: { id: 'p2', name: '私董-乙', storeBinding: {} },
+      binding: { bound: true, storeId: 'ra_221', storeName: '脑商智慧门店（杭州滨江）' },
+      stores: [
+        { id: 'ra_221', storeNo: '331002-S1', name: '脑商智慧门店（杭州滨江）' },
+        { id: 'HQ', storeNo: 'HQ', name: '总部服务' },
+      ],
+    })
+    expect(view.accountId).toBe('p2')
+    expect(view.profileName).toBe('私董-乙')
+    expect(view.binding).toMatchObject({ bound: true, storeId: 'ra_221', storeName: '脑商智慧门店（杭州滨江）' })
+    expect(view.stores).toEqual([
+      expect.objectContaining({ storeId: 'ra_221', storeNo: '331002-S1' }),
+      expect.objectContaining({ storeId: 'HQ', isHeadquarters: true, name: '总部服务' }),
+    ])
+  })
+
+  it('treats unbound binding safely', () => {
+    const view = mapUserStoreBinding('p4', {
+      binding: { bound: false, storeId: null, storeName: null },
+      stores: [{ id: 'HQ', storeNo: 'HQ', name: '总部服务', isHeadquarters: true }],
+    })
+    expect(view.binding).toMatchObject({ bound: false, storeId: null, storeName: null })
   })
 })

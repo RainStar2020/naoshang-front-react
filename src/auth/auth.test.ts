@@ -80,9 +80,9 @@ describe('菜单和路由共用的权限规则', () => {
   })
   it('登录回跳仅接受获授权站内路由', async () => {
     const { account } = await login('hq-content')
-    expect(allowedReturnPath('/materials', account)).toBe('/materials')
+    expect(allowedReturnPath('/materials/image', account)).toBe('/materials/image')
     for (const path of ['/revenue', '//evil.test', 'https://evil.test', '/login', undefined]) {
-      expect(allowedReturnPath(path, account)).toBe('/course')
+      expect(allowedReturnPath(path, account)).toBe('/materials/image')
     }
   })
 })

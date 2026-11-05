@@ -147,21 +147,54 @@ function mapRichContent(raw: unknown): RichContent {
   }
 }
 
+function resolveLevelTitle(partnerLevel: PartnerLevel, rawTitle: string): string {
+  const trimmed = rawTitle.trim()
+  if (!trimmed) return LEVEL_DEFAULTS[partnerLevel].title
+  // API partnerLevels often repeats DEMO-* as both value and label; prefer Chinese tier display.
+  if (trimmed === partnerLevel || trimmed.toUpperCase() === partnerLevel) {
+    return LEVEL_DEFAULTS[partnerLevel].title
+  }
+  return trimmed
+}
+
+function auditSnapshotText(value: unknown): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return str(value)
+  const r = record(value)
+  const level = r.partnerLevel ?? r.level ?? r.code
+  if (level != null && level !== '') {
+    const frozen = r.frozen
+    const base = resolveLevelTitle(asLevel(level), str(level))
+    if (typeof frozen === 'boolean') return `${base}${frozen ? '（已冻结）' : ''}`
+    return base
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return ''
+  }
+}
+
 export function mapPartnerLevelBenefits(raw: unknown, index = 0): PartnerLevelBenefits {
   const r = record(raw)
-  const partnerLevel = asLevel(r.partnerLevel || r.level || r.code || partnerLevels[index] || 'DEMO-VIP')
+  const partnerLevel = asLevel(r.partnerLevel || r.level || r.code || r.value || partnerLevels[index] || 'DEMO-VIP')
   const defaults = LEVEL_DEFAULTS[partnerLevel]
   const nextRaw = r.nextLevel ?? r.nextPartnerLevel
   const taskTargetRaw = r.taskTarget ?? r.nextTaskTarget ?? r.promotionTarget
+  const hasWholesale = r.wholesaleLabel != null || r.batchLabel != null || r.wholesale != null
+  const hasQuota = r.quotaOccupancy != null || r.quotaCost != null || r.occupancy != null
+  const hasNext = !(nextRaw == null || nextRaw === '')
+  const hasTask = !(taskTargetRaw == null || taskTargetRaw === '')
   return {
     partnerLevel,
-    title: str(r.title || r.name || r.displayName || defaults.title),
-    wholesaleLabel: str(r.wholesaleLabel || r.batchLabel || r.wholesale || defaults.wholesaleLabel),
-    quotaOccupancy: Math.max(0, num(r.quotaOccupancy ?? r.quotaCost ?? r.occupancy, defaults.quotaOccupancy)),
-    nextLevel: nextRaw == null || nextRaw === '' ? defaults.nextLevel : asLevel(nextRaw),
-    taskTarget: taskTargetRaw == null || taskTargetRaw === '' ? defaults.taskTarget : Math.max(0, num(taskTargetRaw)),
+    title: resolveLevelTitle(partnerLevel, str(r.title || r.name || r.displayName || r.label || '')),
+    // Real catalog benefits payload has no wholesale/quota/task fields — do not invent demo defaults.
+    wholesaleLabel: hasWholesale ? str(r.wholesaleLabel || r.batchLabel || r.wholesale) : '',
+    quotaOccupancy: hasQuota ? Math.max(0, num(r.quotaOccupancy ?? r.quotaCost ?? r.occupancy, 0)) : 0,
+    nextLevel: hasNext ? asLevel(nextRaw) : null,
+    taskTarget: hasTask ? Math.max(0, num(taskTargetRaw)) : null,
     summary: str(r.summary || r.description || r.brief),
-    content: mapRichContent(r.content ?? r.benefits ?? r.body ?? r.richContent),
+    content: mapRichContent(r.content ?? r.body ?? r.richContent),
     version: Math.max(1, num(r.version, 1)),
   }
 }
@@ -304,17 +337,62 @@ export function mapPartnerAudit(raw: unknown): PartnerAudit {
     targetId: str(r.targetId || r.receiptId || r.partnerLevel || r.contextId),
     operatorName: str(r.operatorName || r.operator || r.createdByName),
     reason: str(r.reason || r.remark),
-    before: str(r.before || r.beforeText || r.from),
-    after: str(r.after || r.afterText || r.to),
+    before: auditSnapshotText(r.before ?? r.beforeText ?? r.from),
+    after: auditSnapshotText(r.after ?? r.afterText ?? r.to),
     occurredAt: str(r.occurredAt || r.createdAt || r.operatedAt),
   }
+}
+
+function isBenefitLikeRow(raw: unknown): boolean {
+  const r = record(raw)
+  return (
+    r.summary != null
+    || r.content != null
+    || r.wholesaleLabel != null
+    || r.quotaOccupancy != null
+    || r.taskTarget != null
+    || r.body != null
+    || r.richContent != null
+    || (r.title != null && r.partnerLevel != null)
+  )
 }
 
 /** Normalize HQ catalog so Partners page always has safe levels/receipts/audit arrays. */
 export function mapPartnerCatalog(raw: unknown): PartnerCatalog {
   const r = record(raw)
-  const levels = arr(r.levels || r.levelBenefits || r.partnerLevels || r.benefits)
-    .map((item, index) => mapPartnerLevelBenefits(item, index))
+  const metaRows = arr(r.partnerLevels)
+  const dedicatedBenefits = arr(r.benefits || r.levels || r.levelBenefits)
+  // Legacy payloads stuffed benefit rows into partnerLevels; real API keeps {value,label} meta separate.
+  const benefitRows = dedicatedBenefits.length > 0 ? dedicatedBenefits : metaRows
+
+  const labelByLevel = new Map<PartnerLevel, string>()
+  const order: PartnerLevel[] = []
+  for (const item of metaRows) {
+    const row = record(item)
+    const level = asLevel(row.value || row.code || row.partnerLevel || row.level)
+    if (!order.includes(level)) order.push(level)
+    const label = str(row.label || row.name || row.title || row.displayName)
+    if (label) labelByLevel.set(level, label)
+  }
+
+  const benefitByLevel = new Map<PartnerLevel, PartnerLevelBenefits>()
+  benefitRows.forEach((item, index) => {
+    const mapped = mapPartnerLevelBenefits(item, index)
+    // When only meta-shaped partnerLevels exist, still emit a row per level.
+    const existing = benefitByLevel.get(mapped.partnerLevel)
+    if (!existing || isBenefitLikeRow(item)) benefitByLevel.set(mapped.partnerLevel, mapped)
+    if (!order.includes(mapped.partnerLevel)) order.push(mapped.partnerLevel)
+  })
+
+  const levels = order.map((level, index) => {
+    const mapped = benefitByLevel.get(level) ?? mapPartnerLevelBenefits({ partnerLevel: level }, index)
+    const label = labelByLevel.get(level) ?? ''
+    return {
+      ...mapped,
+      title: resolveLevelTitle(level, label || mapped.title),
+    }
+  })
+
   const receipts = arr(r.receipts || r.recentReceipts || r.promotionReceipts || r.receiptList)
     .map(mapPartnerReceipt)
   const audit = arr(r.audit || r.operations || r.logs || r.recentOperations)

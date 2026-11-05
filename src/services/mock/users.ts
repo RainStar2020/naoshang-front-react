@@ -1,4 +1,4 @@
-import type { BusinessIdentity, RegionOption, StoreOption, TierOption, UserAccount, UserAuditEntry, UserDetail, UserFilterOptions, UserListQuery, UserListResult, UserMutation, UserMutationResult } from '../../types/users'
+import type { BusinessIdentity, RegionOption, StoreOption, TierOption, UserAccount, UserAuditEntry, UserDetail, UserFilterOptions, UserListQuery, UserListResult, UserMutation, UserMutationResult, UserStoreBindInput, UserStoreBindingResult, UserStoreBindingView, UserStoreUnbindInput } from '../../types/users'
 import { USER_DISPLAY_ID_PATTERN, userDisplayIdPrefixes } from '../../types/users'
 import { UserServiceError } from '../../types/users'
 import type { HqAccount } from '../../types/auth'
@@ -125,3 +125,69 @@ export async function mockMutateUser(input: UserMutation, operator: HqAccount): 
   operations.set(key, { fingerprint, result })
   return copy(result)
 }
+
+
+const HQ_STORE = { storeId: 'HQ', number: 'HQ', name: '总部服务', active: true }
+
+function bindingStores(): StoreOption[] {
+  return [...stores.filter(s => s.active), HQ_STORE]
+}
+
+function toBindingState(account: UserAccount) {
+  const bound = !!account.storeId
+  return {
+    bound,
+    storeId: account.storeId,
+    storeName: account.storeName,
+    storeNo: bound ? (stores.find(s => s.storeId === account.storeId)?.number ?? (account.storeId === 'HQ' ? 'HQ' : null)) : null,
+    label: bound ? (account.storeName ?? account.storeId) : '未绑定门店',
+  }
+}
+
+/** HQ §5.1 GET /users/:accountId/store-binding */
+export function mockUserStoreBinding(accountId: string): UserStoreBindingView {
+  const account = findAccount(accountId)
+  return {
+    accountId: account.accountId,
+    profileName: account.nickname,
+    binding: toBindingState(account),
+    stores: bindingStores().map(s => ({
+      storeId: s.storeId,
+      storeNo: s.number,
+      name: s.name,
+      isHeadquarters: s.storeId === 'HQ',
+    })),
+  }
+}
+
+/** HQ §5.2 POST — 一人一店，重复绑定覆盖 */
+export function mockBindUserStore(input: UserStoreBindInput): UserStoreBindingResult {
+  const account = findAccount(input.accountId)
+  const storeId = (input.storeId || '').trim()
+  if (!storeId) fail('INVALID_INPUT', '请选择门店')
+  const store = bindingStores().find(s => s.storeId === storeId) ?? fail('INVALID_INPUT', '门店不存在')
+  account.storeId = store.storeId
+  account.storeName = store.name
+  account.version += 1
+  return {
+    binding: toBindingState(account),
+    operationId: crypto.randomUUID(),
+    mockOnly: true,
+  }
+}
+
+/** HQ §5.3 DELETE */
+export function mockUnbindUserStore(input: UserStoreUnbindInput): UserStoreBindingResult {
+  const account = findAccount(input.accountId)
+  if (!account.storeId) fail('INVALID_INPUT', '账号尚未绑定门店')
+  account.storeId = null
+  account.storeName = null
+  account.version += 1
+  return {
+    binding: toBindingState(account),
+    operationId: crypto.randomUUID(),
+    removed: 1,
+    mockOnly: true,
+  }
+}
+

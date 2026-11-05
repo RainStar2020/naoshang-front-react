@@ -177,7 +177,7 @@ export default function Transfers() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>转店双边审核监管</Typography.Title>
+      <Typography.Title level={3} style={{ margin: 0 }}>转店信息</Typography.Title>
       <Alert
         type="info"
         showIcon
@@ -255,8 +255,10 @@ export default function Transfers() {
           pagination={{ current: page, pageSize: 10, total, onChange: setPage }}
           columns={[
             { title: '申请号', dataIndex: 'applicationId', width: 140 },
-            { title: '学员', render: (_, r: TransferApplication) => `${r.memberName}（${r.displayId}）` },
-            { title: '转出 → 转入', render: (_, r: TransferApplication) => `${r.sourceStoreName} → ${r.targetStoreName}` },
+            { title: '学员', dataIndex: 'memberName' },
+            { title: '编号', dataIndex: 'displayId', width: 120 },
+            { title: '转出门店', dataIndex: 'sourceStoreName' },
+            { title: '转入门店', dataIndex: 'targetStoreName' },
             {
               title: '转出审',
               dataIndex: 'sourceApprovalStatus',
@@ -406,7 +408,8 @@ export default function Transfers() {
                 { title: '动作', dataIndex: 'action', width: 160 },
                 { title: '操作者', dataIndex: 'operatorName', width: 120 },
                 { title: '原因', dataIndex: 'reason' },
-                { title: '版本', render: (_, r) => `${r.beforeVersion}→${r.afterVersion}`, width: 80 },
+                { title: '变更前版本', render: (_, r) => r.beforeVersion, width: 90 },
+                { title: '变更后版本', render: (_, r) => r.afterVersion, width: 90 },
               ]}
             />
           </Space>

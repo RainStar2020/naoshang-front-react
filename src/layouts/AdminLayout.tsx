@@ -25,6 +25,7 @@ import {
   PartitionOutlined,
   PayCircleOutlined,
   PictureOutlined,
+  PlayCircleOutlined,
   ProfileOutlined,
   ReadOutlined,
   SettingOutlined,
@@ -40,6 +41,7 @@ import {
 } from '@ant-design/icons'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import { AccountsProvider } from '../accounts/AccountsProvider'
 import {
   adminModules,
   visibleNavGroups,
@@ -65,6 +67,9 @@ const navIcons: Record<AdminNavIconKey, ReactNode> = {
   columns: <ProfileOutlined />,
   announcements: <NotificationOutlined />,
   materials: <PictureOutlined />,
+  'materials-image': <PictureOutlined />,
+  'materials-article': <FileTextOutlined />,
+  'materials-video': <PlayCircleOutlined />,
   'activation-codes': <KeyOutlined />,
   'software-cards': <CreditCardOutlined />,
   quotas: <DatabaseOutlined />,
@@ -190,7 +195,9 @@ export default function AdminLayout() {
             showIcon
             message={isMockAuth ? '当前为 Mock 演示，业务数据为本地模拟，不会写入真实总部。' : '已连接真实总部后台；专用业务页在非 Mock 模式下走正式 API（部分上传/导出/无后端对应能力仍会明确提示不可用）。'}
           />
-          <Outlet />
+          <AccountsProvider>
+            <Outlet />
+          </AccountsProvider>
         </main>
       </div>
       <Modal

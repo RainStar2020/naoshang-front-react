@@ -18,6 +18,7 @@ import {
 } from 'antd'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import { useAccounts } from '../accounts/AccountsProvider'
 import { hasPermission } from '../auth/access'
 import { withdrawalService } from '../services/withdrawals'
 import {
@@ -31,8 +32,30 @@ import {
   type WithdrawalMutation,
 } from '../types/withdrawals'
 
-function fen(n: number) {
-  return `${(n / 100).toFixed(2)} 元`
+/** 提现金额单位为元（非分），原样展示。 */
+function yuan(n: number) {
+  return `${Number(n || 0).toFixed(2)} 元`
+}
+
+/** 申请时间：YYYY-MM-DD HH:mm（Asia/Shanghai） */
+function formatApplyTime(iso: string | null | undefined) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return String(iso)
+  const s = d.toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai', hour12: false })
+  return s.slice(0, 16)
+}
+
+function applicantText(
+  row: Pick<WithdrawalApplication, 'accountId' | 'accountName' | 'phone'>,
+  getAccount: (id: string | null | undefined) => { nickname: string; phone: string } | undefined,
+) {
+  const acc = getAccount(row.accountId)
+  const name = (acc?.nickname || row.accountName || '').trim()
+  const phone = (acc?.phone || row.phone || '').trim()
+  if (name && phone) return `${name} / ${phone}`
+  if (name || phone) return name || phone
+  return row.accountId || '—'
 }
 
 const statusLabel: Record<WithdrawStatus, string> = {
@@ -55,6 +78,7 @@ const moduleLabel: Record<WithdrawModule, string> = {
 
 export default function Withdrawals() {
   const { session } = useAuth()
+  const { getAccount } = useAccounts()
   const token = session!.token
   const canReview = hasPermission(session!.account, 'withdrawals:review')
 
@@ -196,57 +220,87 @@ export default function Withdrawals() {
     () => [
       {
         title: '申请单',
-        dataIndex: 'withdrawalId',
-        width: 150,
-        render: (id: string, row: WithdrawalApplication) => (
-          <Space direction="vertical" size={0}>
-            <Typography.Link onClick={() => setDetailId(id)}>{id}</Typography.Link>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {moduleLabel[row.module]} · {row.identityLabel}
-            </Typography.Text>
-          </Space>
+        dataIndex: 'redemptionNo',
+        width: 180,
+        render: (_: unknown, row: WithdrawalApplication) => (
+          <Typography.Link onClick={() => setDetailId(row.withdrawalId)}>
+            {row.redemptionNo || '—'}
+          </Typography.Link>
         ),
       },
       {
-        title: '申请人 / 收款',
+        title: '身份',
+        dataIndex: 'identityLabel',
+        width: 120,
+        ellipsis: true,
+      },
+      {
+        title: '申请人',
+        width: 160,
         render: (_: unknown, row: WithdrawalApplication) => (
-          <Space direction="vertical" size={0}>
-            <span>
-              {row.accountName} / {row.phone}
-            </span>
-            <Typography.Text type="secondary">
-              {row.accountType === 'COMPANY' ? '公司' : '个人'} · {row.payeeName} · {row.bankName}/
-              {row.maskedBankNumber}
-            </Typography.Text>
-          </Space>
+          <span>{applicantText(row, getAccount)}</span>
         ),
       },
       {
-        title: '金额',
-        width: 130,
-        render: (_: unknown, row: WithdrawalApplication) => (
-          <Space direction="vertical" size={0}>
-            <span>{fen(row.amount)}</span>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              费 {fen(row.fee)} → 到账 {fen(row.netAmount)}
-            </Typography.Text>
-          </Space>
-        ),
+        title: '账户类型',
+        width: 90,
+        render: (_: unknown, row: WithdrawalApplication) =>
+          row.accountType === 'COMPANY' ? '公司' : '个人',
+      },
+      {
+        title: '收款人',
+        dataIndex: 'payeeName',
+        width: 110,
+        ellipsis: true,
+      },
+      {
+        title: '银行',
+        dataIndex: 'bankName',
+        width: 120,
+        ellipsis: true,
+      },
+      {
+        title: '收款账号',
+        dataIndex: 'maskedBankNumber',
+        width: 140,
+      },
+      {
+        title: '申请金额',
+        width: 110,
+        render: (_: unknown, row: WithdrawalApplication) => yuan(row.amount),
+      },
+      {
+        title: '手续费',
+        width: 100,
+        render: (_: unknown, row: WithdrawalApplication) => yuan(row.fee),
+      },
+      {
+        title: '到账金额',
+        width: 110,
+        render: (_: unknown, row: WithdrawalApplication) => yuan(row.netAmount),
       },
       {
         title: '状态',
-        width: 120,
+        width: 110,
         render: (_: unknown, row: WithdrawalApplication) => (
-          <Space direction="vertical" size={0}>
-            <Tag color={statusColor[row.status]}>{statusLabel[row.status]}</Tag>
-            {row.payoutReceiptStatus === 'FAILED' && <Tag color="error">回执失败</Tag>}
-          </Space>
+          <Tag color={statusColor[row.status]}>{statusLabel[row.status]}</Tag>
         ),
+      },
+      {
+        title: '回执状态',
+        width: 110,
+        render: (_: unknown, row: WithdrawalApplication) =>
+          row.payoutReceiptStatus === 'FAILED' ? (
+            <Tag color="error">回执失败</Tag>
+          ) : (
+            row.payoutReceiptStatus || '—'
+          ),
       },
       {
         title: '申请时间',
         dataIndex: 'createdAt',
         width: 180,
+        render: (value: string) => formatApplyTime(value),
       },
       {
         title: '操作',
@@ -275,7 +329,7 @@ export default function Withdrawals() {
         ),
       },
     ],
-    [canReview],
+    [canReview, getAccount],
   )
 
   const mutateTitle =
@@ -312,8 +366,8 @@ export default function Withdrawals() {
           <Statistic title="已完成" value={summary.succeeded} />
           <Statistic title="未通过" value={summary.rejected} />
           <Statistic title="回执失败" value={summary.receiptFailed} />
-          <Statistic title="在途金额" value={fen(summary.pendingAmount)} />
-          <Statistic title="已完成金额" value={fen(summary.succeededAmount)} />
+          <Statistic title="在途金额" value={yuan(summary.pendingAmount)} />
+          <Statistic title="已完成金额" value={yuan(summary.succeededAmount)} />
         </Space>
       </Card>
 
@@ -371,6 +425,7 @@ export default function Withdrawals() {
           loading={loading}
           columns={columns}
           dataSource={rows}
+          scroll={{ x: 1900 }}
           pagination={{
             current: page,
             total,
@@ -403,7 +458,7 @@ export default function Withdrawals() {
         width={720}
         open={!!detailId}
         onClose={() => setDetailId(null)}
-        title={detail ? `提现详情 ${detail.application.withdrawalId}` : '提现详情'}
+        title={detail ? `提现详情 ${detail.application.redemptionNo || detail.application.withdrawalId}` : '提现详情'}
         extra={
           detail && canReview ? (
             <Space>
@@ -429,7 +484,7 @@ export default function Withdrawals() {
             <Alert type="warning" showIcon message={detail.payoutGapNote} />
             <Alert type="info" showIcon message={detail.balanceNote} />
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="申请单号">{detail.application.withdrawalId}</Descriptions.Item>
+              <Descriptions.Item label="申请单号">{detail.application.redemptionNo || '—'}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={statusColor[detail.application.status]}>
                   {statusLabel[detail.application.status]}
@@ -438,7 +493,7 @@ export default function Withdrawals() {
               <Descriptions.Item label="业务线">{moduleLabel[detail.application.module]}</Descriptions.Item>
               <Descriptions.Item label="身份">{detail.application.identityLabel}</Descriptions.Item>
               <Descriptions.Item label="申请人">
-                {detail.application.accountName} / {detail.application.phone}
+                {applicantText(detail.application, getAccount)}
               </Descriptions.Item>
               <Descriptions.Item label="账户类型">
                 {detail.application.accountType === 'COMPANY' ? '公司' : '个人'}
@@ -447,9 +502,9 @@ export default function Withdrawals() {
               <Descriptions.Item label="银行">
                 {detail.application.bankName} / {detail.application.maskedBankNumber}
               </Descriptions.Item>
-              <Descriptions.Item label="申请金额">{fen(detail.application.amount)}</Descriptions.Item>
+              <Descriptions.Item label="申请金额">{yuan(detail.application.amount)}</Descriptions.Item>
               <Descriptions.Item label="手续费 / 预计到账">
-                {fen(detail.application.fee)} / {fen(detail.application.netAmount)}（快照，政策待定）
+                {yuan(detail.application.fee)} / {yuan(detail.application.netAmount)}（快照，政策待定）
               </Descriptions.Item>
               <Descriptions.Item label="打款回执">
                 {detail.application.payoutReceiptStatus}
@@ -471,9 +526,9 @@ export default function Withdrawals() {
                 <Link to="/revenue/settlement">打开收益模块</Link>
               </Descriptions.Item>
               <Descriptions.Item label="版本">{detail.application.version}</Descriptions.Item>
-              <Descriptions.Item label="申请时间">{detail.application.createdAt}</Descriptions.Item>
-              <Descriptions.Item label="审核时间">{detail.application.reviewedAt || '-'}</Descriptions.Item>
-              <Descriptions.Item label="回执时间">{detail.application.receiptAt || '-'}</Descriptions.Item>
+              <Descriptions.Item label="申请时间">{formatApplyTime(detail.application.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="审核时间">{formatApplyTime(detail.application.reviewedAt)}</Descriptions.Item>
+              <Descriptions.Item label="回执时间">{formatApplyTime(detail.application.receiptAt)}</Descriptions.Item>
             </Descriptions>
 
             <Typography.Title level={5}>审计</Typography.Title>
@@ -488,10 +543,8 @@ export default function Withdrawals() {
                 columns={[
                   { title: '时间', dataIndex: 'occurredAt' },
                   { title: '动作', dataIndex: 'action' },
-                  {
-                    title: '前后',
-                    render: (_: unknown, r: { before: string; after: string }) => `${r.before} → ${r.after}`,
-                  },
+                  { title: '变更前', dataIndex: 'before' },
+                  { title: '变更后', dataIndex: 'after' },
                   { title: '操作人', dataIndex: 'operatorName' },
                   { title: '原因', dataIndex: 'reason' },
                 ]}
@@ -542,7 +595,7 @@ export default function Withdrawals() {
       </Modal>
 
       <Typography.Paragraph type="secondary">
-        返回 <Link to="/">首页</Link> · 收益联查见 <Link to="/revenue/settlement">结算重算与冲正</Link>。金额界面按元展示（存分）；写操作须原因/版本/幂等/确认；费用快照非正式政策。
+        返回 <Link to="/">首页</Link> · 收益联查见 <Link to="/revenue/settlement">结算重算与冲正</Link>。金额单位为元（接口原样，不做分换算）；写操作须原因/版本/幂等/确认；费用快照非正式政策。
       </Typography.Paragraph>
     </Space>
   )

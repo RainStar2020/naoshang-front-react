@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Alert,
   Button,
@@ -14,9 +15,9 @@ import {
   Space,
   Statistic,
   Table,
-  Tabs,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd'
 import CmsContentEditor from '../components/CmsContentEditor'
@@ -36,6 +37,15 @@ import {
 } from '../types/promo-materials'
 import type { RichContent } from '../types/cms'
 import { emptyContent } from '../utils/richContent'
+import {
+  dataUrlToFile,
+  isLocalMediaUrl,
+  readFileAsDataUrl,
+} from '../utils/productDraftCache'
+import {
+  ASSETS_UPLOAD_UNAVAILABLE_MESSAGE,
+  isAssetsUploadUnavailableError,
+} from '../utils/assetsUploadErrors'
 
 const statusLabel: Record<PromoMaterialStatus, string> = {
   DRAFT: '草稿',
@@ -53,6 +63,8 @@ const typeLabel: Record<PromoMaterialType, string> = {
   video: '视频',
 }
 
+const DEFAULT_SHARE_TEMPLATE = 'https://example.local/invite?code={inviteCode}'
+
 function regionStyle(region: QrFillRegion): CSSProperties {
   return {
     position: 'absolute',
@@ -65,6 +77,138 @@ function regionStyle(region: QrFillRegion): CSSProperties {
     boxSizing: 'border-box',
     pointerEvents: 'none',
   }
+}
+
+function clamp01(n: number) {
+  return Math.min(1, Math.max(0, n))
+}
+
+function normalizeSquareRegion(x0: number, y0: number, x1: number, y1: number): QrFillRegion {
+  const left = Math.min(x0, x1)
+  const top = Math.min(y0, y1)
+  const rawSide = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 0.04)
+  const side = Math.min(rawSide, 1 - left, 1 - top, 1)
+  return {
+    x: Number(clamp01(left).toFixed(4)),
+    y: Number(clamp01(top).toFixed(4)),
+    width: Number(side.toFixed(4)),
+    height: Number(side.toFixed(4)),
+  }
+}
+
+/** 在底图上拖拽框选唯一正方形二维码区（归一化 0–1）。 */
+function ImageQrRegionPicker({
+  imageUrl,
+  value,
+  onChange,
+}: {
+  imageUrl: string
+  value: QrFillRegion | null
+  onChange: (region: QrFillRegion) => void
+}) {
+  const boxRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ x: number; y: number } | null>(null)
+  const [draft, setDraft] = useState<QrFillRegion | null>(null)
+
+  const toNorm = (e: ReactMouseEvent | MouseEvent) => {
+    const el = boxRef.current
+    if (!el) return { x: 0, y: 0 }
+    const rect = el.getBoundingClientRect()
+    return {
+      x: clamp01((e.clientX - rect.left) / Math.max(rect.width, 1)),
+      y: clamp01((e.clientY - rect.top) / Math.max(rect.height, 1)),
+    }
+  }
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      const cur = toNorm(e)
+      setDraft(normalizeSquareRegion(dragRef.current.x, dragRef.current.y, cur.x, cur.y))
+    }
+    const onUp = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      const cur = toNorm(e)
+      const next = normalizeSquareRegion(dragRef.current.x, dragRef.current.y, cur.x, cur.y)
+      dragRef.current = null
+      setDraft(null)
+      onChange(next)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [onChange])
+
+  const live = draft ?? value
+
+  return (
+    <Space direction="vertical" size={8} style={{ width: '100%' }}>
+      <Typography.Text type="secondary">
+        在底图上按住拖拽框选正方形区域（后续用户端二维码落点）。也可下方微调坐标。
+      </Typography.Text>
+      <div
+        ref={boxRef}
+        onMouseDown={(e) => {
+          e.preventDefault()
+          dragRef.current = toNorm(e)
+          setDraft(normalizeSquareRegion(dragRef.current.x, dragRef.current.y, dragRef.current.x, dragRef.current.y))
+        }}
+        style={{
+          position: 'relative',
+          display: 'inline-block',
+          maxWidth: '100%',
+          cursor: 'crosshair',
+          userSelect: 'none',
+          borderRadius: 8,
+          overflow: 'hidden',
+          border: '1px solid #e5eaf3',
+        }}
+      >
+        <img src={imageUrl} alt="底图" draggable={false} style={{ maxWidth: '100%', display: 'block', maxHeight: 420 }} />
+        {live && live.width > 0 && <div style={regionStyle(live)} />}
+      </div>
+      <Space wrap>
+        <span>x</span>
+        <InputNumber
+          min={0}
+          max={1}
+          step={0.01}
+          value={value?.x}
+          onChange={(v) => {
+            const x = Number(v) || 0
+            const side = value?.width ?? 0.2
+            onChange({ x, y: value?.y ?? 0.7, width: side, height: side })
+          }}
+        />
+        <span>y</span>
+        <InputNumber
+          min={0}
+          max={1}
+          step={0.01}
+          value={value?.y}
+          onChange={(v) => {
+            const y = Number(v) || 0
+            const side = value?.width ?? 0.2
+            onChange({ x: value?.x ?? 0.7, y, width: side, height: side })
+          }}
+        />
+        <span>边长</span>
+        <InputNumber
+          min={0.04}
+          max={1}
+          step={0.01}
+          value={value?.width}
+          onChange={(v) => {
+            const side = Number(v) || 0.04
+            onChange({ x: value?.x ?? 0.7, y: value?.y ?? 0.7, width: side, height: side })
+          }}
+        />
+      </Space>
+    </Space>
+  )
 }
 
 function VideoH5Preview({ mediaUrl, posterUrl }: { mediaUrl: string; posterUrl?: string | null }) {
@@ -141,8 +285,41 @@ type ListSummary = {
   missingQrRegion: number
 }
 
+const pageMeta: Record<PromoMaterialType, { title: string; subtitle: string }> = {
+  image: {
+    title: '图片素材',
+    subtitle: 'HQ-24 / PRD §5.3：维护图片模板；禁止前端伪终图；须框选唯一正方形二维码填充区后方可发布。',
+  },
+  article: {
+    title: '图文素材',
+    subtitle: 'HQ-24 / PRD §5.3：维护图文模板；正文末尾须启用唯一二维码预留位后方可发布；禁止前端伪终图。',
+  },
+  video: {
+    title: '视频素材',
+    subtitle: 'HQ-24 / PRD §5.3：维护视频互动 H5 模板；不烧录二维码；web-view 联调缺口不降低配置完成度。',
+  },
+}
+
+function materialTypeFromPath(pathname: string): PromoMaterialType {
+  if (pathname.endsWith('/article')) return 'article'
+  if (pathname.endsWith('/video')) return 'video'
+  return 'image'
+}
+
+function readImageNaturalSize(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.naturalWidth || img.width, height: img.naturalHeight || img.height })
+    img.onerror = () => reject(new Error('无法读取图片尺寸'))
+    img.src = url
+  })
+}
+
 export default function Materials() {
   const { session } = useAuth()
+  const location = useLocation()
+  const type = materialTypeFromPath(location.pathname)
+  const meta = pageMeta[type]
   const token = session?.token ?? ''
   const canEdit = hasPermission(session?.account ?? null, 'materials:edit')
 
@@ -153,19 +330,23 @@ export default function Materials() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [keyword, setKeyword] = useState('')
-  const [type, setType] = useState<PromoMaterialType | undefined>()
   const [status, setStatus] = useState<PromoMaterialStatus | undefined>()
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<PromoMaterialDetail | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [createStep, setCreateStep] = useState<'pick-type' | 'form'>('form')
+  /** 图片新建：info → qr；图文/视频仍走 form。 */
+  const [createStep, setCreateStep] = useState<'pick-type' | 'form' | 'info' | 'qr'>('form')
   const [editing, setEditing] = useState<PromoMaterialTemplate | null>(null)
   const [articleContent, setArticleContent] = useState<RichContent>(emptyContent())
   const [qrSlotAtEnd, setQrSlotAtEnd] = useState(false)
   const [regionOpen, setRegionOpen] = useState(false)
   const [regionTarget, setRegionTarget] = useState<PromoMaterialTemplate | null>(null)
   const [busy, setBusy] = useState(false)
+  const [uploadBusy, setUploadBusy] = useState(false)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
+  const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number } | null>(null)
+  const [draftQrRegion, setDraftQrRegion] = useState<QrFillRegion | null>(null)
   const [form] = Form.useForm()
   const [regionForm] = Form.useForm()
 
@@ -190,13 +371,20 @@ export default function Materials() {
 
   useEffect(() => { void loadList() }, [loadList])
 
+  useEffect(() => {
+    setPage(1)
+    setKeyword('')
+    setStatus(undefined)
+    setCatalog(null)
+  }, [type])
+
   const watchedType = Form.useWatch('type', form) as PromoMaterialType | undefined
   const watchedMediaUrl = Form.useWatch('mediaUrl', form) as string | undefined
   const watchedPosterUrl = Form.useWatch('posterUrl', form) as string | undefined
   const categoriesForType = useMemo(() => {
-    const t = watchedType || editing?.type || 'image'
+    const t = watchedType || editing?.type || type
     return (catalog?.categories ?? []).filter((c) => c.type === t)
-  }, [catalog, watchedType, editing])
+  }, [catalog, watchedType, editing, type])
 
   const watchX = Form.useWatch('x', regionForm)
   const watchY = Form.useWatch('y', regionForm)
@@ -212,18 +400,44 @@ export default function Materials() {
     }
   }
 
+  function resetImageDraftState() {
+    setImagePreviewUrl('')
+    setImageNaturalSize(null)
+    setDraftQrRegion(null)
+  }
+
   function openCreateWizard() {
     setEditing(null)
-    setCreateStep('pick-type')
     setArticleContent(emptyContent())
     setQrSlotAtEnd(false)
     form.resetFields()
+    resetImageDraftState()
     setEditOpen(true)
+    startCreateWithType(type)
   }
 
   function startCreateWithType(t: PromoMaterialType) {
-    const defaults: Record<PromoMaterialType, { w: number; h: number; media: string; cover: string }> = {
-      image: { w: 800, h: 1200, media: 'https://picsum.photos/seed/new-image/800/1200', cover: 'https://picsum.photos/seed/new-image/400/400' },
+    if (t === 'image') {
+      form.setFieldsValue({
+        title: '',
+        type: 'image',
+        categoryId: catalog?.categories.find((c) => c.type === 'image')?.categoryId,
+        coverUrl: '',
+        mediaUrl: '',
+        posterUrl: '',
+        summary: '',
+        mediaWidth: undefined,
+        mediaHeight: undefined,
+        shareUrlTemplate: DEFAULT_SHARE_TEMPLATE,
+        reason: '',
+      })
+      resetImageDraftState()
+      setArticleContent(emptyContent())
+      setQrSlotAtEnd(false)
+      setCreateStep('info')
+      return
+    }
+    const defaults: Record<'article' | 'video', { w: number; h: number; media: string; cover: string }> = {
       article: { w: 800, h: 600, media: 'https://picsum.photos/seed/new-article/800/600', cover: 'https://picsum.photos/seed/new-article/400/300' },
       video: { w: 1280, h: 720, media: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', cover: 'https://picsum.photos/seed/new-video/400/300' },
     }
@@ -238,17 +452,16 @@ export default function Materials() {
       summary: '',
       mediaWidth: d.w,
       mediaHeight: d.h,
-      shareUrlTemplate: 'https://example.local/invite?code={inviteCode}',
+      shareUrlTemplate: DEFAULT_SHARE_TEMPLATE,
       reason: '',
     })
     setArticleContent(emptyContent())
-    setQrSlotAtEnd(t === 'article' ? false : false)
+    setQrSlotAtEnd(false)
     setCreateStep('form')
   }
 
   function openEdit(row: PromoMaterialTemplate) {
     setEditing(row)
-    setCreateStep('form')
     form.setFieldsValue({
       title: row.title,
       type: row.type,
@@ -264,6 +477,15 @@ export default function Materials() {
     })
     setArticleContent(row.type === 'article' ? (row.articleContent ?? emptyContent()) : emptyContent())
     setQrSlotAtEnd(row.type === 'article' ? !!row.qrSlotAtEnd : false)
+    if (row.type === 'image') {
+      setImagePreviewUrl(row.mediaUrl)
+      setImageNaturalSize(row.mediaWidth && row.mediaHeight ? { width: row.mediaWidth, height: row.mediaHeight } : null)
+      setDraftQrRegion(row.qrRegion)
+      setCreateStep('info')
+    } else {
+      resetImageDraftState()
+      setCreateStep('form')
+    }
     setEditOpen(true)
   }
 
@@ -282,6 +504,54 @@ export default function Materials() {
       reason: '',
     })
     setRegionOpen(true)
+  }
+
+  async function applyLocalImage(file: File) {
+    if (!file.type.startsWith('image/')) {
+      message.error('仅支持图片文件')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      message.error('单张建议不超过 8MB')
+      return
+    }
+    setUploadBusy(true)
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const size = await readImageNaturalSize(dataUrl)
+      setImagePreviewUrl(dataUrl)
+      setImageNaturalSize(size)
+      form.setFieldsValue({
+        mediaUrl: dataUrl,
+        coverUrl: dataUrl,
+        mediaWidth: size.width,
+        mediaHeight: size.height,
+      })
+      if (!draftQrRegion) {
+        setDraftQrRegion({ x: 0.7, y: 0.7, width: 0.2, height: 0.2 })
+      }
+      message.success('已加入本地预览（提交时再上传）')
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '读取本地图片失败')
+    } finally {
+      setUploadBusy(false)
+    }
+  }
+
+  async function resolveMediaUrlForSave(rawUrl: string): Promise<string> {
+    if (!isLocalMediaUrl(rawUrl)) return rawUrl
+    try {
+      const file = await dataUrlToFile(rawUrl, 'promo-material-base')
+      const asset = await promoMaterialService.upload(token, file)
+      return asset.url || asset.previewUrl
+    } catch (err) {
+      if (isAssetsUploadUnavailableError(err)) {
+        // Mock / 缺口：保留本地 data URL，便于草稿联调；真实环境会在提示里说明。
+        message.warning(ASSETS_UPLOAD_UNAVAILABLE_MESSAGE)
+        return rawUrl
+      }
+      throw err
+    }
   }
 
   async function runMutate(input: PromoMaterialMutation, confirmTitle: string, confirmContent: string) {
@@ -319,16 +589,17 @@ export default function Materials() {
 
   async function submitSave() {
     const values = await form.validateFields()
-    const t = (editing?.type || values.type) as PromoMaterialType
-    if (t === 'article' && !qrSlotAtEnd) {
-      // allow draft save without slot; publish will fail
+    const t = (editing?.type || values.type || type) as PromoMaterialType
+    if (t === 'image') {
+      message.error('请使用图片向导完成保存')
+      return
     }
     const mutation: PromoMaterialMutation = editing
       ? {
           action: 'save',
           materialId: editing.materialId,
           version: editing.version,
-          reason: values.reason,
+          reason: values.reason || '（无备注）',
           idempotencyKey: crypto.randomUUID(),
           title: values.title,
           type: editing.type,
@@ -339,14 +610,14 @@ export default function Materials() {
           summary: values.summary ?? '',
           mediaWidth: values.mediaWidth,
           mediaHeight: values.mediaHeight,
-          shareUrlTemplate: values.shareUrlTemplate,
+          shareUrlTemplate: values.shareUrlTemplate || DEFAULT_SHARE_TEMPLATE,
           articleContent: t === 'article' ? articleContent : null,
           qrSlotAtEnd: t === 'article' ? qrSlotAtEnd : false,
         }
       : {
           action: 'save',
           version: 0,
-          reason: values.reason,
+          reason: values.reason || '（无备注）',
           idempotencyKey: crypto.randomUUID(),
           title: values.title,
           type: values.type,
@@ -357,11 +628,135 @@ export default function Materials() {
           summary: values.summary ?? '',
           mediaWidth: values.mediaWidth,
           mediaHeight: values.mediaHeight,
-          shareUrlTemplate: values.shareUrlTemplate,
+          shareUrlTemplate: values.shareUrlTemplate || DEFAULT_SHARE_TEMPLATE,
           articleContent: t === 'article' ? articleContent : null,
           qrSlotAtEnd: t === 'article' ? qrSlotAtEnd : false,
         }
     await runMutate(mutation, editing ? '保存模板' : '新建草稿', '确认提交？不会在前端合成最终带码图片。')
+  }
+
+  async function goImageQrStep() {
+    const values = await form.validateFields(['title', 'categoryId', 'summary', 'reason'])
+    if (!imagePreviewUrl && !values.mediaUrl) {
+      message.error('请先上传一张底图')
+      return
+    }
+    if (!draftQrRegion) {
+      setDraftQrRegion({ x: 0.7, y: 0.7, width: 0.2, height: 0.2 })
+    }
+    setCreateStep('qr')
+  }
+
+  async function submitImageWizard() {
+    if (!canEdit) {
+      message.error('没有推广素材编辑权限')
+      return
+    }
+    const values = await form.validateFields(['title', 'categoryId', 'summary', 'reason'])
+    const mediaRaw = imagePreviewUrl || values.mediaUrl
+    if (!mediaRaw) {
+      message.error('请先上传一张底图')
+      setCreateStep('info')
+      return
+    }
+    if (!draftQrRegion || draftQrRegion.width <= 0) {
+      message.error('请框选二维码定位区域')
+      setCreateStep('qr')
+      return
+    }
+    const side = draftQrRegion.width
+    if (Math.abs(draftQrRegion.width - draftQrRegion.height) > 0.001) {
+      message.error('二维码区须为正方形')
+      return
+    }
+    if (
+      draftQrRegion.x < 0 ||
+      draftQrRegion.y < 0 ||
+      draftQrRegion.x + side > 1.0001 ||
+      draftQrRegion.y + side > 1.0001
+    ) {
+      message.error('二维码区超出底图范围')
+      return
+    }
+
+    Modal.confirm({
+      title: editing ? '保存图片模板' : '新建图片草稿并框选码区',
+      content: '将保存标题/描述/底图，并写入唯一正方形二维码区。前端不合成终图。',
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        setBusy(true)
+        try {
+          const mediaUrl = await resolveMediaUrlForSave(mediaRaw)
+          const size = imageNaturalSize ?? (await readImageNaturalSize(mediaRaw).catch(() => ({ width: 800, height: 1200 })))
+          const saveMutation: PromoMaterialMutation = editing
+            ? {
+                action: 'save',
+                materialId: editing.materialId,
+                version: editing.version,
+                reason: values.reason || '保存图片素材',
+                idempotencyKey: crypto.randomUUID(),
+                title: values.title,
+                type: 'image',
+                categoryId: values.categoryId,
+                coverUrl: mediaUrl,
+                mediaUrl,
+                posterUrl: null,
+                summary: values.summary ?? '',
+                mediaWidth: size.width,
+                mediaHeight: size.height,
+                shareUrlTemplate: editing.shareUrlTemplate || DEFAULT_SHARE_TEMPLATE,
+                articleContent: null,
+                qrSlotAtEnd: false,
+              }
+            : {
+                action: 'save',
+                version: 0,
+                reason: values.reason || '新建图片素材草稿',
+                idempotencyKey: crypto.randomUUID(),
+                title: values.title,
+                type: 'image',
+                categoryId: values.categoryId,
+                coverUrl: mediaUrl,
+                mediaUrl,
+                posterUrl: null,
+                summary: values.summary ?? '',
+                mediaWidth: size.width,
+                mediaHeight: size.height,
+                shareUrlTemplate: DEFAULT_SHARE_TEMPLATE,
+                articleContent: null,
+                qrSlotAtEnd: false,
+              }
+          const saved = await promoMaterialService.mutate(token, saveMutation)
+          const regioned = await promoMaterialService.mutate(token, {
+            action: 'set-qr-region',
+            materialId: saved.template.materialId,
+            version: saved.template.version,
+            reason: values.reason || '框选二维码定位',
+            idempotencyKey: crypto.randomUUID(),
+            qrRegion: {
+              x: draftQrRegion.x,
+              y: draftQrRegion.y,
+              width: side,
+              height: side,
+            },
+          })
+          message.success(regioned.message || '图片素材已保存并框选码区')
+          setEditOpen(false)
+          setCatalog(null)
+          resetImageDraftState()
+          await loadList()
+          if (detailOpen && detail?.template.materialId === regioned.template.materialId) {
+            setDetail(await promoMaterialService.detail(token, regioned.template.materialId))
+          }
+        } catch (err) {
+          message.error(err instanceof PromoMaterialError ? err.message : err instanceof Error ? err.message : '操作失败')
+          throw err
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
   async function submitRegion() {
@@ -373,7 +768,7 @@ export default function Materials() {
         action: 'set-qr-region',
         materialId: regionTarget.materialId,
         version: regionTarget.version,
-        reason: values.reason,
+        reason: values.reason || '框选二维码区',
         idempotencyKey: crypto.randomUUID(),
         qrRegion: { x: values.x, y: values.y, width: side, height: side },
       },
@@ -454,29 +849,34 @@ export default function Materials() {
       ? { x: Number(watchX), y: Number(watchY), width: Number(watchW), height: Number(watchW) }
       : regionTarget?.qrRegion ?? null
 
-  const activeType = (watchedType || editing?.type) as PromoMaterialType | undefined
+  const activeType = (watchedType || editing?.type || type) as PromoMaterialType | undefined
+  const isImageWizard = activeType === 'image' && (createStep === 'info' || createStep === 'qr')
+
+  const modalTitle = editing
+    ? (activeType === 'image' ? (createStep === 'qr' ? '编辑图片素材 · 框选二维码区' : '编辑图片素材') : '编辑模板')
+    : activeType === 'image'
+      ? (createStep === 'qr' ? '新建图片素材 · 框选二维码定位' : '新建图片素材')
+      : `新建${activeType ? typeLabel[activeType] : ''}草稿`
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <div>
-        <Typography.Title level={3} style={{ marginBottom: 4 }}>推广素材与二维码模板</Typography.Title>
+        <Typography.Title level={3} style={{ marginBottom: 4 }}>{meta.title}</Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          HQ-24 / PRD §5.3：按图片 / 图文 / 视频三类维护模板；禁止前端伪终图；图片正方形二维码区；图文末尾唯一码位；视频互动 H5（不烧录）。
+          {meta.subtitle}
         </Typography.Paragraph>
       </div>
 
-      {catalog && (
-        <Alert
-          type="warning"
-          showIcon
-          message="合图与视频 H5 边界"
-          description={
-            <div>
-              <div>{catalog.composeGapNote}</div>
-              <div style={{ marginTop: 8 }}>{catalog.videoH5GapNote}</div>
-            </div>
-          }
-        />
+      {catalog && type === 'image' && (
+        <Alert type="warning" showIcon message="合图边界" description={catalog.composeGapNote} />
+      )}
+
+      {catalog && type === 'article' && (
+        <Alert type="warning" showIcon message="图文码位边界" description={catalog.composeGapNote} />
+      )}
+
+      {catalog && type === 'video' && (
+        <Alert type="warning" showIcon message="视频 H5 边界" description={catalog.videoH5GapNote} />
       )}
 
       {summary && (
@@ -486,9 +886,11 @@ export default function Materials() {
             <Statistic title="草稿" value={summary.draft} />
             <Statistic title="已发布" value={summary.published} />
             <Statistic title="已下线" value={summary.offline} />
-            <Statistic title="图片已框选区" value={summary.imageWithRegion} />
-            <Statistic title="缺区/缺码位" value={summary.missingQrRegion} />
-            <Statistic title="视频 H5" value={summary.videoH5} />
+            {type === 'image' && <Statistic title="图片已框选区" value={summary.imageWithRegion} />}
+            {(type === 'image' || type === 'article') && (
+              <Statistic title={type === 'image' ? '缺区/缺码位' : '缺码位'} value={summary.missingQrRegion} />
+            )}
+            {type === 'video' && <Statistic title="视频 H5" value={summary.videoH5} />}
           </Space>
         </Card>
       )}
@@ -504,20 +906,6 @@ export default function Materials() {
           )
         }
       >
-        <Tabs
-          activeKey={type ?? 'all'}
-          onChange={(key) => {
-            setPage(1)
-            setType(key === 'all' ? undefined : (key as PromoMaterialType))
-          }}
-          items={[
-            { key: 'all', label: '全部' },
-            { key: 'image', label: '图片' },
-            { key: 'article', label: '图文' },
-            { key: 'video', label: '视频' },
-          ]}
-          style={{ marginBottom: 8 }}
-        />
         <Space wrap>
           <Input.Search
             allowClear
@@ -561,12 +949,6 @@ export default function Materials() {
             ),
           },
           { title: '标题', dataIndex: 'title', ellipsis: true },
-          {
-            title: '类型',
-            dataIndex: 'type',
-            width: 80,
-            render: (t: PromoMaterialType) => typeLabel[t],
-          },
           { title: '分类', dataIndex: 'categoryName', width: 120 },
           {
             title: '状态',
@@ -672,56 +1054,136 @@ export default function Materials() {
       </Drawer>
 
       <Modal
-        title={editing ? '编辑模板' : createStep === 'pick-type' ? '新建模板 · 选择类型' : `新建${activeType ? typeLabel[activeType] : ''}草稿`}
+        title={modalTitle}
         open={editOpen}
         onCancel={() => setEditOpen(false)}
+        footer={
+          isImageWizard ? (
+            <Space>
+              <Button onClick={() => setEditOpen(false)}>取消</Button>
+              {createStep === 'qr' && (
+                <Button onClick={() => setCreateStep('info')}>上一步</Button>
+              )}
+              {createStep === 'info' ? (
+                <Button type="primary" onClick={() => void goImageQrStep()}>下一步：框选二维码区</Button>
+              ) : (
+                <Button type="primary" loading={busy} onClick={() => void submitImageWizard()}>
+                  {editing ? '保存' : '确定新建'}
+                </Button>
+              )}
+            </Space>
+          ) : undefined
+        }
         onOk={() => {
-          if (!editing && createStep === 'pick-type') return
+          if (isImageWizard) return
           void submitSave()
         }}
-        okButtonProps={{ style: !editing && createStep === 'pick-type' ? { display: 'none' } : undefined }}
+        okButtonProps={isImageWizard ? { style: { display: 'none' } } : undefined}
         confirmLoading={busy}
         destroyOnClose
         width={720}
       >
-        {!editing && createStep === 'pick-type' ? (
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            <Typography.Paragraph type="secondary">按产品三类分流创建，创建后类型不可改。</Typography.Paragraph>
-            <Space wrap size={12}>
-              <Button type="primary" onClick={() => startCreateWithType('image')}>图片：底图 + 正方形码区</Button>
-              <Button type="primary" onClick={() => startCreateWithType('article')}>图文：富文本 + 末尾码位</Button>
-              <Button type="primary" onClick={() => startCreateWithType('video')}>视频：互动 H5（不烧录）</Button>
-            </Space>
-          </Space>
+        {isImageWizard ? (
+          <Form form={form} layout="vertical">
+            <Form.Item name="type" hidden initialValue="image"><Input /></Form.Item>
+            <Form.Item name="mediaUrl" hidden><Input /></Form.Item>
+            <Form.Item name="coverUrl" hidden><Input /></Form.Item>
+            <Form.Item name="mediaWidth" hidden><InputNumber /></Form.Item>
+            <Form.Item name="mediaHeight" hidden><InputNumber /></Form.Item>
+            <Form.Item name="shareUrlTemplate" hidden><Input /></Form.Item>
+
+            {createStep === 'info' && (
+              <>
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message="流程：填写标题与描述 → 上传一张底图 → 下一步框选用户端二维码落点。"
+                />
+                <Form.Item name="title" label="标题" rules={[{ required: true, whitespace: true, message: '请填写标题' }]}>
+                  <Input maxLength={80} placeholder="图片素材标题" />
+                </Form.Item>
+                <Form.Item name="summary" label="描述">
+                  <Input.TextArea rows={3} maxLength={200} placeholder="素材说明 / 摘要" />
+                </Form.Item>
+                <Form.Item name="categoryId" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+                  <Select options={categoriesForType.map((c) => ({ value: c.categoryId, label: c.name }))} />
+                </Form.Item>
+                <Form.Item label="上传底图" required>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Upload
+                      showUploadList={false}
+                      accept="image/png,image/jpeg,image/webp"
+                      beforeUpload={(file) => {
+                        void applyLocalImage(file)
+                        return false
+                      }}
+                    >
+                      <Button loading={uploadBusy}>{imagePreviewUrl ? '重新选择图片' : '选择本地图片'}</Button>
+                    </Upload>
+                    <Typography.Text type="secondary">
+                      支持 PNG/JPG/WebP；选图后本地预览，提交时再走上传接口。宽高自动读取，无需手填。
+                    </Typography.Text>
+                    {imagePreviewUrl && (
+                      <div style={{ border: '1px solid #e5eaf3', borderRadius: 8, overflow: 'hidden', maxWidth: 360 }}>
+                        <img src={imagePreviewUrl} alt="预览" style={{ width: '100%', display: 'block' }} />
+                      </div>
+                    )}
+                    {imageNaturalSize && (
+                      <Typography.Text type="secondary">
+                        尺寸 {imageNaturalSize.width} × {imageNaturalSize.height}
+                      </Typography.Text>
+                    )}
+                  </Space>
+                </Form.Item>
+                <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
+                  <Input.TextArea rows={2} maxLength={200} />
+                </Form.Item>
+              </>
+            )}
+
+            {createStep === 'qr' && (
+              <>
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message="拖拽框选唯一正方形区域（归一化 0–1）。保存区域不等于合成终图；用户端只上传码，合图由服务端完成。"
+                />
+                {imagePreviewUrl ? (
+                  <ImageQrRegionPicker
+                    imageUrl={imagePreviewUrl}
+                    value={draftQrRegion}
+                    onChange={setDraftQrRegion}
+                  />
+                ) : (
+                  <Alert type="error" message="缺少底图，请返回上一步上传" />
+                )}
+              </>
+            )}
+          </Form>
         ) : (
           <Form form={form} layout="vertical">
             <Form.Item name="title" label="标题" rules={[{ required: true, whitespace: true, message: '请填写标题' }]}>
               <Input maxLength={80} />
             </Form.Item>
-            <Form.Item name="type" label="类型" rules={[{ required: true }]}>
-              <Select disabled options={[
-                { value: 'image', label: '图片素材' },
-                { value: 'article', label: '图文素材' },
-                { value: 'video', label: '视频素材' },
-              ]} />
+            <Form.Item name="type" hidden rules={[{ required: true }]}>
+              <Input />
             </Form.Item>
             <Form.Item name="categoryId" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
               <Select options={categoriesForType.map((c) => ({ value: c.categoryId, label: c.name }))} />
             </Form.Item>
 
-            {activeType === 'image' && (
-              <Alert type="info" showIcon style={{ marginBottom: 12 }} message="上传底图后，请在列表中「框选二维码区」设置唯一正方形区域（归一化 0–1）；无框选不可发布。" />
-            )}
             {activeType === 'video' && (
               <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="视频交付模式固定为 INTERACTIVE_H5，不提供烧录区/烧录发布选项。小程序 web-view 未就绪时仅标缺口，不降低配置完成度。" />
             )}
 
             <Form.Item
               name="mediaUrl"
-              label={activeType === 'video' ? '视频 URL' : activeType === 'article' ? '封面图/头图 URL' : '底图 URL'}
+              label={activeType === 'video' ? '视频 URL' : '封面图/头图 URL'}
               rules={[{ required: true, whitespace: true }]}
             >
-              <Input placeholder="Mock：粘贴可预览 URL；真实环境走上传契约" />
+              <Input placeholder="粘贴可预览 URL" />
             </Form.Item>
             <Form.Item name="coverUrl" label="列表封面 URL">
               <Input />
@@ -790,31 +1252,36 @@ export default function Materials() {
         {regionTarget && (
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <Alert type="info" showIcon message="归一化坐标 0–1；须为正方形（宽=高）；每模板唯一一区。保存区域不等于合成终图。" />
-            <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
-              <img src={regionTarget.mediaUrl} alt="原图" style={{ maxWidth: '100%', display: 'block', borderRadius: 8 }} />
-              {liveRegion && liveRegion.width > 0 && <div style={regionStyle(liveRegion)} />}
-            </div>
-            <Form form={regionForm} layout="inline">
-              <Form.Item name="x" label="x" rules={[{ required: true }]}><InputNumber min={0} max={1} step={0.01} /></Form.Item>
-              <Form.Item name="y" label="y" rules={[{ required: true }]}><InputNumber min={0} max={1} step={0.01} /></Form.Item>
-              <Form.Item name="width" label="边长" rules={[{ required: true }]}>
-                <InputNumber
-                  min={0.01}
-                  max={1}
-                  step={0.01}
-                  onChange={(v) => {
-                    const side = Number(v) || 0.01
-                    regionForm.setFieldsValue({ width: side, height: side })
-                  }}
-                />
-              </Form.Item>
-              <Form.Item name="height" hidden><InputNumber /></Form.Item>
-            </Form>
+            <ImageQrRegionPicker
+              imageUrl={regionTarget.mediaUrl}
+              value={
+                Number.isFinite(watchX) && Number.isFinite(watchY) && Number.isFinite(watchW)
+                  ? { x: Number(watchX), y: Number(watchY), width: Number(watchW), height: Number(watchW) }
+                  : regionTarget.qrRegion
+              }
+              onChange={(region) => {
+                regionForm.setFieldsValue({
+                  x: region.x,
+                  y: region.y,
+                  width: region.width,
+                  height: region.height,
+                })
+              }}
+            />
             <Form form={regionForm} layout="vertical">
+              <Form.Item name="x" hidden><InputNumber /></Form.Item>
+              <Form.Item name="y" hidden><InputNumber /></Form.Item>
+              <Form.Item name="width" hidden><InputNumber /></Form.Item>
+              <Form.Item name="height" hidden><InputNumber /></Form.Item>
               <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
                 <Input.TextArea rows={2} maxLength={200} />
               </Form.Item>
             </Form>
+            {liveRegion && (
+              <Typography.Text type="secondary">
+                当前区：x={liveRegion.x}, y={liveRegion.y}, side={liveRegion.width}
+              </Typography.Text>
+            )}
           </Space>
         )}
       </Modal>

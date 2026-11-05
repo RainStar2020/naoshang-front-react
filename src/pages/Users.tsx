@@ -5,8 +5,10 @@ import { hasPermission } from '../auth/access'
 import { usersService } from '../services/users'
 import type { UserAccount, UserFilterOptions, UserFilters, UserListQuery, UserListResult } from '../types/users'
 import UserActionModal, { type UserActionRequest } from '../components/UserActionModal'
+import StoreBindingModal from '../components/StoreBindingModal'
 import UserDetailDrawer from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { downloadCsv } from '../utils/csv'
 
 export default function Users() {
   const { session } = useAuth()
@@ -23,6 +25,7 @@ export default function Users() {
   const [refresh, setRefresh] = useState(0)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [action, setAction] = useState<UserActionRequest | null>(null)
+  const [storeBindingAccount, setStoreBindingAccount] = useState<UserAccount | null>(null)
   const [messageApi, contextHolder] = message.useMessage()
   useEffect(() => {
     let alive = true
@@ -43,11 +46,19 @@ export default function Users() {
     return () => { alive = false }
   }, [query, refresh, token])
   const reload = () => setRefresh(value => value + 1)
+  const exportUsers = () => downloadCsv('用户账号列表', [
+    ['账号 ID', '账号编号', '昵称', '手机号', '地区', '批发商身份', '状态', '所属门店', '注册时间'],
+    ...(result?.items ?? []).map(user => [
+      user.accountId, user.displayId, user.nickname, user.phone, (user.regionNames ?? []).join(' / '),
+      user.tierLabel || (user.businessContexts ?? []).map(context => context.label).join('、'),
+      user.frozen ? '冻结' : '正常', user.storeName || '未绑定门店', user.createdAt,
+    ]),
+  ])
   const actions = (user: UserAccount) => <Space size={0} wrap>
     <Button type="link" size="small" onClick={() => setDetailId(user.accountId)}>详情</Button>
     {hasPermission(account, 'users:freeze') && <Button type="link" size="small" danger={!user.frozen} onClick={() => setAction({ account: user, action: 'freeze' })}>{user.frozen ? '解冻' : '冻结'}</Button>}
     {hasPermission(account, 'users:reset-password') && <Button type="link" size="small" onClick={() => setAction({ account: user, action: 'reset-password' })}>重置密码</Button>}
-    {hasPermission(account, 'users:change-store') && <Button type="link" size="small" disabled={!options.stores.length || !!optionsError} onClick={() => setAction({ account: user, action: 'change-store' })}>修改门店</Button>}
+    {hasPermission(account, 'users:change-store') && <Button type="link" size="small" onClick={() => setStoreBindingAccount(user)}>修改门店</Button>}
   </Space>
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>
     {contextHolder}
@@ -62,9 +73,9 @@ export default function Users() {
         <Form.Item name="status" label="账号状态"><Select allowClear placeholder="全部状态" options={[{ value: 'active', label: '正常' }, { value: 'frozen', label: '冻结' }]} /></Form.Item>
       </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 10 }) }}>重置筛选</Button></Space>
     </Form></Card>
-    <Card variant="borderless" title="账号列表" extra={<Typography.Text type="secondary">{result ? `共 ${result.total} 个账号` : '—'}</Typography.Text>}>
-      {error ? <Alert type="error" showIcon message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<UserAccount> rowKey="accountId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: canOperate ? 1010 : 825 }} locale={{ emptyText: '暂无符合条件的账号，请调整筛选条件' }} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize !== value.pageSize ? 1 : page, pageSize })) }} columns={[
-        { title: '用户账号', key: 'account', width: 190, render: (_, user) => <Space><Avatar src={user.avatarUrl}>{(user.nickname || '?').slice(0, 1)}</Avatar><div><Button type="link" style={{ padding: 0 }} onClick={() => setDetailId(user.accountId)}>{user.nickname}</Button><div><Typography.Text type="secondary">{user.displayId}</Typography.Text></div></div></Space> },
+    <Card variant="borderless" title="账号列表" extra={<Space><Typography.Text type="secondary">{result ? `共 ${result.total} 个账号` : '—'}</Typography.Text><Button onClick={exportUsers} disabled={!result?.items.length}>导出当前表格</Button></Space>}>
+      {error ? <Alert type="error" showIcon message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<UserAccount> rowKey="accountId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: canOperate ? 1170 : 985 }} locale={{ emptyText: '暂无符合条件的账号，请调整筛选条件' }} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize !== value.pageSize ? 1 : page, pageSize })) }} columns={[
+        { title: '用户账号', key: 'account', width: 180, render: (_, user) => <Space><Avatar src={user.avatarUrl}>{(user.nickname || '?').slice(0, 1)}</Avatar><Button type="link" style={{ padding: 0 }} onClick={() => setDetailId(user.accountId)}>{user.nickname}</Button></Space> }, { title: '编号', dataIndex: 'displayId', width: 120 },
         { title: '手机号', dataIndex: 'phone', width: 135 },
         { title: '地区', key: 'region', width: 170, render: (_, user) => (user.regionNames ?? []).join(' / ') || '未设置' },
         { title: '批发商身份', key: 'identities', width: 190, render: (_, user) => {
@@ -74,11 +85,20 @@ export default function Users() {
           if (contexts.length) return <Space size={[0, 4]} wrap>{contexts.map(context => <Tag key={context.contextId}>{context.label}</Tag>)}</Space>
           return <Typography.Text type="secondary">—</Typography.Text>
         } },
+        { title: '绑定门店', key: 'store', width: 160, render: (_, user) => user.storeName || '未绑定' },
         { title: '状态', key: 'status', width: 80, render: (_, user) => <Tag color={user.frozen ? 'red' : 'green'}>{user.frozen ? '冻结' : '正常'}</Tag> },
         { title: '操作', key: 'actions', fixed: 'right', width: canOperate ? 265 : 80, render: (_, user) => actions(user) },
       ]} />}
     </Card>
     {detailId && <UserDetailDrawer accountId={detailId} token={token} refresh={refresh} onClose={() => setDetailId(null)} onMutated={reload} />}
+    {storeBindingAccount && <StoreBindingModal
+      accountId={storeBindingAccount.accountId}
+      accountLabel={`${storeBindingAccount.nickname} · ${storeBindingAccount.phone}`}
+      mode="bind"
+      token={token}
+      onClose={() => setStoreBindingAccount(null)}
+      onDone={() => { setStoreBindingAccount(null); reload(); messageApi.success('门店绑定已更新') }}
+    />}
     {action && <UserActionModal request={action} stores={options.stores} token={token} onClose={() => setAction(null)} onRefresh={reload} onDone={() => { const id = action.account.accountId; const reset = action.action === 'reset-password'; setAction(null); reload(); setDetailId(id); messageApi.success(reset ? '模拟重置已记录，未修改真实账号密码' : 'Mock 操作已完成，详情中可查看操作记录') }} />}
   </Space>
 }

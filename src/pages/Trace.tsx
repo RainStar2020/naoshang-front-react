@@ -263,7 +263,8 @@ export default function Trace() {
                     onChange: (p, ps) => { setResPage(p); setResPageSize(ps) },
                   }}
                   columns={[
-                    { title: 'assetId / fileId', dataIndex: 'assetId', width: 160 },
+                    { title: 'assetId', dataIndex: 'assetId', width: 160 },
+                    { title: 'fileId', dataIndex: 'fileId', width: 160 },
                     { title: '用途', dataIndex: 'purpose', width: 140 },
                     { title: '文件', dataIndex: 'fileName' },
                     {
@@ -282,14 +283,12 @@ export default function Trace() {
                     },
                     {
                       title: '归属',
-                      key: 'owner',
-                      render: (_, r: UploadResource) => (
-                        <>
-                          {r.ownerName}
-                          <br />
-                          <Typography.Text type="secondary">{r.ownerAccountId}</Typography.Text>
-                        </>
-                      ),
+                      dataIndex: 'ownerName',
+                    },
+                    {
+                      title: '归属账号ID',
+                      dataIndex: 'ownerAccountId',
+                      width: 140,
                     },
                     { title: '业务提示', dataIndex: 'boundHint', ellipsis: true },
                     {

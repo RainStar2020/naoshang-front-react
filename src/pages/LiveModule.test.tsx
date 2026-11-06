@@ -71,8 +71,8 @@ describe('真实业务页面（本地适配器测试，不访问后台）', () =
     expect(writes).toBe(0)
   })
 
-  it('后端没有代理模块时不渲染旧演示页', () => {
-    open('/agents')
+  it('后端文档未提供的路由不渲染旧演示页', () => {
+    open('/__no-such-hq-module__')
     expect(screen.getByText('后端文档尚未提供该模块的接口，暂不开放演示操作。')).toBeTruthy()
   })
 

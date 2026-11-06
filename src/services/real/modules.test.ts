@@ -45,8 +45,9 @@ describe('真实业务模块绑定', () => {
   }
 
   const operation = liveModules.find((module) => module.name === 'users')!.operations.find((item) => item.method === 'POST')!
-  it('提交前验证版本、action；备注选填（空则占位）；禁止越界操作', () => {
-    expect(buildMutationRequest(operation, { action: 'freeze' }, '', 'key').body.reason).toBe('（无备注）')
+  it('提交前验证版本、action；备注必填；禁止越界操作', () => {
+    expect(() => buildMutationRequest(operation, { action: 'freeze' }, '', 'key')).toThrow('请填写操作原因')
+  expect(buildMutationRequest(operation, { action: 'freeze' }, '总部调整', 'key').body.reason).toBe('总部调整')
     expect(() => buildMutationRequest(operation, { action: 'freeze' }, 'reason', '')).toThrow('请求号')
     expect(() => buildMutationRequest(operation, { action: 'reset-password' }, 'reason', 'key')).toThrow('契约')
     expect(() => buildMutationRequest(operation, { action: 'freeze', version: 1.5 }, 'reason', 'key')).toThrow('版本号')

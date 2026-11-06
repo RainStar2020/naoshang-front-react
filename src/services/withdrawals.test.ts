@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+﻿import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { WithdrawalMutation } from '../types/withdrawals'
 
 let service: typeof import('./withdrawals')['withdrawalService']
@@ -59,13 +59,14 @@ it('查询账号不可审核；同意后为 PROCESSING 非 SUCCEEDED；幂等可
   }
   await expect(service.mutate(viewer, draft)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   token = (await auth.login({ loginAccount: 'hq-admin', password: 'Demo@123456' })).token
-  // 原因可空：Mock/页面会落成「（无备注）」，不再以 INVALID_INPUT 拒绝
+  await expect(service.mutate(token, { ...draft, reason: '', idempotencyKey: crypto.randomUUID() })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  await expect(service.mutate(token, { ...draft, reason: '  ', idempotencyKey: crypto.randomUUID() })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
   const key = crypto.randomUUID()
-  const ok = await service.mutate(token, { ...draft, reason: '', idempotencyKey: key })
+  const ok = await service.mutate(token, { ...draft, reason: '资料齐全同意打款', idempotencyKey: key })
   expect(ok).toMatchObject({ action: 'approve', mockOnly: true })
   expect(ok.application).toMatchObject({ status: 'PROCESSING', payoutReceiptStatus: 'NONE' })
   expect(ok.application.status).not.toBe('SUCCEEDED')
-  expect(await service.mutate(token, { ...draft, reason: '', idempotencyKey: key })).toEqual(ok)
+  expect(await service.mutate(token, { ...draft, reason: '资料齐全同意打款', idempotencyKey: key })).toEqual(ok)
   await expect(service.mutate(token, { ...draft, reason: '改原因', idempotencyKey: key })).rejects.toMatchObject({
     code: 'IDEMPOTENCY_CONFLICT',
   })

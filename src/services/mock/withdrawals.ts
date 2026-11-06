@@ -391,7 +391,7 @@ export function mockWithdrawalMutate(
   if (row.version !== mutation.version) {
     throw new WithdrawalError('VERSION_CONFLICT', '版本冲突，请刷新后重试')
   }
-  if (!mutation.reason.trim()) mutation = { ...mutation, reason: '（无备注）' }
+  if (!mutation.reason.trim()) throw new WithdrawalError('INVALID_INPUT', '请填写操作原因')
 
   let result: WithdrawalMutationResult
   const beforeV = row.version

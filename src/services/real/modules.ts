@@ -49,7 +49,7 @@ export function buildMutationRequest(operation: ModuleOperation, body: DataRecor
   if (operation.actions.length && !operation.actions.includes(body.action)) throw new Error('操作类型不在后端契约范围')
   if (body.version !== undefined && (!Number.isInteger(body.version) || Number(body.version) < 1)) throw new Error('版本号必须为大于 0 的整数')
   if (body.action === 'update-note' && typeof body.note !== 'string') throw new Error('修改备注必须填写 note 字符串')
-  // UI 备注选填；后端 reason 仍可能必填，空值时用占位
+  // 操作原因必填；空值由 normalizeRemark 拒绝
   return { body: { ...body, reason: normalizeRemark(reason), idempotencyKey: key.trim() } }
 }
 

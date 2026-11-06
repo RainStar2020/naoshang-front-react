@@ -498,11 +498,7 @@ export default function Revenue() {
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         {pageMeta.title}
-      </Typography.Title>
-      <Alert type="info" showIcon message={pageMeta.blurb} />
-      {catalog && (
-        <Alert type="warning" showIcon message={catalog.engineGapNote} />
-      )}
+      </Typography.Title>
 
       <Card>
         <Space wrap size="large">
@@ -715,8 +711,7 @@ export default function Revenue() {
         }
       >
         {detail && (
-          <Space direction="vertical" size={16} style={{ width: "100%" }}>
-            <Alert type="warning" showIcon message={detail.engineGapNote} />
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <Descriptions column={2} bordered size="small">
               <Descriptions.Item label="流水号">
                 {detail.entry.entryId}
@@ -756,9 +751,9 @@ export default function Revenue() {
                 bps（只读展示）
               </Descriptions.Item>
               <Descriptions.Item label="分配">
-                {allocLabel[detail.entry.allocationStatus]} ·{" "}
+                {allocLabel[detail.entry.allocationStatus]} 只{" "}
                 {detail.entry.allocationKind === "inspection" ? "巡查" : "销售"}{" "}
-                · {detail.entry.beneficiaryName}
+                只 {detail.entry.beneficiaryName}
               </Descriptions.Item>
               <Descriptions.Item label="结算">
                 <Tag color={settleColor[detail.entry.settlementStatus]}>
@@ -932,7 +927,7 @@ export default function Revenue() {
       </Modal>
 
       <Typography.Paragraph type="secondary">
-        返回 <Link to="/">首页</Link> · 出金见{" "}
+        返回 <Link to="/">首页</Link> 只 出金见{" "}
         <Link to="/withdrawals">提现审核与打款</Link>
         。金额界面按元展示（存分）；写操作须原因/版本/幂等/确认。
       </Typography.Paragraph>

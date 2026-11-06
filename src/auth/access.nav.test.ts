@@ -33,9 +33,9 @@ describe("adminNavGroups §4.3 信息架构", () => {
       "/materials/video",
     ]);
     expect(materials.children.map((c) => c.label)).toEqual([
-      "图片素材",
-      "图文素材",
-      "视频素材",
+      "图片素材（开发中）",
+      "图文素材（开发中）",
+      "视频素材（开发中）",
     ]);
     const partner = adminNavGroups.find((g) => g.key === "partner")!;
     expect(partner.children.map((c) => c.path)).toEqual([

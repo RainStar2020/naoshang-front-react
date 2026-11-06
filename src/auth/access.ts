@@ -106,7 +106,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       // },
       {
         path: "/announcements",
-        label: "公告",
+        label: "公告（开发中）",
         permission: "announcements:access",
         icon: "announcements",
       },
@@ -175,19 +175,19 @@ export const adminNavGroups: AdminNavGroup[] = [
     children: [
       {
         path: "/materials/image",
-        label: "图片素材",
+        label: "图片素材（开发中）",
         permission: "materials:access",
         icon: "materials-image",
       },
       {
         path: "/materials/article",
-        label: "图文素材",
+        label: "图文素材（开发中）",
         permission: "materials:access",
         icon: "materials-article",
       },
       {
         path: "/materials/video",
-        label: "视频素材",
+        label: "视频素材（开发中）",
         permission: "materials:access",
         icon: "materials-video",
       },

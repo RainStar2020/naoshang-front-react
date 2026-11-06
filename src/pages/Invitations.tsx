@@ -166,6 +166,10 @@ export default function Invitations() {
       setSubmitError("请选择允许的新介绍人");
       return;
     }
+    if (!reason.trim()) {
+      setSubmitError("请填写操作原因");
+      return;
+    }
     setSubmitError("");
     setPending({
       action,
@@ -173,7 +177,7 @@ export default function Invitations() {
       targetAccountId: action === "unbind" ? null : targetId!,
       version: editing.version,
       graphVersion: editing.graphVersion,
-      reason: reason.trim() || "（无备注）",
+      reason: reason.trim(),
       idempotencyKey: crypto.randomUUID(),
     });
   }
@@ -413,10 +417,6 @@ export default function Invitations() {
               ]}
             />
             {actionButtons(detail.relation)}
-            <Alert
-              type="info"
-              message="团队人数来自服务完整关系结果，仅用于关系查询，不参与晋升进度或收益计算。历史记录包括本人变更及作为前后介绍人的关联变更。"
-            />
             <Tabs
               items={[
                 {
@@ -632,14 +632,6 @@ export default function Invitations() {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
-            <Alert
-              type="warning"
-              message={
-                action === "unbind"
-                  ? "解绑后暂无介绍人；保留注册首次绑定，不改历史收益。"
-                  : "排除本人、当前介绍人、下级和冻结目标；服务提交时再次校验，避免循环。"
-              }
-            />
             {submitError && !pending && (
               <Alert type="error" message={submitError} />
             )}
@@ -694,10 +686,6 @@ export default function Invitations() {
               <br />
               请求号：{pending.idempotencyKey}
             </Typography.Paragraph>
-            <Alert
-              type="info"
-              message="Mock服务确认后立即生效，生效时间由服务记录；不回写注册首次绑定或历史收益。"
-            />
             {submitError && <Alert type="error" message={submitError} />}
           </Space>
         )}

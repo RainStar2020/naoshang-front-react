@@ -215,12 +215,19 @@ it('非法区域、版本冲突、原因必填、草稿删除与下线', async (
     shareUrlTemplate: '',
   })).rejects.toMatchObject({ code: 'VERSION_CONFLICT' })
 
-  // 备注可选：空 reason 由 mock 回填为「（无备注）」
-  const off = await service.mutate(token, {
+  // 备注必填：空 reason 由 mock/前端拒绝
+  await expect(service.mutate(token, {
     action: 'offline',
     materialId: 'pm-image-poster-1',
     version: 2,
     reason: '',
+    idempotencyKey: crypto.randomUUID(),
+  })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  const off = await service.mutate(token, {
+    action: 'offline',
+    materialId: 'pm-image-poster-1',
+    version: 2,
+    reason: '总部下线',
     idempotencyKey: crypto.randomUUID(),
   })
   expect(off.template.status).toBe('OFFLINE')

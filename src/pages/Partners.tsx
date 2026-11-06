@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
@@ -35,6 +35,7 @@ import {
 import CmsContentEditor from "../components/CmsContentEditor";
 import { hasContent, nodeText } from "../utils/richContent";
 import { formatUserDate } from "../components/UserDetailDrawer";
+import { visiblePartnerCatalogAudit } from "../utils/partnerCatalogAudit";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 const statuses = {
   ACTIVE: "年度权益正常",
@@ -97,6 +98,7 @@ const actions = {
   "save-level-names": "保存等级名称",
   "task-promotion": "用户任务晋升",
 };
+
 export default function Partners() {
   const { session } = useAuth();
   const { token, account } = session!;
@@ -124,6 +126,10 @@ export default function Partners() {
     [submitError, setSubmitError] = useState(""),
     [blocked, setBlocked] = useState(false);
   const [api, holder] = message.useMessage();
+  const visibleCatalogAudit = useMemo(
+    () => visiblePartnerCatalogAudit(catalog?.audit),
+    [catalog?.audit],
+  );
   useEffect(() => {
     let alive = true;
     setError("");
@@ -199,11 +205,15 @@ export default function Partners() {
   };
   const confirm = async () => {
     if (!pending) return;
+    if (!reason.trim()) {
+      setSubmitError("请填写操作原因");
+      return;
+    }
     setBusy(true);
     try {
       await service.mutate(token, {
         ...pending,
-        reason: reason.trim() || "（无备注）",
+        reason: reason.trim(),
       });
       setCatalog(await service.catalog(token));
       setPending(null);
@@ -449,10 +459,7 @@ export default function Partners() {
                   )
                 }
               >
-                <Alert
-                  type="info"
-                  message="列表以服务端 partnerLevels + benefits 为准；编码稳定为 DEMO-VIP/ANGEL/BOARD/FOUNDER，展示名可配置（默认 VIP/天使/私董/联创）。"
-                />
+
                 <Table
                   rowKey="partnerLevel"
                   dataSource={catalog?.levels ?? []}
@@ -515,10 +522,7 @@ export default function Partners() {
             label: `晋升回执（${(catalog?.receipts ?? []).length}）`,
             children: (
               <Card title="总部人工升级与用户任务晋升回执">
-                <Alert
-                  type="info"
-                  message="直推任务必须由小程序账号主动提交，不在页面加载时自动晋升，不在总部提供代领按钮。任务资格与进度由API返回，结果未知时沿用原请求号。"
-                />
+
                 <Table
                   rowKey="receiptId"
                   dataSource={catalog?.receipts ?? []}
@@ -591,11 +595,11 @@ export default function Partners() {
           },
           {
             key: "audit",
-            label: `操作记录（${(catalog?.audit ?? []).length}）`,
+            label: `操作记录（${visibleCatalogAudit.length}）`,
             children: (
               <Table
                 rowKey="operationId"
-                dataSource={catalog?.audit ?? []}
+                dataSource={visibleCatalogAudit}
                 scroll={{ x: 1000 }}
                 columns={[
                   {
@@ -652,10 +656,7 @@ export default function Partners() {
             <Card loading />
           ) : (
             <Space direction="vertical" size={20} style={{ width: "100%" }}>
-              <Alert
-                type="info"
-                message="介绍人、年度状态和任务资格只读展示；总部人工升级不使用个人名额，也不自动续开年度权益。"
-              />
+
               {canUpgrade &&
                 (profile.allowedActions ?? []).includes("manual-upgrade") && (
                   <Button type="primary" onClick={() => startUpgrade(profile)}>
@@ -877,10 +878,7 @@ export default function Partners() {
                 label: levelName(value),
               }))}
             />
-            <Alert
-              type="warning"
-              message="独立总部人工处理，不使用介绍人或总部个人名额，不收服务费、不续年度、不改变历史收益和学习权益。"
-            />
+
           </Space>
         </Modal>
       )}
@@ -905,10 +903,7 @@ export default function Partners() {
           cancelText="取消"
         >
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
-            <Alert
-              type="info"
-              message="只修改展示摘要和正文；等级编码与其它业务规则保持服务端配置。"
-            />
+
             <Input.TextArea
               aria-label="合伙等级说明摘要"
               rows={2}
@@ -956,10 +951,7 @@ export default function Partners() {
           cancelText="取消"
         >
           <Space direction="vertical" size={12} style={{ width: "100%" }}>
-            <Alert
-              type="info"
-              message="仅改展示名，不改稳定编码。四档须同时保存。"
-            />
+
             {partnerLevels.map((level) => {
               const row = levelNames.find(
                 (item) => item.partnerLevel === level,
@@ -1021,7 +1013,7 @@ export default function Partners() {
             rows={3}
             maxLength={200}
             showCount
-            placeholder="选填，可留空"
+            placeholder="请填写操作原因"
             value={reason}
             disabled={busy || blocked}
             onChange={(event) => setReason(event.target.value)}

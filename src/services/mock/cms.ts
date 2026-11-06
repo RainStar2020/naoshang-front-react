@@ -66,7 +66,7 @@ function validateCourse(value: CmsCourseDraft, publish: boolean) {
 export function mockCmsMutate(input: CmsMutation, operator: HqAccount): CmsCatalog {
   if (!input.idempotencyKey) fail('INVALID_INPUT', '请填写1–200字操作原因')
   if (input.reason.trim().length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因')
-  if (!input.reason.trim()) input = { ...input, reason: '（无备注）' }
+  if (!input.reason.trim()) throw new CmsError('INVALID_INPUT', '请填写操作原因')
   const key = `${operator.accountId}:${input.idempotencyKey}`
   const payload = JSON.stringify(input)
   const previous = operations.get(key)

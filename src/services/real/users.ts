@@ -79,7 +79,28 @@ function businessContextsOf(r: Record<string, unknown>, profile: Record<string, 
 }
 
 
-/** Flatten API scalars/objects (e.g. {frozen, note}) into table-safe display text. */
+/** True when an object looks like a store-binding snapshot from HQ users audit. */
+function isStoreBindingSnapshot(row: Record<string, unknown>): boolean {
+  if ('bound' in row) return true
+  if ('storeName' in row || 'storeCode' in row || 'storeNo' in row) return true
+  if ('storeId' in row && ('label' in row || 'boundBy' in row || 'boundAt' in row || 'source' in row || 'required' in row)) return true
+  return false
+}
+
+/** Short label for bind/unbind/change-store audit snapshots. */
+function formatStoreBindingSnapshot(row: Record<string, unknown>): string {
+  if (row.bound === false || row.bound === 'false' || row.bound === 0 || row.bound === '0') return '未绑定'
+  const name = str(row.storeName || row.label || row.name)
+  const code = str(row.storeCode || row.storeNo)
+  if (!name && !code) return '未绑定'
+  if (name && code && name !== code) return `${name}（${code}）`
+  return name || code
+}
+
+/**
+ * Flatten API scalars/objects into table-safe short display text.
+ * Store-binding snapshots prefer storeName/label (+ optional storeCode), not internal ids.
+ */
 export function displayValue(value: unknown): string {
   if (value == null || value === '') return '—'
   if (typeof value === 'string') return value
@@ -89,19 +110,47 @@ export function displayValue(value: unknown): string {
     return parts.length ? parts.join('、') : '—'
   }
   const row = record(value)
+
+  // Freeze / note snapshots take priority over incidental storeId fields.
   if ('frozen' in row || 'note' in row) {
     const parts: string[] = []
     if ('frozen' in row) parts.push(bool(row.frozen) ? '冻结' : '正常')
     const note = str(row.note)
     if (note) parts.push(`备注：${note}`)
-    for (const [key, nested] of Object.entries(row)) {
-      if (key === 'frozen' || key === 'note') continue
-      const text = displayValue(nested)
-      if (text && text !== '—') parts.push(`${key}：${text}`)
-    }
+    // Ignore leftover internal keys on freeze/note snapshots — keep the cell short.
     return parts.join('；') || '—'
   }
+
+  // Real HQ audit for bind-store: { binding: { bound, storeName, ... } }
+  if ('binding' in row) {
+    const bindingRow = record(row.binding)
+    if (isStoreBindingSnapshot(bindingRow) || row.binding == null) {
+      const extraKeys = Object.keys(row).filter((key) => key !== 'binding')
+      const bindingText = row.binding == null ? '未绑定' : formatStoreBindingSnapshot(bindingRow)
+      if (!extraKeys.length) return bindingText
+      const extras = extraKeys.map((key) => {
+        const text = displayValue(row[key])
+        return text && text !== '—' ? `${key}：${text}` : ''
+      }).filter(Boolean)
+      return extras.length ? `${bindingText}；${extras.join('；')}` : bindingText
+    }
+  }
+
+  if (isStoreBindingSnapshot(row)) return formatStoreBindingSnapshot(row)
+
+  const displayId = str(row.displayId || row.userNo)
+  if (displayId) return displayId
+
+  const preferredKeys = ['storeName', 'label', 'name', 'nickname', 'phone', 'status', 'reason', 'summary', 'title'] as const
+  for (const key of preferredKeys) {
+    const text = displayValue(row[key])
+    if (text && text !== '—') return text
+  }
+
+  // Last resort: only surface a few non-id human fields, never dump the whole object.
+  const skipped = new Set(['storeId', 'ownerId', 'boundBy', 'boundAt', 'source', 'required', 'operatorId', 'accountId', 'requestId', 'id', 'version'])
   const parts = Object.entries(row).map(([key, nested]) => {
+    if (skipped.has(key)) return ''
     const text = displayValue(nested)
     return text && text !== '—' ? `${key}：${text}` : ''
   }).filter(Boolean)
@@ -125,7 +174,7 @@ function frozenFlag(raw: unknown): boolean | null {
 
 function mapAuditAction(raw: unknown): UserMutation['action'] {
   const value = str(raw).toLowerCase()
-  if (value === 'change-store' || value === 'change_store' || value === 'bind-store') return 'change-store'
+  if (value === 'change-store' || value === 'change_store' || value === 'bind-store' || value === 'unbind-store' || value === 'unbind_store') return 'change-store'
   if (value === 'reset-password' || value === 'reset_password') return 'reset-password'
   if (value === 'change-display-id' || value === 'change_display_id' || value === 'update-display-id') return 'change-display-id'
   return 'freeze'

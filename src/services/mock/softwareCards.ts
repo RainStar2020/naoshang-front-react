@@ -61,7 +61,7 @@ function select(items: SoftwareSelection[]) {
   if (!items.length || items.length > limits.maxSelectionSize || new Set(items.map(item => item.cardId)).size !== items.length) fail('INVALID_INPUT', '请选择不重复的软件卡，不能超过服务返回的操作上限')
   return items.map(item => { const card = find(item.cardId); if (card.version !== item.version) fail('VERSION_CONFLICT', '卡库存已更新，请刷新后重试'); return card })
 }
-function reason(value: string) { const t = value?.trim() || ''; if (t.length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因'); return t || '（无备注）' }
+function reason(value: string) { const t = value?.trim() || ''; if (t.length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因'); if (!t) fail('INVALID_INPUT', '请填写操作原因'); return t }
 function addAudit(action: SoftwareAudit['action'], cardIds: string[], batchId: string | null, typeId: string | null, input: { reason: string; idempotencyKey: string }, operator: HqAccount, before: string, after: string) {
   const entry: SoftwareAudit = { operationId: crypto.randomUUID(), requestId: input.idempotencyKey, action, cardIds, batchId, typeId, reason: input.reason.trim(), operatorId: operator.accountId, operatorName: operator.nickname, before, after, occurredAt: new Date().toISOString() }
   audit.push(entry); return entry

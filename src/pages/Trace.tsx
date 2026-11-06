@@ -180,7 +180,7 @@ export default function Trace() {
             <span>{content}</span>
             <Input.TextArea
               rows={2}
-              placeholder="选填，可留空"
+              placeholder="请填写操作原因"
               onChange={(e) => { reason = e.target.value }}
             />
           </Space>
@@ -188,7 +188,8 @@ export default function Trace() {
         okText: '确认',
         cancelText: '取消',
         onOk: async () => {
-          const trimmed = reason.trim() || '（无备注）'
+          const trimmed = reason.trim()
+if (!trimmed) { message.error('请填写操作原因'); return }
           setBusy(true)
           try {
             const result = await traceService.mutate(token, { ...input, reason: trimmed })
@@ -210,10 +211,7 @@ export default function Trace() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>通用资源与操作追溯（HQ-26）</Typography.Title>
-      <Alert type="warning" showIcon message="HQ-26：通用资源与操作审计聚合" description={catalog?.unifiedAuditGapNote} />
-      <Alert type="info" showIcon message="上传契约" description={catalog?.uploadContractNote} />
-      <Alert type="info" showIcon message="边界" description={catalog?.noTicketNote} />
+      <Typography.Title level={3} style={{ margin: 0 }}>通用资源与操作追溯</Typography.Title>
 
       <Space size={32} wrap>
         <Statistic title="上传资源" value={catalog?.resourceSummary.total ?? 0} />
@@ -531,7 +529,7 @@ export default function Trace() {
         ]}
       />
       <Typography.Paragraph type="secondary">
-        HQ-26：上传三步（intent→字节→completion）仅 READY 可绑定；隔离/恢复须原因/版本/幂等/确认。本页非客服工单；审计为聚合只读视图。
+        查看上传任务与操作审计。
       </Typography.Paragraph>
     </Space>
   )

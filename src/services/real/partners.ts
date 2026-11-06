@@ -130,6 +130,22 @@ function asReceiptSource(value: unknown): PartnerReceipt['source'] {
 
 function asAuditAction(value: unknown): PartnerAudit['action'] {
   const raw = str(value, 'upgrade').toLowerCase().replace(/_/g, '-')
+  const aliases: Record<string, PartnerAudit['action']> = {
+    'save-benefits': 'save-benefits',
+    'savebenefits': 'save-benefits',
+    'save-level-desc': 'save-benefits',
+    'save-level-description': 'save-benefits',
+    'update-level-benefits': 'save-benefits',
+    'updatelevelbenefits': 'save-benefits',
+    'save-level-names': 'save-level-names',
+    'savelevelnames': 'save-level-names',
+    'task-promotion': 'task-promotion',
+    'taskpromotion': 'task-promotion',
+    upgrade: 'upgrade',
+    'manual-upgrade': 'upgrade',
+    promote: 'upgrade',
+  }
+  if (aliases[raw]) return aliases[raw]
   return (AUDIT_ACTIONS.has(raw) ? raw : 'upgrade') as PartnerAudit['action']
 }
 

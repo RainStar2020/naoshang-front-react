@@ -69,7 +69,7 @@ export function mockUserDetail(id: string): UserDetail {
 export async function mockMutateUser(input: UserMutation, operator: HqAccount): Promise<UserMutationResult> {
   if (!input.idempotencyKey) fail('INVALID_INPUT', '请填写1–200字操作原因和有效请求号')
   if (input.reason.trim().length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因和有效请求号')
-  if (!input.reason.trim()) input = { ...input, reason: '（无备注）' }
+  if (!input.reason.trim()) fail('INVALID_INPUT', '请填写操作原因')
   if (input.action === 'reset-password' && (input.newPassword.length < 6 || input.newPassword.length > 32 || /\s/.test(input.newPassword))) fail('INVALID_INPUT', '密码需为6–32位且不包含空格')
   // 摘要用于校验同一请求是否改变参数；不在 Mock 结果、操作历史或存储中保存明文密码。
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(input)))

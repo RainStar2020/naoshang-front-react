@@ -7,29 +7,10 @@ import type { UserDetail } from '../types/users'
 import UserActionModal, { type UserActionRequest } from './UserActionModal'
 import StoreBindingModal from './StoreBindingModal'
 import { downloadCsv } from '../utils/csv'
+import { displayValue } from '../services/real/users'
 
 export const formatUserDate = (value: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Shanghai', hour12: false }).format(new Date(value)) : '—'
-const safeText = (value: unknown): string => {
-  if (value == null || value === '') return '—'
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
-  if (Array.isArray(value)) return value.map(safeText).filter((item) => item && item !== '—').join('、') || '—'
-  if (typeof value === 'object') {
-    const row = value as Record<string, unknown>
-    if ('frozen' in row || 'note' in row) {
-      const parts: string[] = []
-      if ('frozen' in row) parts.push(row.frozen ? '冻结' : '正常')
-      if (row.note != null && String(row.note).trim()) parts.push(`备注：${String(row.note)}`)
-      for (const [key, nested] of Object.entries(row)) {
-        if (key === 'frozen' || key === 'note') continue
-        const text = safeText(nested)
-        if (text && text !== '—') parts.push(`${key}：${text}`)
-      }
-      return parts.join('；') || '—'
-    }
-    try { return JSON.stringify(value) } catch { return '—' }
-  }
-  return '—'
-}
+const safeText = displayValue
 const auditRowKey = (item: { operationId?: string; requestId?: string }, index?: number) => item.operationId || item.requestId || `audit-${index ?? 0}`
 const actionLabels: Record<string, string> = { freeze: '冻结状态变更', unfreeze: '冻结状态变更', 'update-note': '备注变更', 'change-store': '所属门店变更', 'reset-password': '模拟密码重置', 'change-display-id': '账号编号变更' }
 
@@ -69,7 +50,6 @@ export default function UserDetailDrawer({ accountId, token, refresh, onClose, o
         { title: '变更前', key: 'before', render: (_, item) => safeText(item.before) }, { title: '变更后', key: 'after', render: (_, item) => safeText(item.after) }, { title: '备注', key: 'reason', render: (_, item) => safeText(item.reason) }, { title: '请求号', key: 'requestId', render: (_, item) => safeText(item.requestId) },
         { title: '操作人', key: 'operatorName', width: 120, render: (_, item) => safeText(item.operatorName) }, { title: '操作人ID', key: 'operatorId', width: 140, render: (_, item) => safeText(item.operatorId) },
       ]} /></div>
-      <Alert type="info" showIcon message="本模块不提供收货地址编辑；孩子会员档案、经营身份调整及订单历史由对应模块处理。" />
     </Space>}
     {storeBindingOpen && account && <StoreBindingModal accountId={account.accountId} accountLabel={`${account.nickname} · ${account.phone}`} mode="bind" token={token} onClose={() => setStoreBindingOpen(false)} onDone={() => { setStoreBindingOpen(false); setRetry(v => v + 1); onMutated?.() }} />}
     {action && <UserActionModal request={action} stores={[]} token={token} onClose={() => setAction(null)} onRefresh={() => { setAction(null); setRetry(v => v + 1); onMutated?.() }} onDone={() => { setAction(null); setRetry(v => v + 1); onMutated?.() }} />}

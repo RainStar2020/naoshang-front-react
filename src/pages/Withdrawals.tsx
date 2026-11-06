@@ -179,6 +179,10 @@ export default function Withdrawals() {
 
   const submit = async () => {
     if (!pending) return
+    if (!reason.trim()) {
+      setSubmitError('请填写操作原因')
+      return
+    }
     setBusy(true)
     setSubmitError('')
     try {
@@ -188,10 +192,10 @@ export default function Withdrawals() {
           ...pending,
           receipt,
           voucherUrl: receipt === 'SUCCESS' ? voucherUrl.trim() || undefined : undefined,
-          reason: reason.trim() || '（无备注）',
+          reason: reason.trim(),
         }
       } else {
-        input = { ...pending, reason: reason.trim() || '（无备注）' }
+        input = { ...pending, reason: reason.trim() }
       }
       const result = await withdrawalService.mutate(token, input)
       message.success(
@@ -345,16 +349,9 @@ export default function Withdrawals() {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         提现审核与打款回执
-      </Typography.Title>
-      <Alert
-        type="info"
-        showIcon
-        message="HQ-23：与「查看收益」分开。审核同意后仅为处理中，须登记服务端/通道回执才到「已完成」；勿伪造打款渠道终态。费率/最低额/自动打款政策待定。拒绝不在本页改可提现余额；个人提现表单仍在小程序。"
-      />
+      </Typography.Title>
       {catalog && (
-        <>
-          <Alert type="warning" showIcon message={catalog.payoutGapNote || '打款由服务端/支付通道执行：总部仅审核与登记回执。'} />
-          <Alert type="info" showIcon message={catalog.pendingPolicy?.note || '最低提现额、手续费费率、人工/自动打款层级尚待定。'} />
+        <>
         </>
       )}
 
@@ -480,9 +477,7 @@ export default function Withdrawals() {
         }
       >
         {detail && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Alert type="warning" showIcon message={detail.payoutGapNote} />
-            <Alert type="info" showIcon message={detail.balanceNote} />
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="申请单号">{detail.application.redemptionNo || '—'}</Descriptions.Item>
               <Descriptions.Item label="状态">
@@ -563,12 +558,7 @@ export default function Withdrawals() {
         okText="确认提交"
         destroyOnClose
       >
-        <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <Alert
-            type="info"
-            showIcon
-            message="写操作铁律：原因必填、版本与幂等；同意≠到账；成功回执仅登记服务端结果，前端不执行打款、不改余额。"
-          />
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
           {pending?.action === 'register-receipt' && (
             <>
               <Radio.Group value={receipt} onChange={(e) => setReceipt(e.target.value)}>
@@ -586,7 +576,7 @@ export default function Withdrawals() {
           )}
           <Input.TextArea
             rows={3}
-            placeholder="选填，可留空"
+            placeholder="请填写操作原因"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
@@ -595,7 +585,7 @@ export default function Withdrawals() {
       </Modal>
 
       <Typography.Paragraph type="secondary">
-        返回 <Link to="/">首页</Link> · 收益联查见 <Link to="/revenue/settlement">结算重算与冲正</Link>。金额单位为元（接口原样，不做分换算）；写操作须原因/版本/幂等/确认；费用快照非正式政策。
+        返回 <Link to="/">首页</Link> · 收益联查见 <Link to="/revenue/settlement">结算重算与冲正</Link>。
       </Typography.Paragraph>
     </Space>
   )

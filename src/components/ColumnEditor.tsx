@@ -27,8 +27,7 @@ export default function ColumnEditor({ column, catalog, token, onClose, onSave }
   const move = (index: number, delta: number) => { const chapters = [...draft.chapters]; [chapters[index], chapters[index + delta]] = [chapters[index + delta], chapters[index]]; change({ chapters }) }
   const upload = (file: File) => columnsService.upload(token, file)
   const save = () => { if (!draft.title.trim() || !draft.productId) { setError('请填写专栏名称并选择关联商品'); return } onSave({ action: 'save', columnId: draft.columnId, version: column?.version ?? 1, value: draft, reason: '', idempotencyKey: '' }) }
-  return <Modal open width={1100} title={column ? '编辑专栏草稿' : '新建专栏'} onCancel={onClose} onOk={save} okText="核对并保存专栏" cancelText="取消" maskClosable={false}>
-    <Alert type="info" message="保存仅更新草稿。专栏绑定账号权益，不归属孩子会员等级；发布后的商品关联锁定，避免改写历史订单。" />
+  return <Modal open width={1100} title={column ? '编辑专栏草稿' : '新建专栏'} onCancel={onClose} onOk={save} okText="核对并保存专栏" cancelText="取消" maskClosable={false}>
     {error && <Alert type="error" message={error} style={{ marginTop: 12 }} />}
     <div className="cms-form-grid" style={{ marginTop: 16 }}><label>专栏名称<Input aria-label="专栏名称" value={draft.title} maxLength={60} onChange={event => change({ title: event.target.value })} /></label><label style={{ gridColumn: 'span 2' }}>关联专栏商品<Select aria-label="关联专栏商品" disabled={!!column?.publication} value={draft.productId || undefined} placeholder="选择COLUMN_ACCESS类型演示商品" style={{ width: '100%' }} options={catalog.products.map(product => ({ value: product.productId, label: product.title, disabled: catalog.columns.some(item => item.draft.columnId !== draft.columnId && item.draft.productId === product.productId) }))} onChange={productId => change({ productId })} /></label></div>
     <Typography.Title level={5}>专栏简介</Typography.Title><Input.TextArea aria-label="专栏简介" value={draft.summary} maxLength={500} rows={2} onChange={event => change({ summary: event.target.value })} />

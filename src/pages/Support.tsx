@@ -175,14 +175,7 @@ export default function Support() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>协议与客服预留（HQ-25）</Typography.Title>
-      <Alert
-        type="warning"
-        showIcon
-        message="HQ-25：仅协议与反馈预留，不扩成完整客服工单"
-        description={catalog?.fullCsGapNote ?? '总部仅配置联系电话与说明；小程序「联系客服」拨号或引导意见反馈。'}
-      />
-      <Alert type="info" showIcon message="协议口径" description={catalog?.agreementNote} />
+      <Typography.Title level={3} style={{ margin: 0 }}>协议与客服预留</Typography.Title>
 
       <Space size={48} wrap>
         <Statistic title="协议条数" value={catalog?.agreements.length ?? 0} />
@@ -250,7 +243,7 @@ export default function Support() {
                                       <span>将发布「{row.title}」，同类型已发布版本会自动下线。</span>
                                       <Input.TextArea
                                         id="pub-reason"
-                                        placeholder="选填，可留空"
+                                        placeholder="请填写操作原因"
                                         rows={2}
                                         onChange={(e) => { (window as unknown as { __pubReason?: string }).__pubReason = e.target.value }}
                                       />
@@ -258,7 +251,8 @@ export default function Support() {
                                   ),
                                   okText: '确认发布',
                                   onOk: async () => {
-                                    const reason = (((window as unknown as { __pubReason?: string }).__pubReason ?? '').trim() || '（无备注）')
+                                    const reason = (((window as unknown as { __pubReason?: string }).__pubReason ?? '').trim())
+    if (!reason) { message.error('请填写操作原因'); return }
                                     setBusy(true)
                                     try {
                                       const result = await supportService.mutate(token, {
@@ -296,7 +290,7 @@ export default function Support() {
                                       <span>下线后小程序应展示「内容暂未发布」。</span>
                                       <Input.TextArea
                                         id="off-reason"
-                                        placeholder="选填，可留空"
+                                        placeholder="请填写操作原因"
                                         rows={2}
                                         onChange={(e) => { (window as unknown as { __offReason?: string }).__offReason = e.target.value }}
                                       />
@@ -304,7 +298,8 @@ export default function Support() {
                                   ),
                                   okText: '确认下线',
                                   onOk: async () => {
-                                    const reason = (((window as unknown as { __offReason?: string }).__offReason ?? '').trim() || '（无备注）')
+                                    const reason = (((window as unknown as { __offReason?: string }).__offReason ?? '').trim())
+    if (!reason) { message.error('请填写操作原因'); return }
                                     setBusy(true)
                                     try {
                                       const result = await supportService.mutate(token, {
@@ -496,7 +491,7 @@ export default function Support() {
           <Form.Item name="bodyText" label="正文（纯文本，按空行分段）" rules={[{ required: true, message: '请填写正文' }]}>
             <Input.TextArea rows={10} />
           </Form.Item>
-          <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
+          <Form.Item name="reason" label="备注" rules={[{ required: true, whitespace: true, message: "请填写操作原因" }, { max: 200, message: "操作原因不能超过200字" }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -526,7 +521,6 @@ export default function Support() {
         }}
         destroyOnClose
       >
-        <Alert type="warning" style={{ marginBottom: 12 }} message="完整客服系统仍为缺口，本配置只服务小程序「联系客服」拨号与反馈上限。" />
         <Form form={configForm} layout="vertical">
           <Form.Item name="phone" label="客服电话（可留空；填写时用数字）">
             <Input maxLength={20} placeholder="如 4008001234" />
@@ -541,7 +535,7 @@ export default function Support() {
           >
             <InputNumber min={0} max={9} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
+          <Form.Item name="reason" label="备注" rules={[{ required: true, whitespace: true, message: "请填写操作原因" }, { max: 200, message: "操作原因不能超过200字" }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -582,13 +576,13 @@ export default function Support() {
           <Form.Item name="handleNote" label="处理说明" rules={[{ required: true, message: '请填写处理说明' }]}>
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
+          <Form.Item name="reason" label="备注" rules={[{ required: true, whitespace: true, message: "请填写操作原因" }, { max: 200, message: "操作原因不能超过200字" }]}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
       </Modal>
       <Typography.Paragraph type="secondary">
-        HQ-25 边界：用户/隐私协议发布下线 + 联系客服入口配置 + 意见反馈查阅处理；非坐席工单/非 BI。写操作须原因/版本/幂等/确认。
+        维护用户/隐私协议，配置联系客服入口，并处理意见反馈。
       </Typography.Paragraph>
     </Space>
   )

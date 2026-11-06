@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserMutation } from '../types/users'
 
 let service: typeof import('./users')['usersService']
@@ -114,9 +114,8 @@ describe('写入、追溯与防重复操作', () => {
     }
     expect((await service.detail(token, 'account-1')).audit).toHaveLength(0)
   })
-  it('备注可留空，超长仍拒绝', async () => {
-    const blank = await service.mutate(token, change({ reason: '  ' }))
-    expect(blank.operation.reason).toBe('（无备注）')
+  it('备注必填，超长仍拒绝', async () => {
+    await expect(service.mutate(token, change({ reason: '  ' }))).rejects.toMatchObject({ code: 'INVALID_INPUT' })
     await expect(service.mutate(token, change({ reason: '字'.repeat(201), idempotencyKey: crypto.randomUUID() }))).rejects.toMatchObject({ code: 'INVALID_INPUT' })
   })
   it('模拟密码重置不回显密码，幂等重试不重复产生流水', async () => {

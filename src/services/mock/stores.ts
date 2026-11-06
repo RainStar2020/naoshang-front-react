@@ -171,7 +171,7 @@ function view(storeId: string): StoreProfile {
 function ensureReason(reason: string, key: string) {
   let text = (reason ?? '').trim()
   if (Array.from(text).length > 200) fail('INVALID_INPUT', '备注不能超过200字')
-  if (!text) text = '（无备注）'
+  if (!text) fail('INVALID_INPUT', '请填写操作原因')
   if (!key?.trim()) fail('INVALID_INPUT', '请填写请求号')
   return text
 }

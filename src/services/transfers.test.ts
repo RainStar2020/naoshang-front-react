@@ -49,7 +49,7 @@ it('详情提示双方同意不等于已迁移；不暴露密码', async () => {
   expect(JSON.stringify(detail)).not.toMatch(/password|Demo@/i)
 })
 
-it('查询账号不可仲裁；备注选填；成功后状态为 REJECTED 且不伪造迁移', async () => {
+it('查询账号不可仲裁；备注必填；成功后状态为 REJECTED 且不伪造迁移', async () => {
   const viewer = (await auth.login({ loginAccount: 'hq-transfers-viewer', password: 'Demo@123456' })).token
   const draft: TransferMutation = {
     action: 'force-reject',

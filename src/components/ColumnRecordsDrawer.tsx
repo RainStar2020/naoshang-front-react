@@ -11,7 +11,6 @@ export default function ColumnRecordsDrawer({ column, catalog, token, onClose }:
   const [retry, setRetry] = useState(0)
   useEffect(() => { let alive = true; setRecords(null); setError(null); columnsService.records(token, column.draft.columnId, accountId).then(value => { if (alive) setRecords(value) }).catch(err => { if (alive) setError(err instanceof Error ? err.message : '记录加载失败') }); return () => { alive = false } }, [token, column.draft.columnId, accountId, retry])
   return <Drawer open width={1050} title={`${column.draft.title} · 账号与学习记录`} onClose={onClose}><Space direction="vertical" size={20} style={{ width: '100%' }}>
-    <Alert type="info" showIcon message="专栏权益属于账号。已激活仍可再次购买；购买不自动授权，重复购买不重置已有进度。以下均为Mock记录，无总部代购买、强制激活或进度修改操作。" />
     <Select aria-label="筛选专栏账号" allowClear showSearch optionFilterProp="label" placeholder="按账号昵称 / 手机号查询" style={{ width: '100%' }} value={accountId} onChange={setAccountId} options={catalog.accounts.map(account => ({ value: account.accountId, label: `${account.nickname} · ${account.phone} · ${account.accountId}` }))} />
     {error ? <Alert type="error" message={error} action={<Button onClick={() => setRetry(value => value + 1)}>重试</Button>} /> : !records ? <Spin><div style={{ height: 120 }} /></Spin> : <Tabs items={[
       { key: 'accounts', label: '账号授权与购买次数', children: <Table rowKey="accountId" size="small" dataSource={records.accounts} pagination={{ pageSize: 10 }} scroll={{ x: 750 }} columns={[

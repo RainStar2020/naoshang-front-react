@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { mapPartnerCatalog, mapPartnerDetail, mapPartnerList, mapPartnerProfile, mapPartnerPromotionTask } from './partners'
+import { mapPartnerAudit, mapPartnerCatalog, mapPartnerDetail, mapPartnerList, mapPartnerProfile, mapPartnerPromotionTask } from './partners'
 
 it('mapPartnerCatalog fills missing receipts/levels/audit arrays', () => {
   const catalog = mapPartnerCatalog({})
@@ -237,3 +237,8 @@ it('mapPartnerPromotionTask returns null for empty task', () => {
   expect(mapPartnerPromotionTask(null)).toBeNull()
 })
 
+it('mapPartnerAudit normalizes save-benefits aliases', () => {
+  for (const action of ['save-benefits', 'SAVE_LEVEL_DESC', 'updateLevelBenefits', 'saveBenefits']) {
+    expect(mapPartnerAudit({ operationId: 'x', action, before: { summary: 'a' }, after: { summary: 'b' } }).action).toBe('save-benefits')
+  }
+})

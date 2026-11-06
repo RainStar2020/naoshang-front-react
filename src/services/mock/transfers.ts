@@ -233,7 +233,7 @@ function pushAudit(
 export function mockTransferMutate(input: TransferMutation, account: HqAccount): TransferMutationResult {
   let reason = String(input.reason || '').trim()
   if (Array.from(reason).length > 200) fail('INVALID_INPUT', '备注不能超过 200 字')
-  if (!reason) reason = '（无备注）'
+  if (!reason) throw new TransferError('INVALID_INPUT', '请填写操作原因')
   if (!input.idempotencyKey) fail('INVALID_INPUT', '缺少幂等请求号')
 
   const fingerprint = JSON.stringify(input)

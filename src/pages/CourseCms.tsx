@@ -15,7 +15,6 @@ function CoursePreview({ course, onClose }: { course: CmsCourse; onClose: () => 
   const draft = source === 'draft' ? course.draft : course.publication!.course
   return <Modal open width={850} title="小程序内容预览" footer={null} onCancel={onClose}>
     <Space direction="vertical" size={20} style={{ width: '100%' }}><Select aria-label="预览版本" value={source} onChange={setSource} options={[{ value: 'draft', label: '当前草稿' }, { value: 'published', label: course.status === 'offline' ? '历史发布版本（已下线）' : '已发布版本', disabled: !course.publication }]} />
-      <Alert type="info" message={`当前查看${source === 'draft' ? '草稿，保存后仍需发布' : `发布快照 R${course.publication!.revision}`}。此为内容预览，实际学习权限由API验证。`} />
       <Typography.Title level={3}>{draft.name}</Typography.Title><Typography.Paragraph>{draft.summary}</Typography.Paragraph>
       {draft.covers.map((url, i) => <img key={i} src={cmsService.resolveAsset(url)} alt={`课程封面${i + 1}`} style={{ maxWidth: '100%', maxHeight: 240 }} />)}
       <ContentPreview value={draft.content} resolveUrl={cmsService.resolveAsset} />
@@ -56,7 +55,8 @@ export default function CourseCms() {
     if (!pending) return
     setSubmitting(true); setSubmitError(null)
     try {
-      await cmsService.mutate(token, { ...pending, reason: reason.trim() || '（无备注）' })
+      if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
+await cmsService.mutate(token, { ...pending, reason: reason.trim() })
       setCatalog(await cmsService.catalog(token))
       setPending(null); setCourseEditor(null); setTierEditor(null)
       messageApi.success('Mock操作已完成，操作记录已保存；尚未接通真实小程序API')
@@ -81,7 +81,7 @@ export default function CourseCms() {
           { title: '操作', key: 'action', width: 300, fixed: 'right', render: (_, course) => <Space size={0} wrap><Button type="link" size="small" onClick={() => setPreview(course)}>预览</Button>{edit && <Button type="link" size="small" onClick={() => setCourseEditor(course)}>编辑草稿</Button>}{publish && <><Button type="link" size="small" onClick={() => request({ action: 'publish', targetId: course.draft.levelId, version: course.version, reason: '', idempotencyKey: '' })}>发布</Button>{course.status === 'published' && <Button type="link" danger size="small" onClick={() => request({ action: 'offline', targetId: course.draft.levelId, version: course.version, reason: '', idempotencyKey: '' })}>下线</Button>}</>}</Space> },
         ]} />
       </Card> },
-      { key: 'tiers', label: '会员等级配置', children: <Card variant="borderless" title="会员等级" extra={edit && <Button type="primary" onClick={() => setTierEditor('new')}>新建会员等级</Button>}><Alert style={{ marginBottom: 16 }} type="info" message="会员等级配置独立保存；课程归属以已发布快照为准。总部人工权益仍绑定稳定ID，不因展示名称变化而重新发放。" /><Table<CmsTier> rowKey="membershipTierId" dataSource={catalog.tiers} pagination={false} scroll={{ x: 700 }} columns={[
+      { key: 'tiers', label: '会员等级配置', children: <Card variant="borderless" title="会员等级" extra={edit && <Button type="primary" onClick={() => setTierEditor('new')}>新建会员等级</Button>}><Table<CmsTier> rowKey="membershipTierId" dataSource={catalog.tiers} pagination={false} scroll={{ x: 700 }} columns={[
         { title: '阶层', dataIndex: 'number', width: 70 }, { title: '名称', dataIndex: 'name' }, { title: 'ID', dataIndex: 'membershipTierId', width: 160 }, { title: '简介', dataIndex: 'summary' }, { title: '操作', key: 'actions', width: 160, render: (_, tier) => <Space size={0}><Button type="link" onClick={() => setTierPreview(tier)}>预览</Button>{edit && <Button type="link" onClick={() => setTierEditor(tier)}>编辑</Button>}</Space> },
       ]} /></Card> },
       { key: 'audit', label: `CMS操作记录（${catalog.audit.length}）`, children: <Table rowKey="operationId" size="small" dataSource={catalog.audit} pagination={{ pageSize: 10 }} scroll={{ x: 900 }} columns={[
@@ -98,7 +98,7 @@ export default function CourseCms() {
       <Alert type={pending.action === 'offline' ? 'warning' : 'info'} message={pending.action === 'publish' ? '将当前草稿发布为新版本；等级归属变化会影响发布目录，请确认目标会员等级和章节内容。' : pending.action === 'offline' ? '下线后从可消费目录隐藏；保留历史发布快照、授权记录和学习进度。' : pending.action === 'save-course' ? '仅保存草稿，已发布版本保持不变。' : '保存会员等级展示配置，授权ID保持稳定。'} />
       {submitError && <Alert style={{ marginTop: 12 }} type="error" message={submitError} role="alert" />}
       {blocked && <Button onClick={() => { setPending(null); setCourseEditor(null); setTierEditor(null); setRefresh(value => value + 1) }}>关闭并刷新</Button>}
-      <Input.TextArea aria-label="CMS操作原因" style={{ marginTop: 16 }} disabled={submitting || blocked} rows={3} maxLength={200} showCount placeholder="选填，可留空" value={reason} onChange={event => setReason(event.target.value)} />
+      <Input.TextArea aria-label="CMS操作原因" style={{ marginTop: 16 }} disabled={submitting || blocked} rows={3} maxLength={200} showCount placeholder="请填写操作原因" value={reason} onChange={event => setReason(event.target.value)} />
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>请求号：{pending.idempotencyKey}</Typography.Text>
     </Modal>}
   </Space>

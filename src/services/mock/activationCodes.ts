@@ -69,7 +69,7 @@ function expiry(value: string | null) {
   if (typeof value !== 'string' || !Number.isFinite(Date.parse(value)) || Date.parse(value) <= Date.now()) fail('INVALID_INPUT', '请选择未来的有效期，或明确选择不设到期时间')
   return new Date(value).toISOString()
 }
-function reason(value: string) { const t = typeof value === 'string' ? value.trim() : ''; if (t.length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因'); return t || '（无备注）' }
+function reason(value: string) { const t = typeof value === 'string' ? value.trim() : ''; if (t.length > 200) fail('INVALID_INPUT', '请填写1–200字操作原因'); if (!t) fail('INVALID_INPUT', '请填写操作原因'); return t }
 function selected(items: CodeSelection[]) {
   if (!Array.isArray(items) || !items.length || items.length > limits.maxSelectionSize || new Set(items.map(item => item.codeId)).size !== items.length) fail('INVALID_INPUT', '请选择有效且不重复的激活码，数量不能超过服务返回上限')
   return items.map(item => { const code = find(item.codeId); if (code.version !== item.version) fail('VERSION_CONFLICT', '激活码状态已变化，请刷新后重新操作'); return code })

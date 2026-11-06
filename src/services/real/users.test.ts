@@ -168,6 +168,58 @@ describe('real users displayValue / mapAuditEntry', () => {
       action: 'freeze',
     })
   })
+
+
+  it('formats real bind-store audit before/after as short store labels', () => {
+    const entry = mapAuditEntry({
+      id: 'hqop_226',
+      module: 'users',
+      action: 'bind-store',
+      targetId: 'u_rwkth6',
+      operatorId: 'admin',
+      operatorName: '总部/后台',
+      reason: '总部指派',
+      before: null,
+      after: {
+        binding: {
+          bound: true,
+          storeId: 'ra_310115_S3',
+          storeCode: '310115-S3',
+          storeNo: '310115-S3',
+          storeName: '脑商社区服务店（上海浦东）',
+          ownerId: 'p5',
+          ownerName: '区县代-戊(私董)',
+          boundAt: '2026-11-05T06:11:47.050Z',
+          boundBy: 'admin',
+          source: 'admin',
+          required: true,
+          label: '脑商社区服务店（上海浦东）',
+        },
+      },
+      requestId: null,
+      occurredAt: '2026-11-05T06:11:47.052Z',
+    }, 0, 'u_rwkth6')
+    expect(entry.action).toBe('change-store')
+    expect(entry.before).toBe('—')
+    expect(entry.after).toContain('脑商社区服务店（上海浦东）')
+    expect(entry.after).toContain('310115-S3')
+    expect(entry.after).not.toContain('ownerId')
+    expect(entry.after).not.toContain('boundBy')
+    expect(entry.after).not.toContain('required')
+    expect(entry.after).not.toContain('storeId')
+    expect(entry.after).not.toMatch(/binding\s*[:：]/)
+  })
+
+  it('formats unbound store snapshots as 未绑定', () => {
+    expect(displayValue({ bound: false, storeId: null, storeName: null })).toBe('未绑定')
+    expect(displayValue({ binding: { bound: false } })).toBe('未绑定')
+  })
+
+  it('formats displayId / freeze snapshots without dumping internal fields', () => {
+    expect(displayValue({ displayId: 'QZ0023' })).toBe('QZ0023')
+    expect(displayValue({ frozen: true, note: '风控', storeId: 'ra_1', ownerId: 'p5' })).toBe('冻结；备注：风控')
+  })
+
 })
 
 describe('mapUserStoreBinding', () => {

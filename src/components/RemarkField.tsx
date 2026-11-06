@@ -2,12 +2,12 @@ import type { CSSProperties } from 'react'
 import { Form, Input } from 'antd'
 import type { TextAreaProps } from 'antd/es/input'
 
-/** 共用变更备注：文案「备注」、选填、带字数；字段名默认 reason（与后端契约一致）。 */
+/** 共用变更备注：文案「备注」、必填、带字数；字段名默认 reason（与后端契约一致）。 */
 export function RemarkFormItem({
   name = 'reason',
   maxLength = 200,
   rows = 3,
-  placeholder = '选填，可留空',
+  placeholder = '请填写操作原因',
   disabled,
 }: {
   name?: string
@@ -17,7 +17,14 @@ export function RemarkFormItem({
   disabled?: boolean
 }) {
   return (
-    <Form.Item name={name} label="备注" rules={[{ max: maxLength, message: `备注不能超过${maxLength}字` }]}>
+    <Form.Item
+      name={name}
+      label="备注"
+      rules={[
+        { required: true, whitespace: true, message: '请填写操作原因' },
+        { max: maxLength, message: `备注不能超过${maxLength}字` },
+      ]}
+    >
       <Input.TextArea rows={rows} maxLength={maxLength} showCount placeholder={placeholder} disabled={disabled} />
     </Form.Item>
   )
@@ -28,7 +35,7 @@ export function RemarkTextArea({
   onChange,
   maxLength = 200,
   rows = 3,
-  placeholder = '选填，可留空',
+  placeholder = '请填写操作原因',
   disabled,
   'aria-label': ariaLabel = '备注',
   style,

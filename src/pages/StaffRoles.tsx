@@ -96,41 +96,45 @@ export default function StaffRoles() {
     if (!editingRole || !roleForm || !roleForm.title.trim() || !roleForm.summary.trim() || !roleForm.capabilities.length) {
       setSubmitError('请完善角色标题、说明、能力与原因'); return
     }
+        if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
     setSubmitError('')
     setPending({
       action: 'save-role', roleCode: editingRole.roleCode, title: roleForm.title.trim(), summary: roleForm.summary.trim(),
       capabilities: roleForm.capabilities, allowCrossStore: roleForm.allowCrossStore, version: editingRole.version,
-      reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
+      reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
     })
   }
   function prepareCreate() {
     if (!createForm.storeId || !createForm.displayName.trim() || !createForm.loginAccount.trim()) {
       setSubmitError('请选择门店并填写姓名、登录账号与原因'); return
     }
+        if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
     setSubmitError('')
     setPending({
       action: 'create-assignment', storeId: createForm.storeId, displayName: createForm.displayName.trim(), loginAccount: createForm.loginAccount.trim(),
       roleCode: createForm.roleCode, linkedAccountId: createForm.linkedAccountId.trim() || null, allowCrossStore: createForm.allowCrossStore,
-      markCredentialSet: createForm.markCredentialSet, version: 0, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
+      markCredentialSet: createForm.markCredentialSet, version: 0, reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
     })
   }
   function prepareEdit() {
     if (!editing || !editForm.displayName.trim() || !editForm.loginAccount.trim()) {
       setSubmitError('请填写姓名、登录账号与原因'); return
     }
+        if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
     setSubmitError('')
     setPending({
       action: 'update-assignment', assignmentId: editing.assignmentId, displayName: editForm.displayName.trim(), loginAccount: editForm.loginAccount.trim(),
       roleCode: editForm.roleCode, linkedAccountId: editForm.linkedAccountId.trim() || null, allowCrossStore: editForm.allowCrossStore,
-      version: editing.version, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
+      version: editing.version, reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
     })
   }
   function prepareStatus() {
     if (!statusTarget) { setSubmitError('无可提交操作'); return }
+        if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
     setSubmitError('')
     setPending({
       action: 'set-status', assignmentId: statusTarget.row.assignmentId, status: statusTarget.status,
-      version: statusTarget.row.version, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
+      version: statusTarget.row.version, reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
     })
   }
   async function submit() {
@@ -159,7 +163,7 @@ export default function StaffRoles() {
     <Space style={{ width: '100%', justifyContent: 'space-between' }}>
       <div>
         <Typography.Title level={3} style={{ margin: 0 }}>门店员工</Typography.Title>
-        <Typography.Text type="secondary">门店员工（非 HQ-18 区域代理）：配置角色能力字典并监管任职；不替代门店主档与训练模块，也不替代小程序日常排班。</Typography.Text>
+        <Typography.Text type="secondary">配置门店角色能力字典，并监管员工任职。</Typography.Text>
       </div>
       <Space>
         {canManage && <Button type="primary" onClick={openCreate}>新增任职</Button>}
@@ -254,7 +258,7 @@ export default function StaffRoles() {
         <Input.TextArea aria-label="角色说明" value={roleForm.summary} maxLength={200} showCount onChange={e => setRoleForm(v => v && ({ ...v, summary: e.target.value }))} placeholder="角色说明" />
         <Checkbox.Group options={capabilityOptions} value={roleForm.capabilities} onChange={values => setRoleForm(v => v && ({ ...v, capabilities: values as StoreCapability[] }))} />
         <Space><span>角色默认允许跨店</span><Switch checked={roleForm.allowCrossStore} onChange={allowCrossStore => setRoleForm(v => v && ({ ...v, allowCrossStore }))} /></Space>
-        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="选填，可留空" />
+        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="请填写操作原因" />
         <Alert type="warning" message="不可配置收益/结算类权限；保存后任职生效能力随字典更新。" />
         {submitError && !pending && <Alert type="error" message={submitError} />}
       </Space>}
@@ -269,7 +273,7 @@ export default function StaffRoles() {
         <Input aria-label="关联家长账号" placeholder="可选关联家长账号 ID" value={createForm.linkedAccountId} onChange={e => setCreateForm(v => ({ ...v, linkedAccountId: e.target.value }))} />
         <Space><span>任职允许跨店</span><Switch checked={createForm.allowCrossStore} onChange={allowCrossStore => setCreateForm(v => ({ ...v, allowCrossStore }))} /></Space>
         <Space><span>标记已设凭证（不录入密码）</span><Switch checked={createForm.markCredentialSet} onChange={markCredentialSet => setCreateForm(v => ({ ...v, markCredentialSet }))} /></Space>
-        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="选填，可留空" />
+        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="请填写操作原因" />
         {submitError && !pending && <Alert type="error" message={submitError} />}
       </Space>
     </Modal>
@@ -300,7 +304,6 @@ export default function StaffRoles() {
       onOk={submit}>
       {pending && <Space direction="vertical" style={{ width: '100%' }}>
         <Typography.Paragraph>操作：{pending.action}<br />备注：{pending.reason || '（无）'}<br />请求号：{pending.idempotencyKey}<br />版本：{pending.version}</Typography.Paragraph>
-        <Alert type="info" message="服务将再次校验权限、版本与幂等；失败时可沿用原请求号重试。" />
         {submitError && <Alert type="error" message={submitError} />}
       </Space>}
     </Modal>

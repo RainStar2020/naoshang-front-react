@@ -12,7 +12,6 @@ export default function SoftwareCardDetail({ cardId, token, refresh, onClose }: 
   useEffect(() => { let alive = true; setData(null); setError(null); softwareCardsService.detail(token, cardId).then(value => { if (alive) setData(value) }).catch(err => { if (alive) setError(err instanceof Error ? err.message : '详情加载失败') }); return () => { alive = false } }, [cardId, token, refresh, retry])
   const card = data?.card
   return <Drawer open width={900} title="软件卡详情与交付追溯" onClose={onClose}>{error ? <Alert type="error" message={error} action={<Button onClick={() => setRetry(value => value + 1)}>重试</Button>} /> : !card ? <Spin><div style={{ height: 150 }} /></Spin> : <Space direction="vertical" size={20} style={{ width: '100%' }}>
-    <Alert showIcon type="info" message="完整软件卡号受独立导出权限保护。交付记录、库存停发均不等于供应商激活或作废；月卡计时必须由外部系统返回。" />
     <Descriptions bordered size="small" column={2} items={[
       { key: 'id', label: '库存ID', children: card.cardId, span: 2 }, { key: 'code', label: '脱敏码', children: card.maskedCode }, { key: 'status', label: '库存状态', children: <Tag>{softwareStockLabels[card.status]}</Tag> },
       { key: 'type', label: '类型 / 业务编码', children: `${card.typeName} / ${data!.type.businessCode}`, span: 2 }, { key: 'batch', label: '批次', children: `${data!.batch.name} · ${card.batchId}`, span: 2 },

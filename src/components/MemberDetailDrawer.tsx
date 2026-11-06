@@ -74,7 +74,8 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
 
   function prepare() {
     if (!member || !mode) { setSubmitError('无可提交操作'); return }
-    const base = { memberId: member.memberId, version: member.version, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID() }
+    if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
+    const base = { memberId: member.memberId, version: member.version, reason: reason.trim(), idempotencyKey: crypto.randomUUID() }
     if (mode === 'update-profile') {
       const grade = (options?.grades ?? []).find(g => g.code === gradeCode)
       const genderLabel = genderCode === 'MALE' ? '男' : genderCode === 'FEMALE' ? '女' : '未披露'
@@ -138,7 +139,6 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
       <Alert type="info" showIcon message="孩子门店跟随家长账号；请到「账号与会员 → 用户账号」修改门店绑定。" />
       <Tabs items={[
         { key: 'entitlements', label: '会员权益与课程', children: <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Alert type="info" showIcon message="学习权益永久有效；三组等级归属为小程序现有演示配置，正式编码与包含关系待确认。" />
           {!options && <Alert type="warning" message="会员等级选项尚未加载，权益操作暂不可用；请关闭详情后刷新页面内列表。" />}
           {(options?.tiers ?? []).map(tier => {
             const grant = (member.entitlements ?? []).find(item => item.membershipTierId === tier.membershipTierId)
@@ -150,13 +150,12 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
               </Space>
             </Card>
           })}
-          <Alert type="info" message="恢复学习权益在本页处理；未用码补发请前往会员/专栏激活码管理。补发会作废旧码且不会直接开通权益，已用码不能直接补发新码。正式绑定/转赠规则仍待确认。" />
         </Space> },
-        { key: 'orders', label: `关联订单（${(data.orders ?? []).length}）`, children: <><Alert style={{ marginBottom: 16 }} type="info" message="订单仅展示演示交易快照；付款主体是家长账号，付款不等于学习权益已激活。" /><Table rowKey="orderId" size="small" dataSource={data.orders ?? []} pagination={false} scroll={{ x: 650 }} locale={{ emptyText: '暂无关联订单' }} columns={[
+        { key: 'orders', label: `关联订单（${(data.orders ?? []).length}）`, children: <><Table rowKey="orderId" size="small" dataSource={data.orders ?? []} pagination={false} scroll={{ x: 650 }} locale={{ emptyText: '暂无关联订单' }} columns={[
           { title: '订单号', dataIndex: 'orderNo' }, { title: '商品', dataIndex: 'title' },
           { title: '购买账号', dataIndex: 'accountId' }, { title: '实付（元）', dataIndex: 'payableAmount', render: value => (value / 100).toFixed(2) }, { title: '交易状态', dataIndex: 'statusLabel' },
         ]} /></> },
-        { key: 'feedback', label: `训练反馈（${(data.feedback ?? []).length}）`, children: <><Alert style={{ marginBottom: 16 }} type="info" message="此处只读查询反馈摘要；反馈编辑、代写与课时核销将在 HQ-20 实现。" /><Table rowKey="feedbackId" size="small" dataSource={data.feedback ?? []} pagination={false} locale={{ emptyText: '暂无反馈记录' }} columns={[
+        { key: 'feedback', label: `训练反馈（${(data.feedback ?? []).length}）`, children: <><Table rowKey="feedbackId" size="small" dataSource={data.feedback ?? []} pagination={false} locale={{ emptyText: '暂无反馈记录' }} columns={[
           { title: '标题', dataIndex: 'title' }, { title: '摘要', dataIndex: 'summary', ellipsis: true }, { title: '类型', dataIndex: 'kind', render: kind => ({ training: '训练', 'self-study': '自学', camp: '集训' }[kind as 'training' | 'self-study' | 'camp']) }, { title: '作者', dataIndex: 'authorName' }, { title: '时间', key: 'createdAt', render: (_, record) => formatUserDate(record.createdAt) },
         ]} /></> },
         { key: 'audit', label: `权益操作记录（${(data.audit ?? []).length}）`, children: <Table rowKey="operationId" size="small" dataSource={data.audit ?? []} pagination={{ pageSize: 5, hideOnSinglePage: true }} scroll={{ x: 720 }} locale={{ emptyText: '暂无总部权益操作记录' }} columns={[
@@ -185,7 +184,7 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
           <Select aria-label="档案状态" style={{ width: '100%' }} value={status} onChange={setStatus}
             options={[{ value: 'ACTIVE', label: '有效 ACTIVE' }, { value: 'INACTIVE', label: '停用 INACTIVE' }]} />
         )}
-        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="选填，可留空" />
+        <Input.TextArea aria-label="备注" value={reason} maxLength={200} showCount onChange={e => setReason(e.target.value)} placeholder="请填写操作原因" />
         {submitError && <Alert type="error" message={submitError} />}
       </Space>}
     </Modal>

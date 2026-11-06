@@ -959,7 +959,7 @@ export default function Stores() {
         {editing && form && (
           <Space direction="vertical" style={{ width: "100%" }} size={12}>
             <Typography.Text>
-              {editing.storeId} · 当前 V{editing.version}
+              {editing.storeId} 只 当前 V{editing.version}
             </Typography.Text>
             <Input
               aria-label="门店名称"
@@ -1304,7 +1304,7 @@ export default function Stores() {
         {ownerTarget && (
           <Space direction="vertical" style={{ width: "100%" }} size={12}>
             <Typography.Paragraph>
-              门店：{ownerTarget.name}（{ownerTarget.storeId}）· 当前 V
+              门店：{ownerTarget.name}（{ownerTarget.storeId}）只 当前 V
               {ownerTarget.version}
               <br />
               当前店主：{ownerTarget.ownerAccountId ?? "未设置"}
@@ -1362,11 +1362,7 @@ export default function Stores() {
               请求号：{pending.idempotencyKey}
               <br />
               版本：{"version" in pending ? pending.version : "—"}
-            </Typography.Paragraph>
-            <Alert
-              type="info"
-              message="服务将再次校验权限、版本与幂等；失败时可沿用原请求号重试。"
-            />
+            </Typography.Paragraph>
             {submitError && <Alert type="error" message={submitError} />}
           </Space>
         )}

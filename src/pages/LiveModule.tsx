@@ -144,7 +144,7 @@ function LiveModuleContent({ definition }: { definition: typeof liveModules[numb
 
   return <Space direction="vertical" size={16} style={{ width: '100%' }}>
     <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-      <div><Typography.Title level={3} style={{ margin: 0 }}>{definition.title}</Typography.Title><Typography.Text type="secondary">数据与操作均来自总部后台，金额单位为元。</Typography.Text></div>
+      <div><Typography.Title level={3} style={{ margin: 0 }}>{definition.title}</Typography.Title></div>
       <Space wrap><Button onClick={() => setRevision((value) => value + 1)} loading={busy}>刷新</Button>{writes.map((item) => <Button key={item.key} onClick={() => openWrite(item)}>{item.title.split('：')[0].split('（')[0]}</Button>)}</Space>
     </Space>
     <Card size="small">
@@ -181,7 +181,7 @@ function LiveModuleContent({ definition }: { definition: typeof liveModules[numb
         {definition.name !== 'auth' && <><Form.Item name="action" label="操作类型" rules={[{ required: true, whitespace: true }]}>{write?.actions.length ? <Select options={write.actions.map((action) => ({ value: action, label: `${actionLabel(action)}（${action}）` }))} /> : <Input placeholder="文档未单独定义此端点的操作类型，请按后端约定填写" />}</Form.Item>
         <Form.Item name="version" label="当前资源版本（请以详情返回为准）"><InputNumber min={1} precision={0} style={{ width: '100%' }} /></Form.Item></>}
         <Form.Item name="payload" label="业务参数（JSON 对象）" extra="填写该操作所需字段；金额单位为元。操作类型、原因、版本及请求号由表单统一附加，不发送旧演示页面的字段。" rules={[{ required: true }]}><Input.TextArea rows={7} spellCheck={false} /></Form.Item>
-        <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}><Input.TextArea rows={2} maxLength={200} showCount placeholder="选填，可留空" /></Form.Item>
+        <Form.Item name="reason" label="操作原因" rules={[{ required: true, whitespace: true, message: "请填写操作原因" }, { max: 200, message: "操作原因不能超过200字" }]}><Input.TextArea rows={2} maxLength={200} showCount placeholder="请填写操作原因" /></Form.Item>
         {definition.name !== 'auth' && <Form.Item name="idempotencyKey" label="幂等请求号（失败重试保持原值）" rules={[{ required: true, whitespace: true }]}><Input /></Form.Item>}
         <Button type="primary" htmlType="submit" block>核对并提交</Button>
       </Form>

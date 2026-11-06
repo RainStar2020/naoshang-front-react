@@ -38,7 +38,7 @@ export default function UserActionModal({ request: { account, action }, stores, 
     setBusy(true)
     setError(null)
     try {
-      const base = { accountId: account.accountId, version: account.version, idempotencyKey: requestId, reason: (values.reason || '').trim() || '（无备注）' }
+      const base = { accountId: account.accountId, version: account.version, idempotencyKey: requestId, reason: values.reason.trim() }
       const input: UserMutation = action === 'freeze' ? { ...base, action, frozen: !account.frozen }
         : action === 'change-store' ? { ...base, action, storeId: values.storeId! }
         : action === 'change-display-id' ? { ...base, action, prefix: values.prefix!, serial: values.serial! }
@@ -54,8 +54,7 @@ export default function UserActionModal({ request: { account, action }, stores, 
   const prefix = Form.useWatch('prefix', form)
   const serial = Form.useWatch('serial', form)
   return <Modal open title={title} onCancel={() => { if (!busy) onClose() }} onOk={() => void submit()} confirmLoading={busy} okText="确认提交" cancelText="取消" okButtonProps={{ danger: action === 'freeze' && !account.frozen, disabled: conflict }} cancelButtonProps={{ disabled: busy }} closable={!busy} maskClosable={false}>
-    <Typography.Paragraph>操作对象：<strong>{account.nickname}</strong>（{account.displayId}）</Typography.Paragraph>
-    <Alert type="info" showIcon message={action === 'change-store' ? '仅变更账号所属门店；不改写历史订单交付方、历史收益或孩子的转店审批。' : action === 'reset-password' ? '此处仅演示密码重置流程，不修改真实密码，不发送短信，也不回显或保存输入的明文密码。' : action === 'change-display-id' ? '编号格式为前缀（VIP/TS/SD/LC）+ 恰好 4 位数字；全局唯一，冲突不会覆盖。不在此改密码或经营身份。' : '仅变更账号冻结状态；学习授权和经营权益的具体影响由真实 API 决定。'} />
+    <Typography.Paragraph>操作对象：<strong>{account.nickname}</strong>（{account.displayId}）</Typography.Paragraph>
     {error && <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}><Alert type="error" message={error} role="alert" />{conflict && <Button onClick={() => { onClose(); onRefresh() }}>刷新资料并关闭</Button>}</Space>}
     <Form name="userAction" form={form} layout="vertical" disabled={busy || conflict} requiredMark={false} style={{ marginTop: 20 }} initialValues={action === 'change-display-id' ? (() => { const match = account.displayId.match(/^(VIP|TS|SD|LC)(\d{4})$/); return match ? { prefix: match[1] as UserDisplayIdPrefix, serial: match[2] } : { prefix: 'VIP' as UserDisplayIdPrefix, serial: '' } })() : undefined}>
       {action === 'change-store' && <><Typography.Paragraph type="secondary">当前门店：{account.storeName ?? '未绑定门店'}</Typography.Paragraph><Form.Item name="storeId" label="新所属门店" rules={[{ required: true, message: '请选择新门店' }]}><Select showSearch optionFilterProp="label" placeholder="请选择可用门店" options={stores.filter(store => store.active && store.storeId !== account.storeId).map(store => ({ value: store.storeId, label: `${store.name} · ${store.number}` }))} /></Form.Item></>}
@@ -65,7 +64,7 @@ export default function UserActionModal({ request: { account, action }, stores, 
         <Form.Item name="serial" label="4 位序号" rules={[{ required: true, message: '请输入序号' }, { pattern: /^\d{4}$/, message: '须恰好 4 位数字' }]}><Input aria-label="账号编号序号" maxLength={4} placeholder="0000–9999" /></Form.Item>
         <Typography.Paragraph type="secondary">预览新编号：<strong>{prefix && serial && /^\d{4}$/.test(serial) ? `${prefix}${serial}` : '—'}</strong></Typography.Paragraph>
       </>}
-      <Form.Item name="reason" label="备注" rules={[{ max: 200, message: "备注不能超过200字" }]}><Input.TextArea rows={3} showCount maxLength={200} placeholder="选填，可留空" /></Form.Item>
+      <Form.Item name="reason" label="备注" rules={[{ required: true, whitespace: true, message: "请填写操作原因" }, { max: 200, message: "操作原因不能超过200字" }]}><Input.TextArea rows={3} showCount maxLength={200} placeholder="请填写操作原因" /></Form.Item>
     </Form>
     <Typography.Text type="secondary" style={{ fontSize: 12 }}>请求号：{requestId}</Typography.Text>
   </Modal>

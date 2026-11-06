@@ -279,7 +279,7 @@ export function mockAgentDetail(agentId: string): AgentDetail {
 export function mockAgentMutate(input: AgentMutation, operator: AgentOperator): AgentDetail {
 
   if (typeof input.reason === 'string' && input.reason.trim().length > 200) fail('INVALID_INPUT', '请填写 1 至 200 字操作原因')
-  if (!input.reason?.trim()) input = { ...input, reason: '（无备注）' }
+  if (!input.reason?.trim()) throw new AgentError('INVALID_INPUT', '请填写操作原因')
 
   if (!input.idempotencyKey?.trim()) fail('INVALID_INPUT', '请求号不能为空')
 

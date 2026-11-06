@@ -17,7 +17,6 @@ export default function ActivationCodeDetail({ codeId, token, refresh, onClose }
   }, [codeId, token, refresh, retry])
   const code = data?.code
   return <Drawer open width={850} title="激活码详情与追溯" onClose={onClose}>{error ? <Alert type="error" message={error} action={<Button onClick={() => setRetry(value => value + 1)}>重试</Button>} /> : !code ? <Spin><div style={{ height: 150 }} /></Spin> : <Space direction="vertical" size={20} style={{ width: '100%' }}>
-    <Alert type="info" message="完整演示码仅能通过有权限的导出获取。领取/使用记录不代表真实API或支付已经接通。" />
     <Descriptions bordered size="small" column={2} items={[
       { key: 'id', label: '码ID', children: code.codeId, span: 2 }, { key: 'code', label: '脱敏码', children: code.maskedCode }, { key: 'status', label: '状态', children: <Tag>{codeStatusNames[code.status]}</Tag> },
       { key: 'batch', label: '批次', children: `${data!.batch.name} · ${code.batchId}`, span: 2 }, { key: 'type', label: '类型', children: code.codeType === 'membership-tier' ? '会员等级码' : '专栏码' }, { key: 'target', label: '目标', children: code.targetName },

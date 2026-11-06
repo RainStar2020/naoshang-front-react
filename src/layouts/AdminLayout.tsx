@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { isMockAuth } from '../services/auth'
-import { Alert, Button, Menu, Modal, Tag, message } from 'antd'
+import { Button, Menu, Modal, Tag, message } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   AccountBookOutlined,
@@ -173,7 +173,7 @@ export default function AdminLayout() {
             items={menuItems}
           />
         </nav>
-        <div className="sidebar-footer">{isMockAuth ? '总部后台 · Mock 演示环境' : '总部后台 · 接口联调环境'}</div>
+        <div className="sidebar-footer">总部后台</div>
       </aside>
       <div className="main">
         <header className="topbar">
@@ -189,12 +189,6 @@ export default function AdminLayout() {
           </div>
         </header>
         <main className="content">
-          <Alert
-            className="hq-mock-banner"
-            type="info"
-            showIcon
-            message={isMockAuth ? '当前为 Mock 演示，业务数据为本地模拟，不会写入真实总部。' : '已连接真实总部后台；专用业务页在非 Mock 模式下走正式 API（部分上传/导出/无后端对应能力仍会明确提示不可用）。'}
-          />
           <AccountsProvider>
             <Outlet />
           </AccountsProvider>

@@ -108,7 +108,7 @@ export function createMockDeliveryOrderFromQuote(quoteId: string, requestId: str
 /** HQ-11复用同一交付仓库；确认交付不发码、不激活权益。 */
 export function mockConfirmOrderDelivery(input: { orderId: string; version: number; reason: string; idempotencyKey: string; evidence: string }, operator: HqAccount) {
   if ((input.reason.trim().length > 200) || !input.idempotencyKey || !input.evidence.trim() || input.evidence.trim().length > 300) fail('INVALID_INPUT', '请填写操作原因、1至300字交付凭据说明和请求号')
-  if (!input.reason.trim()) input = { ...input, reason: '（无备注）' }
+  if (!input.reason.trim()) throw new DeliveryError('INVALID_INPUT', '请填写操作原因')
   const key = `${operator.accountId}:${input.idempotencyKey}`, payload = JSON.stringify({ ...input, action: 'confirm-delivery' }), previous = operations.get(key)
   if (previous) { if (previous.payload !== payload) fail('IDEMPOTENCY_CONFLICT', '请求号参数已改变'); return copy(previous.result) }
   const row = findOrder(input.orderId)

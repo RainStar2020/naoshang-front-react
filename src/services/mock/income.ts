@@ -483,7 +483,7 @@ export function mockMutateIncome(
   if (!entry) throw new IncomeError('NOT_FOUND', '收益流水不存在')
   if (entry.version !== mutation.version) throw new IncomeError('VERSION_CONFLICT', '版本冲突，请刷新后重试')
   if (entry.kind !== 'ORIGINAL') throw new IncomeError('INVALID_STATE', '仅可对原流水发起操作')
-  if (!mutation.reason.trim()) mutation = { ...mutation, reason: '（无备注）' }
+  if (!mutation.reason.trim()) throw new IncomeError('INVALID_INPUT', '请填写操作原因')
 
   let result: IncomeMutationResult
 

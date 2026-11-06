@@ -13,7 +13,6 @@ export function CmsTierEditor({ tier, token, onClose, onSave }: SharedProps & { 
     try { const values = await form.validateFields(); onSave({ action: 'save-tier', targetId: tier?.membershipTierId ?? '', version: tier?.version ?? 0, value: { ...values, benefits, coverUrl }, reason: '', idempotencyKey: '' }) } catch { /* 表单内展示校验 */ }
   }
   return <Modal open width={850} title={tier ? '编辑会员等级' : '新建会员等级'} onCancel={onClose} onOk={() => void submit()} okText="核对并保存配置" cancelText="取消" maskClosable={false}>
-    <Alert type="info" message="会员等级配置保存后在Mock目录生效；不会自动赠送其他等级。课程归属以课程发布版本为准。" />
     <Form form={form} name="cmsTier" layout="vertical" initialValues={tier ?? { number: 4, name: '', summary: '' }} style={{ marginTop: 16 }}>
       <Form.Item name="name" label="会员等级名称" rules={[{ required: true, whitespace: true, max: 60 }]}><Input maxLength={60} /></Form.Item>
       <Form.Item name="number" label="阶层编号" rules={[{ required: true }]}><InputNumber min={1} precision={0} /></Form.Item>
@@ -35,7 +34,6 @@ export function CmsCourseEditor({ course, catalog, token, onClose, onSave }: Sha
     onSave({ action: 'save-course', targetId: course?.draft.levelId ?? '', version: course?.version ?? 0, value: draft, reason: '', idempotencyKey: '' })
   }
   return <Modal open width={1100} title={course ? '编辑课程草稿' : '新建学习等级'} onCancel={onClose} onOk={save} okText="核对并保存草稿" cancelText="取消" maskClosable={false}>
-    <Alert type="info" message="保存草稿不会更新已发布内容。所有章节固定由对应会员等级授权；调整归属不会迁移历史授权，需在发布前核对。" />
     {error && <Alert type="error" message={error} style={{ marginTop: 12 }} />}
     <div className="cms-form-grid" style={{ marginTop: 16 }}><label>学习等级名称<Input aria-label="学习等级名称" value={draft.name} maxLength={60} onChange={event => change({ name: event.target.value })} /></label><label>学习等级编号<InputNumber aria-label="学习等级编号" value={draft.number} min={1} max={999} precision={0} style={{ width: '100%' }} onChange={number => change({ number: number ?? 0 })} /></label><label>归属会员等级<Select aria-label="归属会员等级" style={{ width: '100%' }} value={draft.membershipTierId} options={catalog.tiers.map(tier => ({ value: tier.membershipTierId, label: tier.name }))} onChange={membershipTierId => change({ membershipTierId })} /></label></div>
     <Typography.Title level={5}>课程简介</Typography.Title><Input.TextArea aria-label="课程简介" rows={2} maxLength={500} value={draft.summary} onChange={event => change({ summary: event.target.value })} />

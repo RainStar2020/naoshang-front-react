@@ -287,12 +287,7 @@ function CarouselGallery({
               ))}
             </Carousel>
           </div>
-        ) : (
-          <Alert
-            type="info"
-            message="选择本地图片后立即在此预览轮播；不会调用上传接口。提交到服务端时才上传。"
-          />
-        )}
+        ) : null}
         <Space wrap>
           {urls.map((url, index) => (
             <Card
@@ -646,11 +641,7 @@ export default function ProductEditor({
       ]}
     >
       {messageHolder}
-      <Space direction="vertical" size={16} style={{ width: "100%" }}>
-        <Alert
-          type="info"
-          message="轮播/详情选图仅本机预览，编辑内容自动写入浏览器缓存，不会调用上传/保存接口。点「提交到服务端」时若有本地新图才会走资产上传，再进入核对保存；无新图则只提交商品信息。金额按元录入（内部仍按分）。履约类型创建后不可更改。"
-        />
+      <Space direction="vertical" size={16} style={{ width: "100%" }}>
         {cacheHint && <Alert type="success" showIcon message={cacheHint} />}
         {error && <Alert type="error" message={error} />}
 
@@ -810,11 +801,7 @@ export default function ProductEditor({
           change={(rolePrices) => change({ rolePrices })}
         />
 
-        <Typography.Title level={5}>规格组</Typography.Title>
-        <Alert
-          type="info"
-          message="每个规格组先填组名（如「变速」「档位」），再添加可选值标签。增删选项后请显式生成 SKU 组合；相同组合保留原 SKU ID、售价和库存。"
-        />
+        <Typography.Title level={5}>规格组</Typography.Title>
         {draft.specGroups.map((group, i) => (
           <Card
             key={group.id}

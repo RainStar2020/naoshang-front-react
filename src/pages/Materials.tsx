@@ -288,15 +288,15 @@ type ListSummary = {
 const pageMeta: Record<PromoMaterialType, { title: string; subtitle: string }> = {
   image: {
     title: '图片素材',
-    subtitle: 'HQ-24 / PRD §5.3：维护图片模板；禁止前端伪终图；须框选唯一正方形二维码填充区后方可发布。',
+    subtitle: '维护图片模板；上传底图并框选唯一正方形二维码填充区后可发布。',
   },
   article: {
     title: '图文素材',
-    subtitle: 'HQ-24 / PRD §5.3：维护图文模板；正文末尾须启用唯一二维码预留位后方可发布；禁止前端伪终图。',
+    subtitle: '维护图文模板；正文末尾启用唯一二维码预留位后可发布。',
   },
   video: {
     title: '视频素材',
-    subtitle: 'HQ-24 / PRD §5.3：维护视频互动 H5 模板；不烧录二维码；web-view 联调缺口不降低配置完成度。',
+    subtitle: '维护视频互动 / H5 模板。',
   },
 }
 
@@ -853,9 +853,9 @@ export default function Materials() {
   const isImageWizard = activeType === 'image' && (createStep === 'info' || createStep === 'qr')
 
   const modalTitle = editing
-    ? (activeType === 'image' ? (createStep === 'qr' ? '编辑图片素材 · 框选二维码区' : '编辑图片素材') : '编辑模板')
+    ? (activeType === 'image' ? (createStep === 'qr' ? '编辑图片素材 只 框选二维码区' : '编辑图片素材') : '编辑模板')
     : activeType === 'image'
-      ? (createStep === 'qr' ? '新建图片素材 · 框选二维码定位' : '新建图片素材')
+      ? (createStep === 'qr' ? '新建图片素材 只 框选二维码定位' : '新建图片素材')
       : `新建${activeType ? typeLabel[activeType] : ''}草稿`
 
   return (
@@ -867,17 +867,10 @@ export default function Materials() {
         </Typography.Paragraph>
       </div>
 
-      {catalog && type === 'image' && (
-        <Alert type="warning" showIcon message="合图边界" description={catalog.composeGapNote} />
-      )}
-
-      {catalog && type === 'article' && (
-        <Alert type="warning" showIcon message="图文码位边界" description={catalog.composeGapNote} />
-      )}
-
-      {catalog && type === 'video' && (
-        <Alert type="warning" showIcon message="视频 H5 边界" description={catalog.videoH5GapNote} />
-      )}
+        <Alert type="warning" showIcon message="当前模块功能正在开发中" />
+
+
+
 
       {summary && (
         <Card size="small">
@@ -987,9 +980,7 @@ export default function Materials() {
         destroyOnClose
       >
         {detail && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Alert type="info" showIcon message={detail.composeGapNote} />
-            {detail.template.type === 'video' && <Alert type="warning" showIcon message={detail.videoH5GapNote} />}
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions column={1} size="small" bordered>
               <Descriptions.Item label="ID">{detail.template.materialId}</Descriptions.Item>
               <Descriptions.Item label="标题">{detail.template.title}</Descriptions.Item>
@@ -1042,7 +1033,7 @@ export default function Materials() {
             <Card size="small" title="审计（最近）">
               {(detail.audit.length ? detail.audit : []).map((a) => (
                 <div key={a.operationId} style={{ marginBottom: 8, fontSize: 12 }}>
-                  <div>{a.action} · {a.operatorName} · {new Date(a.occurredAt).toLocaleString('zh-CN', { hour12: false })}</div>
+                  <div>{a.action} 只 {a.operatorName} 只 {new Date(a.occurredAt).toLocaleString('zh-CN', { hour12: false })}</div>
                   <div>{a.before} → {a.after}</div>
                   <div>原因：{a.reason}</div>
                 </div>
@@ -1143,13 +1134,7 @@ export default function Materials() {
             )}
 
             {createStep === 'qr' && (
-              <>
-                <Alert
-                  type="info"
-                  showIcon
-                  style={{ marginBottom: 12 }}
-                  message="拖拽框选唯一正方形区域（归一化 0–1）。保存区域不等于合成终图；用户端只上传码，合图由服务端完成。"
-                />
+              <>
                 {imagePreviewUrl ? (
                   <ImageQrRegionPicker
                     imageUrl={imagePreviewUrl}
@@ -1173,10 +1158,7 @@ export default function Materials() {
             <Form.Item name="categoryId" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
               <Select options={categoriesForType.map((c) => ({ value: c.categoryId, label: c.name }))} />
             </Form.Item>
-
-            {activeType === 'video' && (
-              <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="视频交付模式固定为 INTERACTIVE_H5，不提供烧录区/烧录发布选项。小程序 web-view 未就绪时仅标缺口，不降低配置完成度。" />
-            )}
+
 
             <Form.Item
               name="mediaUrl"
@@ -1250,8 +1232,7 @@ export default function Materials() {
         width={640}
       >
         {regionTarget && (
-          <Space direction="vertical" style={{ width: '100%' }} size={12}>
-            <Alert type="info" showIcon message="归一化坐标 0–1；须为正方形（宽=高）；每模板唯一一区。保存区域不等于合成终图。" />
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <ImageQrRegionPicker
               imageUrl={regionTarget.mediaUrl}
               value={

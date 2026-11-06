@@ -54,11 +54,16 @@ export default function StoreBindingModal({ accountId, accountLabel, mode, token
 
   async function submit() {
     if (submitting) return
+    const trimmedReason = reason.trim()
+    if (!trimmedReason) {
+      setError('请填写操作原因')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
       if (activeMode === 'unbind') {
-        await usersService.unbindStore(token, { accountId, reason: reason.trim() || undefined })
+        await usersService.unbindStore(token, { accountId, reason: trimmedReason })
         api.success('已解绑门店')
       } else {
         if (!storeId) {
@@ -66,7 +71,7 @@ export default function StoreBindingModal({ accountId, accountLabel, mode, token
           setSubmitting(false)
           return
         }
-        await usersService.bindStore(token, { accountId, storeId, reason: reason.trim() || undefined })
+        await usersService.bindStore(token, { accountId, storeId, reason: trimmedReason })
         api.success('门店已更新')
       }
       onDone()
@@ -132,12 +137,12 @@ export default function StoreBindingModal({ accountId, accountLabel, mode, token
             </Typography.Paragraph>
           )}
           <Input.TextArea
-            aria-label="原因"
+            aria-label="操作原因"
             value={reason}
             maxLength={200}
             showCount
             onChange={(e) => setReason(e.target.value)}
-            placeholder="原因选填，例如：总部指派 / 账号调整"
+            placeholder="例如：总部指派 / 账号调整"
           />
           {error && <Alert type="error" showIcon message={error} />}
         </Space>

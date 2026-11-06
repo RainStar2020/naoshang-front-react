@@ -95,7 +95,7 @@ const profileOps = new Map<string, { payload: string; result: MemberProfileResul
 export function mockMemberProfileMutation(input: MemberProfileMutation, operator: HqAccount): MemberProfileResult {
   if (!input.idempotencyKey) fail('INVALID_INPUT', '请填写1–200字原因并提供有效操作参数')
   if (input.reason.trim().length > 200) fail('INVALID_INPUT', '请填写1–200字原因并提供有效操作参数')
-  if (!input.reason.trim()) input = { ...input, reason: '（无备注）' }
+  if (!input.reason.trim()) fail('INVALID_INPUT', '请填写操作原因')
   if (!['update-profile', 'bind-store', 'unbind-store', 'set-status'].includes(input.action)) fail('INVALID_INPUT', '未知会员档案操作')
   const member = find(input.memberId)
   const key = `${operator.accountId}:profile:${input.idempotencyKey}`

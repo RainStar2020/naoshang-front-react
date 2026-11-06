@@ -98,25 +98,28 @@ export default function Training() {
 
   function prepareProxy() {
     if (!proxyMemberId || !proxyTitle.trim() || !proxyBody.trim()) { message.warning('请填写学员、标题与正文'); return }
+    if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
     setPending({
       action: 'proxy-feedback', memberId: proxyMemberId, kind: proxyKind, title: proxyTitle.trim(), body: proxyBody.trim(),
-      reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
+      reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
     })
     setSubmitError(''); setBlocked(false)
   }
   function prepareConsume() {
     if (!consumeTarget || !Number.isInteger(consumeQty) || consumeQty < 1) { message.warning('请填写核销数量'); return }
+    if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
     setPending({
       action: 'consume-lessons', memberId: consumeTarget.memberId, bucket: consumeBucket, quantity: consumeQty,
-      version: consumeTarget.version, reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
+      version: consumeTarget.version, reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
     })
     setSubmitError(''); setBlocked(false)
   }
   function prepareWithdraw() {
     if (!withdrawTarget) { message.warning('请选择撤回目标'); return }
+    if (!reason.trim()) { setSubmitError('请填写操作原因'); return }
     setPending({
       action: 'withdraw-feedback', feedbackId: withdrawTarget.feedbackId, version: withdrawTarget.version,
-      reason: reason.trim() || '（无备注）', idempotencyKey: crypto.randomUUID(),
+      reason: reason.trim(), idempotencyKey: crypto.randomUUID(),
     })
     setSubmitError(''); setBlocked(false)
   }
@@ -147,7 +150,7 @@ export default function Training() {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <div>
         <Typography.Title level={3} style={{ margin: 0 }}>学习反馈</Typography.Title>
-        <Typography.Text type="secondary">HQ-20：总部代写/撤回训练反馈与课时核销监管；禁止超余量与负库存；不替代门店日常训练录入。学员档案见 <Link to="/members">孩子会员档案</Link>，门店侧日常不在此替代。</Typography.Text>
+        <Typography.Text type="secondary">代写或撤回训练反馈，并核销课时。学员档案见 <Link to="/members">孩子会员档案</Link>。</Typography.Text>
       </div>
       <HqDataSourceAlert mockMessage="Mock 演示边界" mockDescription="成功仅表示内存 Mock 状态机通过：不代表真实课时扣减、家长可见反馈或附件已上传。附件仅保留审计字段。写操作须原因/版本/幂等；不伪造核销终态。" />
 
@@ -274,7 +277,7 @@ export default function Training() {
           <Select style={{ width: '100%' }} options={Object.entries(kindLabel).map(([value, label]) => ({ value, label }))} value={proxyKind} onChange={value => setProxyKind(value as FeedbackKind)} />
           <Input maxLength={80} placeholder="反馈标题" value={proxyTitle} onChange={event => setProxyTitle(event.target.value)} />
           <Input.TextArea rows={5} maxLength={3000} placeholder="反馈正文" value={proxyBody} onChange={event => setProxyBody(event.target.value)} />
-          <Input.TextArea rows={2} maxLength={200} placeholder="选填，可留空" value={reason} onChange={event => setReason(event.target.value)} />
+          <Input.TextArea rows={2} maxLength={200} placeholder="请填写操作原因" value={reason} onChange={event => setReason(event.target.value)} />
         </Space>
       </Modal>
 

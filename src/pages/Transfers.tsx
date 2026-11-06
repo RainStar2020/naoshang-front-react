@@ -177,27 +177,7 @@ export default function Transfers() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>转店信息</Typography.Title>
-      <Alert
-        type="info"
-        showIcon
-        message="HQ-21：转店双边审核监管。双方同意后由服务端做归属迁移；本页只反映审批与回执，不伪造已迁移。不替代小程序发起转店。未用课时/订单/反馈/未结算收益迁移口径待定。"
-      />
-      {catalog && (
-        <Alert
-          type="warning"
-          showIcon
-          message="待定口径（映射文档 §7）"
-          description={
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              <li>{catalog.pendingPolicy.unusedLessonsNote}</li>
-              <li>{catalog.pendingPolicy.subsequentOrdersNote}</li>
-              <li>{catalog.pendingPolicy.historicalFeedbackNote}</li>
-              <li>{catalog.pendingPolicy.unsettledRevenueNote}</li>
-            </ul>
-          }
-        />
-      )}
+      <Typography.Title level={3} style={{ margin: 0 }}>转店信息</Typography.Title>
       <Card>
         <Space wrap size={24}>
           <Statistic title="申请总数" value={summary.applications} />
@@ -395,8 +375,6 @@ export default function Transfers() {
                 )}
               </Space>
             )}
-            {!canArbitrate && <Alert type="warning" message="当前账号仅有查询权限，不能仲裁或登记回执。" />}
-
             <Typography.Title level={5}>操作审计</Typography.Title>
             <Table
               size="small"
@@ -425,8 +403,7 @@ export default function Transfers() {
         cancelButtonProps={{ disabled: busy }}
         destroyOnClose
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Alert type="warning" showIcon message="二次确认：写操作将记入审计；不会在前端改写学员门店归属。" />
+        <Space direction="vertical" style={{ width: '100%' }}>
           {pending?.action === 'add-note' && (
             <Input.TextArea rows={3} maxLength={200} showCount placeholder="监管备注 1—200 字" value={note} onChange={e => setNote(e.target.value)} />
           )}

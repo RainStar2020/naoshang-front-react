@@ -35,7 +35,7 @@ export default function Members() {
     return () => { alive = false }
   }, [token, query, refresh])
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>
-    {contextHolder}<div className="user-page-heading"><div><Typography.Title level={3} style={{ margin: 0 }}>孩子会员档案</Typography.Title><Typography.Text type="secondary">HQ-03 孩子会员档案：人工开撤补学习权益；与激活码发码系统区分。</Typography.Text></div><Button loading={busy} onClick={reload}>刷新</Button></div>
+    {contextHolder}<div className="user-page-heading"><div><Typography.Title level={3} style={{ margin: 0 }}>孩子会员档案</Typography.Title><Typography.Text type="secondary">查询孩子会员档案，人工开通、撤销与补发学习权益。</Typography.Text></div><Button loading={busy} onClick={reload}>刷新</Button></div>
     <HqDataSourceAlert mockMessage="内存 Mock 演示：本模块操作不影响小程序；整页刷新会恢复学员及权益数据。权益写操作须原因/版本/幂等/确认，进度按孩子隔离。" />
     {optionsError && <Alert type="error" message={optionsError} action={<Button onClick={reload}>重试选项</Button>} />}
     <Card variant="borderless"><Form name="memberFilters" form={form} layout="vertical" onFinish={values => setQuery({ ...values, keyword: values.keyword?.trim(), page: 1, pageSize: query.pageSize })}>

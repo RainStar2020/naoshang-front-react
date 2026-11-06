@@ -67,7 +67,8 @@ export default function Agents() {
 
   const submit = async () => {
     if (!pending) return
-    const trimmed = reason.trim() || '（无备注）'
+    const trimmed = reason.trim()
+if (!trimmed) { setSubmitError('请填写操作原因'); return }
     
     let input: AgentMutation
     if (pending.kind === 'set-exclusivity') {
@@ -93,7 +94,7 @@ export default function Agents() {
       <div className="user-page-heading">
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>区域代理监管</Typography.Title>
-          <Typography.Text type="secondary">HQ-18：监管区域独占与生效状态；不替代小程序日常申请，也不与「员工与门店角色」混用。</Typography.Text>
+          <Typography.Text type="secondary">维护区域代理监管与生效状态。</Typography.Text>
         </div>
         <Button loading={busy} onClick={() => setRefresh((n) => n + 1)}>刷新</Button>
       </div>
@@ -144,7 +145,6 @@ export default function Agents() {
           label: '区域独占',
           children: (
             <Card title="区域独占配置">
-              <Alert type="info" showIcon style={{ marginBottom: 16 }} message="独占开启后，同区域仅允许一名在职代理；冲突由服务端校验。配置不代替签约申请。" />
               <Table<AgentTerritory>
                 rowKey="territoryId"
                 loading={busy}
@@ -174,7 +174,6 @@ export default function Agents() {
           label: '方案参考',
           children: (
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Alert type="info" showIcon message="以下费用与分成比例摘自方案附件，单位万元，仅供展示；不参与结算计算，也不作为打款回执。" />
               {(catalog?.planGroups ?? []).map((g) => (
                 <Card key={g.id} title={g.label} size="small">
                   <Table
@@ -255,12 +254,11 @@ export default function Agents() {
         okButtonProps={{ disabled: blocked, danger: pending?.kind === 'suspend' }}
         cancelButtonProps={{ disabled: busy }}
       >
-        <Alert type="info" showIcon style={{ marginBottom: 12 }} message="监管写操作须填写原因；提交后以服务回执为准，禁止前端改写结算或签约终态。" />
         {pending && pending.kind !== 'set-exclusivity' && <Typography.Paragraph>对象：{pending.agent.name}（{pending.agent.agentId}）· 版本 V{pending.agent.version}</Typography.Paragraph>}
         {pending && pending.kind === 'set-exclusivity' && <Typography.Paragraph>区域：{pending.territory.name} · 版本 V{pending.territory.version} → {pending.exclusive ? '独占' : '非独占'}</Typography.Paragraph>}
         <Form layout="vertical">
           <Form.Item label="备注">
-            <Input.TextArea rows={3} maxLength={200} showCount value={reason} onChange={(e) => setReason(e.target.value)} placeholder="选填，可留空" />
+            <Input.TextArea rows={3} maxLength={200} showCount value={reason} onChange={(e) => setReason(e.target.value)} placeholder="请填写操作原因" />
           </Form.Item>
           <Form.Item label="幂等请求号">
             <Input value={idempotencyKey} readOnly />

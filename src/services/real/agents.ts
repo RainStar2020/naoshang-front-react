@@ -1,3 +1,4 @@
+import { apiClient } from '../../api/client'
 import * as api from '../../api'
 import {
   AgentError,
@@ -15,7 +16,7 @@ import { arr, asPage, bool, cast, mapHqError, mutationBody, num, record, str, un
 
 function asStatus(value: unknown): RegionAgent['status'] {
   const raw = str(value, 'ACTIVE').toUpperCase()
-  if (raw === 'SUSPENDED' || raw === 'EXITED') return raw
+  if (raw === 'DISABLED' || raw === 'SUSPENDED' || raw === 'EXITED') return raw
   return 'ACTIVE'
 }
 
@@ -37,17 +38,17 @@ function mapTerritory(raw: unknown): AgentTerritory {
   }
 }
 
-function mapAgent(raw: unknown): RegionAgent {
+export function mapAgent(raw: unknown): RegionAgent {
   const r = record(raw)
   const status = asStatus(r.status)
   const allowedRaw = arr(r.allowedActions).map((item) => str(item))
-  const allowedActions = (allowedRaw.length
+  const allowedActions = (Array.isArray(r.allowedActions)
     ? allowedRaw.filter((a) => a === 'suspend' || a === 'resume' || a === 'set-exclusivity')
     : status === 'EXITED'
       ? []
-      : status === 'SUSPENDED'
-        ? ['resume', 'set-exclusivity']
-        : ['suspend', 'set-exclusivity']) as RegionAgent['allowedActions']
+      : (status === 'SUSPENDED' || status === 'DISABLED')
+        ? ['resume']
+        : ['suspend']) as RegionAgent['allowedActions']
   const territoryIds = arr(r.territoryIds).map((item) => str(item)).filter(Boolean)
   if (!territoryIds.length && r.territoryId) territoryIds.push(str(r.territoryId))
   return {
@@ -57,8 +58,9 @@ function mapAgent(raw: unknown): RegionAgent {
     phone: str(r.phone || r.mobile),
     partnerAccountId: r.partnerAccountId == null || r.partnerAccountId === '' ? null : str(r.partnerAccountId),
     partnerName: r.partnerName == null || r.partnerName === '' ? null : str(r.partnerName),
-    levelLabel: str(r.levelLabel || r.levelName || r.agentLevel || '区县代理'),
+    levelLabel: str(r.levelLabel || r.levelName || r.agentLevel),
     territoryIds,
+    region: str(r.region),
     storeCount: num(r.storeCount),
     status,
     commissionSnapshotCents: num(r.commissionSnapshotCents ?? r.commissionCents ?? r.commissionSnapshot),
@@ -133,7 +135,7 @@ function mapCatalog(raw: unknown): AgentCatalog {
 function summarize(agents: RegionAgent[], territories: AgentTerritory[]) {
   return {
     activeCount: agents.filter((a) => a.status === 'ACTIVE').length,
-    suspendedCount: agents.filter((a) => a.status === 'SUSPENDED').length,
+    suspendedCount: agents.filter((a) => (a.status === 'SUSPENDED' || a.status === 'DISABLED')).length,
     exclusiveTerritoryCount: territories.filter((t) => t.exclusive).length,
   }
 }
@@ -148,35 +150,14 @@ export async function realAgentCatalog(): Promise<AgentCatalog> {
 
 export async function realAgentList(query: AgentQuery): Promise<AgentList> {
   try {
-    const catalog = mapCatalog(await unwrapData(await api.getRegionAgentsCatalog({
-      keyword: query.keyword,
-      status: query.status,
-      territoryId: query.territoryId,
-      page: query.page,
-      pageSize: query.pageSize,
-    } as never)))
-    let items = catalog.agents
-    if (query.status) items = items.filter((a) => a.status === query.status)
-    if (query.territoryId) items = items.filter((a) => a.territoryIds.includes(query.territoryId!))
-    if (query.keyword) {
-      const kw = query.keyword.trim().toLowerCase()
-      const terrNames = new Map(catalog.territories.map((t) => [t.territoryId, t.name.toLowerCase()]))
-      items = items.filter((a) => {
-        const hit = `${a.name}${a.phone}${a.agentId}${a.accountId}`.toLowerCase().includes(kw)
-        const terrHit = a.territoryIds.some((id) => (terrNames.get(id) || '').includes(kw))
-        return hit || terrHit
-      })
-    }
-    const total = items.length
-    const start = Math.max(0, (query.page - 1) * query.pageSize)
-    const pageItems = items.slice(start, start + query.pageSize)
-    return {
-      items: pageItems,
-      total,
-      page: query.page,
-      pageSize: query.pageSize,
-      summary: summarize(catalog.agents, catalog.territories),
-    }
+    const response = await apiClient.get('/agents', { params: {
+      keyword: query.keyword, status: query.status, region: query.territoryId,
+      page: query.page, pageSize: query.pageSize,
+    } })
+    const page = asPage(await unwrapData(response.data), query.page, query.pageSize)
+    const items = page.items.map(mapAgent)
+    return { ...page, items, summary: summarize(items, []) }
+
   } catch (error) {
     return mapHqError(error, AgentError)
   }

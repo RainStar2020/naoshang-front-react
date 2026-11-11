@@ -599,7 +599,7 @@ export default function Materials() {
           action: 'save',
           materialId: editing.materialId,
           version: editing.version,
-          reason: values.reason || '（无备注）',
+          reason: '后台保存推广素材',
           idempotencyKey: crypto.randomUUID(),
           title: values.title,
           type: editing.type,
@@ -617,7 +617,7 @@ export default function Materials() {
       : {
           action: 'save',
           version: 0,
-          reason: values.reason || '（无备注）',
+          reason: '后台保存推广素材',
           idempotencyKey: crypto.randomUUID(),
           title: values.title,
           type: values.type,
@@ -1127,9 +1127,7 @@ export default function Materials() {
                     )}
                   </Space>
                 </Form.Item>
-                <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
-                  <Input.TextArea rows={2} maxLength={200} />
-                </Form.Item>
+                
               </>
             )}
 
@@ -1215,9 +1213,7 @@ export default function Materials() {
               </Card>
             )}
 
-            <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
-              <Input.TextArea rows={2} maxLength={200} />
-            </Form.Item>
+            
           </Form>
         )}
       </Modal>
@@ -1254,9 +1250,7 @@ export default function Materials() {
               <Form.Item name="y" hidden><InputNumber /></Form.Item>
               <Form.Item name="width" hidden><InputNumber /></Form.Item>
               <Form.Item name="height" hidden><InputNumber /></Form.Item>
-              <Form.Item name="reason" label="备注" rules={[{ max: 200 }]}>
-                <Input.TextArea rows={2} maxLength={200} />
-              </Form.Item>
+              
             </Form>
             {liveRegion && (
               <Typography.Text type="secondary">

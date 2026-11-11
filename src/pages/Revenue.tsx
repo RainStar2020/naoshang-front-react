@@ -5,6 +5,7 @@ import {
   Card,
   Descriptions,
   Drawer,
+  DatePicker,
   Input,
   Modal,
   Select,
@@ -15,6 +16,7 @@ import {
   Typography,
   message,
 } from "antd";
+import dayjs from "dayjs";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { hasPermission } from "../auth/access";
@@ -31,6 +33,11 @@ import {
   type SettlementStatus,
 } from "../types/income";
 import { downloadCsv } from "../utils/csv";
+import {
+  buildRevenueListQuery,
+  revenueDimensionFromPath,
+  revenuePageMeta,
+} from "./revenueQuery";
 
 function fen(n: number) {
   const sign = n < 0 ? "-" : "";
@@ -73,45 +80,6 @@ const channelLabel: Record<IncomeChannel, string> = {
   FOUNDER_AWARD: "创始人奖励",
 };
 
-type RevenueDimension = "partners" | "stores" | "agents" | "settlement";
-
-function revenueDimensionFromPath(pathname: string): RevenueDimension {
-  if (pathname.endsWith("/partners")) return "partners";
-  if (pathname.endsWith("/stores")) return "stores";
-  if (pathname.endsWith("/agents")) return "agents";
-  return "settlement";
-}
-
-const revenuePageMeta: Record<
-  RevenueDimension,
-  { title: string; module?: IncomeModule; blurb: string }
-> = {
-  partners: {
-    title: "合伙人收益",
-    module: "wholesale",
-    blurb:
-      "HQ-22：总部联查合伙人侧收益；字段与公式以后端为准，前端不推导结算结果。不替代小程序个人收益页；不在此出金（提现见「资金结算」）。",
-  },
-  stores: {
-    title: "合店收益",
-    // 收益台账将合店和代理门店统一收敛到 agency，按 identityLabel 区分行归属。
-    module: "agency",
-    blurb:
-      "HQ-22：总部联查门店/合店相关收益；前端不推导结算结果。不在此出金（提现见「资金结算」）。",
-  },
-  agents: {
-    title: "代理收益",
-    module: "agency",
-    blurb:
-      "HQ-22：总部联查区域代理相关收益；前端不推导结算结果。不在此出金（提现见「资金结算」）。",
-  },
-  settlement: {
-    title: "结算重算与冲正",
-    blurb:
-      "HQ-22：结算重算与冲正（改分配/重算/冲正）须原因+版本+幂等+审计，关联原流水不覆盖历史；前端不推导结算结果，不在此出金。",
-  },
-};
-
 export default function Revenue() {
   const { session } = useAuth();
   const location = useLocation();
@@ -125,7 +93,10 @@ export default function Revenue() {
   const [module, setModule] = useState<IncomeModule | undefined>(
     pageMeta.module,
   );
-  const [channel, setChannel] = useState<IncomeChannel>();
+  const [channel, setChannel] = useState<IncomeChannel | undefined>(
+    pageMeta.channel,
+  );
+  const [period, setPeriod] = useState<string>();
   const [allocationStatus, setAllocationStatus] = useState<AllocationStatus>();
   const [settlementStatus, setSettlementStatus] = useState<SettlementStatus>();
   const [storeId, setStoreId] = useState<string>();
@@ -155,8 +126,9 @@ export default function Revenue() {
 
   useEffect(() => {
     setModule(pageMeta.module);
+    setChannel(pageMeta.channel);
     setPage(1);
-  }, [dimension, pageMeta.module]);
+  }, [dimension, pageMeta.module, pageMeta.channel]);
 
   const loadCatalog = useCallback(async () => {
     try {
@@ -171,16 +143,21 @@ export default function Revenue() {
   const loadList = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await incomeService.list(token, {
-        page,
-        pageSize: 10,
-        keyword: keyword || undefined,
-        module,
-        channel,
-        allocationStatus,
-        settlementStatus,
-        storeId,
-      });
+      const list = await incomeService.list(
+        token,
+        buildRevenueListQuery({
+          dimension,
+          page,
+          pageSize: 10,
+          keyword: keyword || undefined,
+          module,
+          channel,
+          allocationStatus,
+          settlementStatus,
+          storeId,
+          period,
+        }),
+      );
       setRows(list.items);
       setTotal(list.total);
       setSummary(list.summary);
@@ -200,6 +177,8 @@ export default function Revenue() {
     allocationStatus,
     settlementStatus,
     storeId,
+    period,
+    dimension,
   ]);
 
   const loadDetail = useCallback(
@@ -498,7 +477,12 @@ export default function Revenue() {
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         {pageMeta.title}
-      </Typography.Title>
+      </Typography.Title>
+      {pageMeta.hint ? (
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+          {pageMeta.hint}
+        </Typography.Paragraph>
+      ) : null}
 
       <Card>
         <Space wrap size="large">
@@ -524,32 +508,47 @@ export default function Revenue() {
               setKeyword(v);
             }}
           />
-          <Select
+          {!pageMeta.lockChannel && (
+            <Select
+              allowClear
+              placeholder="业务线"
+              style={{ width: 120 }}
+              options={(catalog?.modules || []).map((m) => ({
+                value: m.value,
+                label: m.label,
+              }))}
+              value={module}
+              onChange={(v) => {
+                setPage(1);
+                setModule(v);
+              }}
+            />
+          )}
+          {!pageMeta.lockChannel && (
+            <Select
+              allowClear
+              placeholder="渠道"
+              style={{ width: 130 }}
+              options={(catalog?.channels || []).map((m) => ({
+                value: m.value,
+                label: m.label,
+              }))}
+              value={channel}
+              onChange={(v) => {
+                setPage(1);
+                setChannel(v);
+              }}
+            />
+          )}
+          <DatePicker
+            picker="month"
             allowClear
-            placeholder="业务线"
-            style={{ width: 120 }}
-            options={(catalog?.modules || []).map((m) => ({
-              value: m.value,
-              label: m.label,
-            }))}
-            value={module}
-            onChange={(v) => {
+            placeholder="结算月份"
+            style={{ width: 140 }}
+            value={period ? dayjs(period, "YYYY-MM") : null}
+            onChange={(value) => {
               setPage(1);
-              setModule(v);
-            }}
-          />
-          <Select
-            allowClear
-            placeholder="渠道"
-            style={{ width: 130 }}
-            options={(catalog?.channels || []).map((m) => ({
-              value: m.value,
-              label: m.label,
-            }))}
-            value={channel}
-            onChange={(v) => {
-              setPage(1);
-              setChannel(v);
+              setPeriod(value ? value.format("YYYY-MM") : undefined);
             }}
           />
           <Select
@@ -711,7 +710,8 @@ export default function Revenue() {
         }
       >
         {detail && (
-          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+
             <Descriptions column={2} bordered size="small">
               <Descriptions.Item label="流水号">
                 {detail.entry.entryId}

@@ -62,6 +62,8 @@ const pages: Record<string, React.ComponentType> = {
   '/revenue/partners': Revenue,
   '/revenue/stores': Revenue,
   '/revenue/agents': Revenue,
+  '/revenue/global': Revenue,
+  '/revenue/founding': Revenue,
   '/revenue/settlement': Revenue,
   '/stores': Stores,
   '/training': Training,

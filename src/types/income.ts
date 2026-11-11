@@ -73,6 +73,8 @@ export interface IncomeQuery {
   settlementStatus?: SettlementStatus
   storeId?: string
   accountId?: string
+  /** 结算月份，YYYY-MM */
+  period?: string
 }
 
 export interface IncomeList {

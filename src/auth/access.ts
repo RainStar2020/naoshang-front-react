@@ -34,6 +34,8 @@ export type AdminNavIconKey =
   | "revenue-partners"
   | "revenue-stores"
   | "revenue-agents"
+  | "revenue-global"
+  | "revenue-founding"
   | "revenue-settlement"
   | "withdrawals"
   | "staff-roles"
@@ -293,6 +295,18 @@ export const adminNavGroups: AdminNavGroup[] = [
         icon: "revenue-agents",
       },
       {
+        path: "/revenue/global",
+        label: "全球奖",
+        permission: "revenue:access",
+        icon: "revenue-global",
+      },
+      {
+        path: "/revenue/founding",
+        label: "创始奖",
+        permission: "revenue:access",
+        icon: "revenue-founding",
+      },
+      {
         path: "/revenue/settlement",
         label: "结算重算与冲正",
         permission: "revenue:access",
@@ -365,10 +379,12 @@ export const dedicatedPagePaths: readonly string[] = [
   "/staff-roles",
   "/training",
   "/transfers",
-  // P2 第二批：收益四路径 + 提现（HQ-22～23）
+  // P2 第二批：收益列表 + 提现（HQ-22～23）
   "/revenue/partners",
   "/revenue/stores",
   "/revenue/agents",
+  "/revenue/global",
+  "/revenue/founding",
   "/revenue/settlement",
   "/withdrawals",
   // P2 第三批：协议客服预留 + 通用资源追溯（HQ-25～26）

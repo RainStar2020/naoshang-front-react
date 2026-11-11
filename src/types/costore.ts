@@ -1,6 +1,6 @@
 import type { RichContent } from './cms'
 export type CostoreApplicationStatus = 'PENDING_PAYMENT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
-export type CostorePaymentStatus = 'NOT_STARTED' | 'PENDING' | 'PAID' | 'CANCELLED'
+export type CostorePaymentStatus = 'NOT_STARTED' | 'PENDING' | 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED' | 'REFUNDING' | 'REFUNDED'
 export type CostoreRefundStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED' | null
 export interface CostorePlan { planId: string; title: string; durationId: string; months: number; priceBoundary: { referenceMonthlyFee: number; note: string }; benefits: RichContent; agreementVersion: number | null; agreement: RichContent; version: number }
 export interface CostoreApplication { applicationId: string; accountId: string; applicantName: string; applicantPhone: string; storeId: string; storeName: string; durationId: string; durationLabel: string; monthlyFee: number; payableAmount: number; orderId: string | null; applicationStatus: CostoreApplicationStatus; paymentStatus: CostorePaymentStatus; refundStatus: CostoreRefundStatus; refundId: string | null; contractStatus: 'NOT_SIGNED' | 'PENDING_CONFIRMATION' | 'SIGNED'; entitlementStatus: 'NOT_OPEN' | 'PENDING_CONFIRMATION' | 'OPEN'; agreementVersion: number | null; createdAt: string; paidAt: string | null; reviewedAt: string | null; rejectionReason: string | null; version: number; allowedActions: ('retry-refund')[] }

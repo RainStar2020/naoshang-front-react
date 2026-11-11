@@ -5,7 +5,7 @@ import { readFile, readdir, writeFile } from "node:fs/promises";
 if (!process.env.HQ_API_PASSWORD)
   throw new Error("请通过 HQ_API_PASSWORD 提供测试口令");
 const client = axios.create({
-  baseURL: process.env.HQ_API_TEST_URL || "hhttp://192.168.0.44:3000/api/hq",
+  baseURL: process.env.HQ_API_TEST_URL || "http://47.96.134.119:3000/api/hq",
   timeout: 15000,
 });
 const directory = new URL("../src/types/hq/", import.meta.url);

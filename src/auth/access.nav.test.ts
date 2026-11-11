@@ -56,7 +56,7 @@ describe("adminNavGroups §4.3 信息架构", () => {
     expect(system.children.some((c) => c.path === "/agents")).toBe(false);
   });
 
-  it("收益独立一级含四个二级；资金结算仅提现", () => {
+  it("收益独立一级含六个二级；资金结算仅提现", () => {
     const revenue = adminNavGroups.find((g) => g.key === "revenue")!;
     expect(revenue.label).toBe("收益");
     expect(
@@ -65,6 +65,8 @@ describe("adminNavGroups §4.3 信息架构", () => {
       ["/revenue/partners", "合伙人收益", "revenue:access"],
       ["/revenue/stores", "合店收益", "revenue:access"],
       ["/revenue/agents", "代理收益", "revenue:access"],
+      ["/revenue/global", "全球奖", "revenue:access"],
+      ["/revenue/founding", "创始奖", "revenue:access"],
       ["/revenue/settlement", "结算重算与冲正", "revenue:access"],
     ]);
     const finance = adminNavGroups.find((g) => g.key === "finance")!;
@@ -83,6 +85,8 @@ describe("adminNavGroups §4.3 信息架构", () => {
       "/revenue/partners",
       "/revenue/stores",
       "/revenue/agents",
+      "/revenue/global",
+      "/revenue/founding",
       "/revenue/settlement",
     ]);
   });

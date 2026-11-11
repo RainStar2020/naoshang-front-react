@@ -21,8 +21,9 @@ import {
   type StoreRoleDefinition,
 } from '../types/staff'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { DebouncedSearchInput } from '../components/DebouncedSearchInput'
 
-const statusLabels: Record<StaffStatus, string> = { ACTIVE: '在职', FROZEN: '冻结', LEFT: '离职' }
+const statusLabels: Record<StaffStatus, string> = { ACTIVE: '有效', FROZEN: '停用', LEFT: '离职' }
 const statusColor: Record<StaffStatus, string> = { ACTIVE: 'green', FROZEN: 'orange', LEFT: 'default' }
 
 export default function StaffRoles() {
@@ -177,7 +178,7 @@ export default function StaffRoles() {
         key: 'assignments', label: '员工任职',
         children: <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Card><Space wrap>
-            <Input aria-label="员工搜索" placeholder="姓名 / 登录账号 / 门店 / 任职编号" allowClear value={query.keyword} onChange={e => setQuery(v => ({ ...v, keyword: e.target.value, page: 1 }))} style={{ width: 280 }} />
+            <DebouncedSearchInput aria-label="员工搜索" placeholder="姓名 / 登录账号 / 门店 / 任职编号" allowClear value={query.keyword} onChange={keyword => setQuery(v => ({ ...v, keyword, page: 1 }))} style={{ width: 280 }} />
             <Select aria-label="筛选门店" allowClear placeholder="全部门店" style={{ width: 220 }} value={query.storeId} onChange={storeId => setQuery(v => ({ ...v, storeId, page: 1 }))} options={(catalog?.stores ?? []).map(row => ({ value: row.storeId, label: row.name }))} />
             <Select aria-label="筛选角色" allowClear placeholder="全部角色" style={{ width: 160 }} value={query.roleCode} onChange={roleCode => setQuery(v => ({ ...v, roleCode, page: 1 }))} options={storeRoles.map(code => ({ value: code, label: storeRoleLabels[code] }))} />
             <Select aria-label="筛选任职状态" allowClear placeholder="全部状态" style={{ width: 140 }} value={query.status} onChange={status => setQuery(v => ({ ...v, status, page: 1 }))} options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))} />
@@ -193,8 +194,6 @@ export default function StaffRoles() {
                 { title: '门店', key: 'store', width: 180, render: (_, row) => <span>{row.storeName || '—'}</span> },
                 { title: '角色', key: 'role', width: 120, render: (_, row) => <span>{row.roleTitle || '—'}</span> },
                 { title: '手机号', key: 'phone', width: 140, render: (_, row) => <span>{row.phone?.trim() ? row.phone : '—'}</span> },
-                { title: '加入时间', key: 'joined', width: 170, render: (_, row) => <span>{row.effectiveAt ? formatUserDate(row.effectiveAt) : '—'}</span> },
-                { title: '最近登录时间', key: 'lastLogin', width: 170, render: (_, row) => <span>{row.lastLoginAt ? formatUserDate(row.lastLoginAt) : '—'}</span> },
                 { title: '状态', key: 'status', width: 100, render: (_, row) => <Tag color={statusColor[row.status]}>{statusLabels[row.status]}</Tag> },
                 { title: '操作', key: 'actions', fixed: 'right', width: 220, render: (_, row) => <Space wrap size={0}>
                   <Button type="link" size="small" onClick={() => setDetailId(row.assignmentId)}>详情</Button>

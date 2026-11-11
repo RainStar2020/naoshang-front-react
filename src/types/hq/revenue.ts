@@ -9,7 +9,12 @@ export type RevenueMutationResponse<T extends object = UndocumentedFields> = Api
 export interface RevenueLedgerQuery extends PaginationQuery {
   /** wholesale=合伙人；agency=门店/合店与代理混排。 */
   module?: 'wholesale' | 'agency'
+  channel?: 'B' | 'C' | 'SUPPLY' | 'GLOBAL_AWARD' | 'FOUNDER_AWARD' | string
   ownerId?: string
+  keyword?: string
+  allocationStatus?: string
+  settlementStatus?: string
+  storeId?: string
   bizType?: 'supply' | 'parity' | 'global' | 'founding' | 'agent' | 'costore' | 'product' | 'hq_adjust' | string
   period?: string
   from?: string | number

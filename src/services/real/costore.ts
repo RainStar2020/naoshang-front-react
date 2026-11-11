@@ -18,7 +18,7 @@ import type { RichContent } from '../../types/cms'
 import { arr, asPage, bool, cast, mapHqError, moneyToFen, mutationBody, nullableStr, num, record, str, unwrapData } from './bridge'
 
 const APP_STATUSES = new Set<CostoreApplicationStatus>(['PENDING_PAYMENT', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED'])
-const PAY_STATUSES = new Set<CostorePaymentStatus>(['NOT_STARTED', 'PENDING', 'PAID', 'CANCELLED'])
+const PAY_STATUSES = new Set<CostorePaymentStatus>(['NOT_STARTED', 'PENDING', 'PENDING_PAYMENT', 'PAID', 'CANCELLED', 'REFUNDING', 'REFUNDED'])
 const REFUND_STATUSES = new Set(['PENDING', 'SUCCEEDED', 'FAILED'])
 const CONTRACT_STATUSES = new Set(['NOT_SIGNED', 'PENDING_CONFIRMATION', 'SIGNED'])
 const ENTITLEMENT_STATUSES = new Set(['NOT_OPEN', 'PENDING_CONFIRMATION', 'OPEN'])

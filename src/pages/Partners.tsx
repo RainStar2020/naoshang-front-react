@@ -36,17 +36,15 @@ import CmsContentEditor from "../components/CmsContentEditor";
 import { hasContent, nodeText } from "../utils/richContent";
 import { formatUserDate } from "../components/UserDetailDrawer";
 import { visiblePartnerCatalogAudit } from "../utils/partnerCatalogAudit";
+import { annualStatusLabel, annualStatusTagColor } from "../utils/partnerAnnualStatus";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
-const statuses = {
-  ACTIVE: "年度权益正常",
+import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
+/** 经营态筛选文案（partnerStatus），与年度权益无关 */
+const partnerStatusLabels: Record<PartnerProfile["partnerStatus"], string> = {
+  ACTIVE: "经营正常",
   FROZEN: "已冻结",
-  EXPIRED: "年度已到期",
-  PENDING_ANNUAL: "年度待开通",
-};
-const annualLabels = {
-  ACTIVE: "已生效",
   EXPIRED: "已到期",
-  NOT_OPEN: "未开通",
+  PENDING_ANNUAL: "年度待开通",
 };
 const taskLabels: Record<string, string> = {
   IN_PROGRESS: "进行中",
@@ -267,13 +265,11 @@ export default function Partners() {
               <Space direction="vertical" size={16} style={{ width: "100%" }}>
                 <Card>
                   <Space wrap>
-                    <Input
+                    <DebouncedSearchInput
                       aria-label="合伙人搜索"
                       placeholder="昵称 / 手机号 / 账号编号"
                       value={query.keyword}
-                      onChange={(event) =>
-                        changeQuery({ keyword: event.target.value })
-                      }
+                      onChange={(keyword) => changeQuery({ keyword })}
                     />
                     <Select
                       aria-label="筛选合伙等级"
@@ -296,7 +292,7 @@ export default function Partners() {
                       onChange={(partnerStatus) =>
                         changeQuery({ partnerStatus })
                       }
-                      options={Object.entries(statuses).map(
+                      options={Object.entries(partnerStatusLabels).map(
                         ([value, label]) => ({ value, label }),
                       )}
                     />
@@ -378,14 +374,8 @@ export default function Partners() {
                         key: "annual",
                         width: 160,
                         render: (_, row) => (
-                          <Tag
-                            color={
-                              row.partnerStatus === "ACTIVE"
-                                ? "green"
-                                : "default"
-                            }
-                          >
-                            {statuses[row.partnerStatus]}
+                          <Tag color={annualStatusTagColor(row.annualStatus)}>
+                            {annualStatusLabel(row.annualStatus)}
                           </Tag>
                         ),
                       },
@@ -699,12 +689,12 @@ export default function Partners() {
                   // {
                   //   key: "status",
                   //   label: "经营状态",
-                  //   children: statuses[profile.partnerStatus],
+                  //   children: partnerStatusLabels[profile.partnerStatus],
                   // },
                   {
                     key: "annual",
                     label: "年度权益",
-                    children: annualLabels[profile.annualStatus],
+                    children: annualStatusLabel(profile.annualStatus),
                   },
                   {
                     key: "expiry",

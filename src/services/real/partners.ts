@@ -55,12 +55,14 @@ function asLevel(value: unknown, fallback: PartnerLevel = 'DEMO-VIP'): PartnerLe
   return aliases[raw] ?? (LEVEL_SET.has(raw) ? (raw as PartnerLevel) : fallback)
 }
 
+/** 经营态。缺省 ACTIVE 只表示未冻结经营，绝不代表年度权益已开通。 */
 function asProfileStatus(value: unknown): PartnerProfile['partnerStatus'] {
   const raw = str(value, 'ACTIVE').toUpperCase()
   return PROFILE_STATUSES.has(raw) ? (raw as PartnerProfile['partnerStatus']) : 'ACTIVE'
 }
 
-function asAnnualStatus(value: unknown): PartnerProfile['annualStatus'] {
+/** 年度权益。缺省 / 未知一律 NOT_OPEN，禁止静默变成 ACTIVE。 */
+export function asAnnualStatus(value: unknown): PartnerProfile['annualStatus'] {
   const raw = str(value, 'NOT_OPEN').toUpperCase()
   return ANNUAL_STATUSES.has(raw) ? (raw as PartnerProfile['annualStatus']) : 'NOT_OPEN'
 }
@@ -81,7 +83,7 @@ const LEGACY_STATUS_LABELS: Record<string, string> = {
   SUPERSEDED: '已由人工升级替代',
 }
 
-function tierToLevel(value: unknown, fallback: PartnerLevel = 'DEMO-VIP'): PartnerLevel {
+export function tierToLevel(value: unknown, fallback: PartnerLevel = 'DEMO-VIP'): PartnerLevel {
   const raw = str(value).toLowerCase()
   const aliases: Record<string, PartnerLevel> = {
     vip: 'DEMO-VIP',

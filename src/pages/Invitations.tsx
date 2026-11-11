@@ -32,6 +32,8 @@ import {
 } from "../types/invitations";
 import { formatUserDate } from "../components/UserDetailDrawer";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
+import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
+import { useDebouncedValue } from "../utils/useDebouncedValue";
 function person(row: InvitationAccount | null) {
   return row ? `${row.name} / ${row.phone}` : "未绑定介绍人";
 }
@@ -67,6 +69,7 @@ export default function Invitations() {
     [submitError, setSubmitError] = useState(""),
     [blocked, setBlocked] = useState(false);
   const [api, holder] = message.useMessage();
+  const debouncedKeyword = useDebouncedValue(keyword);
   useEffect(() => {
     let alive = true;
     setList(null);
@@ -127,7 +130,7 @@ export default function Invitations() {
     setCandidateError("");
     if (editing && action === "rebind")
       service
-        .candidates(token, editing.account.accountId, keyword)
+        .candidates(token, editing.account.accountId, debouncedKeyword)
         .then((value) => {
           if (alive) {
             if (value.graphVersion !== editing.graphVersion)
@@ -141,7 +144,7 @@ export default function Invitations() {
     return () => {
       alive = false;
     };
-  }, [token, editing, action, keyword]);
+  }, [token, editing, action, debouncedKeyword]);
   function openDetail(id: string) {
     setDetailId(id);
     setTeamQuery({ scope: "DIRECT", page: 1, pageSize: 5 });
@@ -236,13 +239,13 @@ export default function Invitations() {
       />
       <Card>
         <Space wrap>
-          <Input
+          <DebouncedSearchInput
             aria-label="邀请账号搜索"
             placeholder="昵称 / 手机号 / 账号编号"
             allowClear
             value={query.keyword}
-            onChange={(e) =>
-              setQuery((v) => ({ ...v, keyword: e.target.value, page: 1 }))
+            onChange={(keyword) =>
+              setQuery((v) => ({ ...v, keyword, page: 1 }))
             }
             style={{ width: 300 }}
           />
@@ -437,15 +440,15 @@ export default function Invitations() {
                             setTeamQuery((v) => ({ ...v, scope, page: 1 }))
                           }
                         />
-                        <Input
+                        <DebouncedSearchInput
                           aria-label="团队成员搜索"
                           placeholder="昵称 / 编号 / 手机号"
                           allowClear
                           value={teamQuery.keyword}
-                          onChange={(e) =>
+                          onChange={(keyword) =>
                             setTeamQuery((v) => ({
                               ...v,
-                              keyword: e.target.value,
+                              keyword,
                               page: 1,
                             }))
                           }

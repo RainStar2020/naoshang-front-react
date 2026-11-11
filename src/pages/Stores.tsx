@@ -38,6 +38,7 @@ import {
   type StoreStatus,
 } from "../types/stores";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
+import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
 
 const money = (n: number) => `￥${(n / 100).toFixed(2)}`;
 const statusColor: Record<StoreStatus, string> = {
@@ -437,13 +438,13 @@ export default function Stores() {
       {catalogError && <Alert type="error" message={catalogError} />}
       <Card>
         <Space wrap>
-          <Input
+          <DebouncedSearchInput
             aria-label="门店搜索"
             placeholder="名称 / 编号 / 负责人 / 电话 / 地址"
             allowClear
             value={query.keyword}
-            onChange={(e) =>
-              setQuery((v) => ({ ...v, keyword: e.target.value, page: 1 }))
+            onChange={(keyword) =>
+              setQuery((v) => ({ ...v, keyword, page: 1 }))
             }
             style={{ width: 280 }}
           />
@@ -521,11 +522,6 @@ export default function Stores() {
               render: (_, row) => row.number || "—",
             },
             {
-              title: "门店ID",
-              dataIndex: "storeId",
-              width: 120,
-            },
-            {
               title: "状态",
               key: "status",
               width: 100,
@@ -551,7 +547,7 @@ export default function Stores() {
               render: (_, row) => row.address || "—",
             },
             {
-              title: "负责人",
+              title: "店长 / 联系方式",
               key: "m",
               width: 160,
               render: (_, row) => (
@@ -561,13 +557,13 @@ export default function Stores() {
               ),
             },
             {
-              title: "合店费用",
+              title: "门店月费（元）",
               key: "f",
               width: 120,
               render: (_, row) => money(row.feeAmount),
             },
             {
-              title: "费用下限",
+              title: "最低月费（元）",
               key: "minFee",
               width: 120,
               render: (_, row) => money(row.minimumFeeAmount),

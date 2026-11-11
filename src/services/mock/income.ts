@@ -415,6 +415,16 @@ export function mockListIncome(query: IncomeQuery): IncomeList {
   if (query.settlementStatus) items = items.filter((e) => e.settlementStatus === query.settlementStatus)
   if (query.storeId) items = items.filter((e) => e.storeId === query.storeId)
   if (query.accountId) items = items.filter((e) => e.accountId === query.accountId)
+  if (query.period) {
+    const period = query.period
+    const compact = period.replace(/-/g, '')
+    items = items.filter(
+      (e) =>
+        (e.createdAt || '').startsWith(period) ||
+        e.sourceOrder.includes(compact) ||
+        e.title.includes(period),
+    )
+  }
 
   const originals = state.entries.filter((e) => e.kind === 'ORIGINAL')
   const summary = {

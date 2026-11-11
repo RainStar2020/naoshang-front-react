@@ -6,6 +6,7 @@ import { quotasService as service } from '../services/quotas'
 import { QuotaError, type QuotaBalance, type QuotaDetail, type QuotaLedger, type QuotaOwner, type QuotaQuery, type QuotaRechargeInput, type QuotaType } from '../types/quotas'
 import { formatUserDate } from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { DebouncedSearchInput } from '../components/DebouncedSearchInput'
 import { isMockAuth } from '../services/auth'
 const typeLabels = { STANDARD: '标准名额', ACTIVITY: '活动名额' }
 const levelLabels = { 'DEMO-VIP': 'VIP', 'DEMO-ANGEL': '天使', 'DEMO-BOARD': '私董', 'DEMO-FOUNDER': '联创' }
@@ -41,16 +42,16 @@ export default function Quotas() {
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>{holder}
     <Space style={{ width: '100%', justifyContent: 'space-between' }}><div><Typography.Title level={3} style={{ margin: 0 }}>VIP名额批次、流水与总部充值</Typography.Title><Typography.Text type="secondary">总部名额查询与受控充值（监管配置）；不替代小程序日常购买/划转申请。</Typography.Text></div><Button onClick={() => setRefresh(value => value + 1)}>刷新</Button></Space>
     <HqDataSourceAlert mockMessage="内存Mock，整页刷新恢复演示数据，尚未同步小程序。标准/活动名额均永久有效；活动名额不可转让、不可退款。充值须原因/版本/幂等/确认，禁止前端推导入账终态。" mockDescription="活动升级服务费按每个¥2,000.00的服务报价展示；付款前仅占用，成功后才消耗。总部不提供个人购买、划转、代付或退款操作。" />
-    <Card><Space wrap><Input aria-label="名额所属账号搜索" placeholder="昵称 / 手机号 / 账号编号" allowClear value={query.keyword} onChange={event => setQuery(value => ({ ...value, keyword: event.target.value, page: 1 }))} style={{ width: 290 }} /><Select aria-label="筛选充值资格" allowClear placeholder="全部充值资格" value={query.eligibility} onChange={eligibility => setQuery(value => ({ ...value, eligibility, page: 1 }))} style={{ width: 220 }} options={[{ value: 'ALLOWED', label: '当前可总部充值' }, { value: 'DENIED', label: '当前不可总部充值' }]} /><Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>重置筛选</Button></Space></Card>
+    <Card><Space wrap><DebouncedSearchInput aria-label="名额所属账号搜索" placeholder="昵称 / 手机号 / 账号编号" allowClear value={query.keyword} onChange={keyword => setQuery(value => ({ ...value, keyword, page: 1 }))} style={{ width: 290 }} /><Select aria-label="筛选充值资格" allowClear placeholder="全部充值资格" value={query.eligibility} onChange={eligibility => setQuery(value => ({ ...value, eligibility, page: 1 }))} style={{ width: 220 }} options={[{ value: 'ALLOWED', label: '当前可总部充值' }, { value: 'DENIED', label: '当前不可总部充值' }]} /><Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>重置筛选</Button></Space></Card>
     {error && <Alert type="error" showIcon message={error} />}
     {list && <Space wrap size={36}>{[{ title: '名额账户数', value: list.summary.owners }, { title: '总名额', value: list.summary.totalQuota }, { title: '冻结名额', value: list.summary.frozenQuota }, { title: '标准合计', value: list.summary.standardRemaining }, { title: '活动合计', value: list.summary.activityRemaining }, { title: '当前可充值', value: list.summary.rechargeable }].map(item => <Statistic key={item.title} {...item} />)}</Space>}
     <Card title="VIP名额账户"><Table<QuotaOwner> rowKey={(row) => row.quotaId || row.ownerAccountId} loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1200 }} pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page, pageSize })) }} columns={[
       { title: '账户姓名手机号', key: 'account', width: 160, render: (_, row) => <><div>{row.name || '—'}</div><Typography.Text type="secondary">{row.phone || '—'}</Typography.Text></> },
-      { title: '用户ID', dataIndex: 'displayId', width: 140, render: (value: string) => value || '—' },
+      { title: '展示编号', dataIndex: 'displayId', width: 140, render: (value: string) => value || '—' },
       { title: '总名额', dataIndex: 'quotaTotal', width: 100 },
-      { title: 'VIP名额', dataIndex: 'standard', width: 100 },
+      { title: '标准名额', dataIndex: 'standard', width: 100 },
       { title: '活动名额', dataIndex: 'activityTotal', width: 100 },
-      { title: '已花费名额', dataIndex: 'spent', width: 110 },
+      { title: '已消耗名额', dataIndex: 'spent', width: 110 },
       { title: '剩余有效名额', dataIndex: 'available', width: 120 },
       { title: '操作', key: 'action', fixed: 'right', width: 140, render: (_, row) => <Space direction="vertical"><Button size="small" onClick={() => openDetail(row.ownerAccountId || row.quotaId)}>VIP明细</Button>{canRecharge && (row.allowedActions?.includes('adjust') || row.eligibility.canRecharge) && <Button size="small" type="primary" onClick={() => openRecharge(row)}>充值</Button>}</Space> },
     ]} /></Card>

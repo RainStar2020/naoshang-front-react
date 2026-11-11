@@ -1,6 +1,7 @@
 import type { HqAccount } from './auth'
 
-export type AgentStatus = 'ACTIVE' | 'SUSPENDED' | 'EXITED'
+export type AgentStatus = 'ACTIVE' | 'DISABLED' | 'SUSPENDED' | 'EXITED'
+
 export type TerritoryLevel = 'PROVINCE' | 'CITY' | 'DISTRICT'
 
 export class AgentError extends Error {
@@ -47,7 +48,9 @@ export interface RegionAgent {
   phone: string
   partnerAccountId: string | null
   partnerName: string | null
-  levelLabel: string
+  levelLabel: string
+  region?: string
+
   territoryIds: string[]
   storeCount: number
   status: AgentStatus

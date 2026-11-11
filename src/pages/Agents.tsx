@@ -1,271 +1,203 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
+import { useEffect, useState } from 'react'
+import { Alert, Button, Card, Checkbox, Descriptions, Drawer, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
-import { agentsService as service } from '../services/agents'
-import { AgentError, type AgentCatalog, type AgentDetail, type AgentList, type AgentMutation, type AgentQuery, type AgentTerritory, type RegionAgent } from '../types/agents'
-import { formatUserDate } from '../components/UserDetailDrawer'
-import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { isMockAuth } from '../services/auth'
+import { regionalAgencyApi as api } from '../api/regionalAgency'
+import type { PageData } from '../types/hq/common'
+import type { AgencyQuery, ApplicationQuery, Assignment, AgencyApplication, AgencyDetail, Brief, RegionType, AppointmentInput, DecisionInput, AppointmentResult, DecisionResult, CostoreChild } from '../types/regionalAgency'
 
-const money = (cents: number) => `¥${(cents / 100).toFixed(2)}`
-const statusLabel = { ACTIVE: '在职生效', SUSPENDED: '监管暂停', EXITED: '已退出' } as const
-const levelLabel = { PROVINCE: '省级', CITY: '地市', DISTRICT: '区县' } as const
-
-type Pending =
-  | { kind: 'suspend' | 'resume'; agent: RegionAgent }
-  | { kind: 'set-exclusivity'; territory: AgentTerritory; exclusive: boolean }
+const regionLabels: Record<RegionType, string> = { province: '省级代理', city: '市级代理', district: '区县代理', store: '单店代理' }
+const tierLabels: Record<string, string> = { none: '普通用户', vip: 'VIP', angel: '天使', private: '私董', cofounder: '联创' }
+const reviewLabels = { PENDING_REVIEW: '待审核', APPROVED: '通过', REJECTED: '拒绝' }
+const regionOptions = Object.entries(regionLabels).map(([value, label]) => ({ value, label }))
+const money = (n: number) => `¥${n.toFixed(2)}`
+const date = (s: string | null) => s && Number.isFinite(Date.parse(s)) ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Asia/Shanghai', hour12: false }).format(new Date(s)) : '—'
+const person = (p: Brief | null) => p ? <Space direction="vertical" size={0}><span>{p.name || '未填写姓名'}</span><Typography.Text type="secondary">{p.phone || '—'} · {tierLabels[p.tier] || '未知等级'}</Typography.Text></Space> : '—'
+const messageOf = (e: unknown) => e instanceof Error ? e.message : '请求失败，请刷新后核对结果'
+type Review = { kind: 'appoint'; input: AppointmentInput; key: string } | { kind: 'decision'; id: string; name: string; input: DecisionInput; key: string }
 
 export default function Agents() {
   const { session } = useAuth()
-  const { token, account } = session!
-  const canManage = hasPermission(account, 'agents:manage')
-  const [catalog, setCatalog] = useState<AgentCatalog | null>(null)
-  const [list, setList] = useState<AgentList | null>(null)
-  const [query, setQuery] = useState<AgentQuery>({ page: 1, pageSize: 10 })
-  const [keyword, setKeyword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const canManage = hasPermission(session!.account, 'agents:manage') && !isMockAuth
+  const [tab, setTab] = useState('assignments')
+  const [query, setQuery] = useState<AgencyQuery>({ page: 1, pageSize: 20 })
+  const [appQuery, setAppQuery] = useState<ApplicationQuery>({ page: 1, pageSize: 20 })
+  const [list, setList] = useState<PageData<Assignment>>()
+  const [applications, setApplications] = useState<PageData<AgencyApplication>>()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
-  const [detailId, setDetailId] = useState<string | null>(null)
-  const [detail, setDetail] = useState<AgentDetail | null>(null)
-  const [pending, setPending] = useState<Pending | null>(null)
-  const [reason, setReason] = useState('')
-  const [idempotencyKey, setIdempotencyKey] = useState('')
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [blocked, setBlocked] = useState(false)
-  const [messageApi, contextHolder] = message.useMessage()
+  const [detailId, setDetailId] = useState<string>()
+  const [detailPage, setDetailPage] = useState(1)
+  const [detail, setDetail] = useState<AgencyDetail>()
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const [appointmentOpen, setAppointmentOpen] = useState(false)
+  const [decision, setDecision] = useState<{ row: AgencyApplication; decision: 'APPROVE' | 'REJECT' }>()
+  const [review, setReview] = useState<Review>()
+  const [busy, setBusy] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [uncertain, setUncertain] = useState(false)
+  const [receipt, setReceipt] = useState<AppointmentResult | DecisionResult>()
+  const [checkResult, setCheckResult] = useState<{ regionType: RegionType; regionCode: string; available: boolean }>()
+  const [checking, setChecking] = useState(false)
+  const [checkError, setCheckError] = useState('')
+  const [appointmentForm] = Form.useForm<AppointmentInput & { received: boolean }>()
+  const [decisionForm] = Form.useForm<DecisionInput & { received: boolean }>()
+  const [filterForm] = Form.useForm()
+  const [appFilterForm] = Form.useForm()
+  const regionType = Form.useWatch('regionType', appointmentForm) as RegionType | undefined
+  const regionCode = Form.useWatch('regionCode', appointmentForm) as string | undefined
 
   useEffect(() => {
+    if (isMockAuth) return
     let alive = true
-    setBusy(true); setError(null)
-    Promise.all([service.catalog(token), service.list(token, { ...query, keyword: keyword.trim() || undefined })])
-      .then(([c, l]) => { if (alive) { setCatalog(c); setList(l) } })
-      .catch((err) => { if (alive) setError(err instanceof Error ? err.message : '加载失败') })
-      .finally(() => { if (alive) setBusy(false) })
+    setLoading(true); setError('')
+    const request = tab === 'assignments' ? api.list(query).then(value => { if (alive) setList(value) }) : api.applications(appQuery).then(value => { if (alive) setApplications(value) })
+    request.catch(e => { if (alive) setError(messageOf(e)) }).finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [token, query, keyword, refresh])
-
+  }, [tab, query, appQuery, refresh])
   useEffect(() => {
-    if (!detailId) { setDetail(null); return }
+    if (!detailId || isMockAuth) return
     let alive = true
-    service.detail(token, detailId).then((d) => { if (alive) setDetail(d) }).catch((err) => { if (alive) messageApi.error(err instanceof Error ? err.message : '详情加载失败') })
+    setDetail(undefined); setDetailLoading(true); setDetailError('')
+    api.detail(detailId, detailPage).then(value => { if (alive) setDetail(value) }).catch(e => { if (alive) setDetailError(messageOf(e)) }).finally(() => { if (alive) setDetailLoading(false) })
     return () => { alive = false }
-  }, [token, detailId, refresh, messageApi])
-
-  const territoryName = useMemo(() => {
-    const map = new Map((catalog?.territories ?? []).map((t) => [t.territoryId, t.name]))
-    return (ids: string[]) => ids.map((id) => map.get(id) ?? id).join('、') || '—'
-  }, [catalog])
-
-  const openPending = (value: Pending) => {
-    setPending(value)
-    setReason('')
-    setIdempotencyKey(crypto.randomUUID())
-    setSubmitError(null)
-    setBlocked(false)
-  }
-
-  const submit = async () => {
-    if (!pending) return
-    const trimmed = reason.trim()
-if (!trimmed) { setSubmitError('请填写操作原因'); return }
-    
-    let input: AgentMutation
-    if (pending.kind === 'set-exclusivity') {
-      input = { action: 'set-exclusivity', territoryId: pending.territory.territoryId, exclusive: pending.exclusive, reason: trimmed, version: pending.territory.version, idempotencyKey }
-    } else {
-      input = { action: pending.kind, agentId: pending.agent.agentId, reason: trimmed, version: pending.agent.version, idempotencyKey }
-    }
-    setBusy(true); setSubmitError(null)
+  }, [detailId, detailPage, refresh])
+  const openDetail = (id: string) => { setDetailPage(1); setDetailId(id) }
+  const assignmentColumns: ColumnsType<Assignment> = [
+    { title: '代理人 / 手机号 / 等级', key: 'agent', width: 220, render: (_, r) => person(r.agent) },
+    { title: '代理级别', dataIndex: 'regionType', width: 120, render: (v: RegionType) => regionLabels[v] || '未知级别' },
+    { title: '代理区域', key: 'region', width: 180, render: (_, r) => r.regionName || r.regionCode },
+    { title: '代理推荐人', key: 'referrer', width: 210, render: (_, r) => person(r.referrer) },
+    { title: '合伙人上级', key: 'upline', width: 210, render: (_, r) => person(r.upline) },
+    { title: '状态', dataIndex: 'status', width: 90, render: v => <Tag color={v === 'ACTIVE' ? 'green' : 'default'}>{v === 'ACTIVE' ? '有效' : v === 'DISABLED' ? '停用' : '未知状态'}</Tag> },
+    { title: '成为代理时间', dataIndex: 'appointedAt', width: 180, render: date },
+    { title: '最后登录时间', dataIndex: 'lastLoginAt', width: 180, render: date },
+    { title: '操作', key: 'action', width: 90, fixed: 'right', render: (_, r) => <Button type="link" onClick={() => openDetail(r.assignmentId)}>详情</Button> },
+  ]
+  const check = async () => {
     try {
-      await service.mutate(token, input)
-      messageApi.success('监管操作已提交，以服务回执为准')
-      setPending(null)
-      setRefresh((n) => n + 1)
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : '结果未知，请保留原请求号重试')
-      setBlocked(err instanceof AgentError && ['VERSION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'EXCLUSIVITY_CONFLICT'].includes(err.code))
-    } finally { setBusy(false) }
+      const values = await appointmentForm.validateFields(['regionType', 'regionCode'])
+      setChecking(true); setCheckResult(undefined); setCheckError('')
+      setCheckResult(await api.check(values.regionType, values.regionCode.trim()))
+    } catch (e) { if (e instanceof Error) setCheckError(messageOf(e)) }
+    finally { setChecking(false) }
   }
-
-  return (
-    <Space direction="vertical" size={20} style={{ width: '100%' }}>
-      {contextHolder}
-      <div className="user-page-heading">
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>区域代理监管</Typography.Title>
-          <Typography.Text type="secondary">维护区域代理监管与生效状态。</Typography.Text>
-        </div>
-        <Button loading={busy} onClick={() => setRefresh((n) => n + 1)}>刷新</Button>
-      </div>
-      <HqDataSourceAlert mockMessage="内存Mock：整页刷新恢复演示数据。本页仅总部监管/配置，不替代小程序代理申请与签约流程。" mockDescription="累计佣金为演示快照，禁止前端推导结算或付款终态。写操作须原因、版本、幂等键与确认；结果未知请保留原请求号查询。" />
-      {error && <Alert type="error" message={error} />}
-
-      <Tabs items={[
-        {
-          key: 'agents',
-          label: '代理档案',
-          children: (
-            <Card title="区域代理列表" extra={list && <Typography.Text type="secondary">在职 {list.summary.activeCount} · 暂停 {list.summary.suspendedCount} · 独占区域 {list.summary.exclusiveTerritoryCount}</Typography.Text>}>
-              <Space wrap style={{ marginBottom: 16 }}>
-                <Input aria-label="代理搜索" placeholder="姓名 / 手机 / 区域 / 编号" allowClear style={{ width: 260 }} value={keyword} onChange={(e) => { setKeyword(e.target.value); setQuery((q) => ({ ...q, page: 1 })) }} />
-                <Select aria-label="代理状态" allowClear placeholder="全部状态" style={{ width: 160 }} value={query.status} onChange={(status) => setQuery((q) => ({ ...q, status, page: 1 }))} options={Object.entries(statusLabel).map(([value, label]) => ({ value, label }))} />
-                <Select aria-label="负责区域" allowClear showSearch optionFilterProp="label" placeholder="全部区域" style={{ width: 200 }} value={query.territoryId} onChange={(territoryId) => setQuery((q) => ({ ...q, territoryId, page: 1 }))} options={(catalog?.territories ?? []).map((t) => ({ value: t.territoryId, label: t.name }))} />
-              </Space>
-              <Table<RegionAgent>
-                rowKey="agentId"
-                loading={busy}
-                dataSource={list?.items}
-                scroll={{ x: 1100 }}
-                pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], onChange: (page, pageSize) => setQuery((q) => ({ ...q, page, pageSize })) }}
-                columns={[
-                  { title: '代理', key: 'agent', width: 160, render: (_, r) => <span>{r.name} / {r.phone}</span> }, { title: '代理ID', dataIndex: 'agentId', width: 120 },
-                  { title: '所属合伙人', key: 'partner', width: 140, render: (_, r) => r.partnerName ?? '—' },
-                  { title: '等级', dataIndex: 'levelLabel', width: 100 }, { title: '区域', key: 'region', width: 160, ellipsis: true, render: (_, r) => territoryName(r.territoryIds) },
-                  { title: '直属门店', dataIndex: 'storeCount', width: 90, align: 'center' },
-                  { title: '佣金快照', key: 'fee', width: 120, align: 'right', render: (_, r) => money(r.commissionSnapshotCents) },
-                  { title: '状态', key: 'status', width: 110, render: (_, r) => <Tag color={r.status === 'ACTIVE' ? 'green' : r.status === 'SUSPENDED' ? 'orange' : 'default'}>{statusLabel[r.status]}</Tag> },
-                  {
-                    title: '操作', key: 'actions', width: 220, fixed: 'right',
-                    render: (_, r) => (
-                      <Space wrap>
-                        <Button type="link" onClick={() => setDetailId(r.agentId)}>详情</Button>
-                        {canManage && r.allowedActions.includes('suspend') && <Button type="link" danger onClick={() => openPending({ kind: 'suspend', agent: r })}>暂停生效</Button>}
-                        {canManage && r.allowedActions.includes('resume') && <Button type="link" onClick={() => openPending({ kind: 'resume', agent: r })}>恢复生效</Button>}
-                      </Space>
-                    ),
-                  },
-                ]}
-              />
-            </Card>
-          ),
-        },
-        {
-          key: 'territories',
-          label: '区域独占',
-          children: (
-            <Card title="区域独占配置">
-              <Table<AgentTerritory>
-                rowKey="territoryId"
-                loading={busy}
-                dataSource={catalog?.territories}
-                pagination={false}
-                columns={[
-                  { title: '区域', dataIndex: 'name' }, { title: '区域ID', dataIndex: 'territoryId', width: 140 },
-                  { title: '层级', key: 'level', width: 100, render: (_, r) => levelLabel[r.level] },
-                  { title: '独占', key: 'ex', width: 100, render: (_, r) => <Tag color={r.exclusive ? 'blue' : 'default'}>{r.exclusive ? '独占' : '非独占'}</Tag> },
-                  { title: '当前在职持有', key: 'holder', width: 160, render: (_, r) => r.holderAgentId ?? '—' },
-                  { title: '版本', dataIndex: 'version', width: 80 },
-                  {
-                    title: '操作', key: 'act', width: 160,
-                    render: (_, r) => canManage ? (
-                      <Button type="link" onClick={() => openPending({ kind: 'set-exclusivity', territory: r, exclusive: !r.exclusive })}>
-                        {r.exclusive ? '关闭独占' : '开启独占'}
-                      </Button>
-                    ) : '—',
-                  },
-                ]}
-              />
-            </Card>
-          ),
-        },
-        {
-          key: 'plans',
-          label: '方案参考',
-          children: (
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              {(catalog?.planGroups ?? []).map((g) => (
-                <Card key={g.id} title={g.label} size="small">
-                  <Table
-                    rowKey="id"
-                    size="small"
-                    pagination={false}
-                    scroll={{ x: 1200 }}
-                    dataSource={g.rows}
-                    columns={[
-                      { title: '定位', dataIndex: 'positioning', width: 100 },
-                      { title: '等级名称', dataIndex: 'name', width: 120 },
-                      { title: '人口档位', dataIndex: 'population', width: 140, render: (v) => v || '—' },
-                      { title: '技术费', dataIndex: ['fee', 'tech'], width: 80, align: 'right' },
-                      { title: '设备费', dataIndex: ['fee', 'device'], width: 80, align: 'right' },
-                      { title: '保证金', dataIndex: ['fee', 'deposit'], width: 80, align: 'right' },
-                      { title: '合计', dataIndex: ['fee', 'total'], width: 80, align: 'right' },
-                      { title: 'VIP合伙人(B端)', dataIndex: 'vipPartner', width: 120 },
-                      { title: '区域代理(B端)', dataIndex: 'regionCommission', width: 140 },
-                      { title: '虚拟产品(C端)', dataIndex: 'virtualProduct', width: 220 },
-                      { title: '实物产品(C端)', dataIndex: 'physicalProduct', width: 120 },
-                    ]}
-                  />
-                </Card>
-              ))}
-              <Card title="规则说明" size="small">
-                {(catalog?.planNotes ?? []).map((g) => (
-                  <div key={g.title} style={{ marginBottom: 12 }}>
-                    <Typography.Text strong>{g.title}</Typography.Text>
-                    <ul>{g.items.map((item) => <li key={item}>{item}</li>)}</ul>
-                  </div>
-                ))}
-              </Card>
-            </Space>
-          ),
-        },
-      ]} />
-
-      <Drawer open={!!detailId} width={560} title="区域代理详情" onClose={() => setDetailId(null)} destroyOnClose>
-        {detail && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Descriptions column={1} size="small" bordered>
-              <Descriptions.Item label="代理">{detail.agent.name}（{detail.agent.agentId}）</Descriptions.Item>
-              <Descriptions.Item label="账号">{detail.agent.accountId}</Descriptions.Item>
-              <Descriptions.Item label="合伙人">{detail.agent.partnerName ?? '—'} · {detail.agent.partnerAccountId ?? '—'}</Descriptions.Item>
-              <Descriptions.Item label="状态">{statusLabel[detail.agent.status]} · V{detail.agent.version}</Descriptions.Item>
-              <Descriptions.Item label="区域">{territoryName(detail.agent.territoryIds)}</Descriptions.Item>
-              <Descriptions.Item label="佣金快照">{money(detail.agent.commissionSnapshotCents)}（演示，非结算终态）</Descriptions.Item>
-            </Descriptions>
-            <Card size="small" title="关联区域">
-              <Table size="small" rowKey="territoryId" pagination={false} dataSource={detail.territories} columns={[
-                { title: '区域', dataIndex: 'name' },
-                { title: '独占', render: (_, r) => (r.exclusive ? '是' : '否') },
-                { title: '版本', dataIndex: 'version', width: 70 },
-              ]} />
-            </Card>
-            <Card size="small" title="监管审计">
-              <Table size="small" rowKey="operationId" pagination={false} dataSource={detail.audit} columns={[
-                { title: '时间', width: 160, render: (_, r) => formatUserDate(r.occurredAt) },
-                { title: '动作', dataIndex: 'action', width: 120 },
-                { title: '操作者', dataIndex: 'operatorName', width: 100 },
-                { title: '原因', dataIndex: 'reason' },
-              ]} />
-            </Card>
-          </Space>
-        )}
-      </Drawer>
-
-      <Modal
-        open={!!pending}
-        title={pending?.kind === 'set-exclusivity' ? (pending.exclusive ? '开启区域独占' : '关闭区域独占') : pending?.kind === 'suspend' ? '暂停区域代理生效' : '恢复区域代理生效'}
-        onCancel={() => { if (!busy) setPending(null) }}
-        onOk={() => void submit()}
-        okText="确认提交"
-        cancelText="取消"
-        confirmLoading={busy}
-        maskClosable={false}
-        closable={!busy}
-        okButtonProps={{ disabled: blocked, danger: pending?.kind === 'suspend' }}
-        cancelButtonProps={{ disabled: busy }}
-      >
-        {pending && pending.kind !== 'set-exclusivity' && <Typography.Paragraph>对象：{pending.agent.name}（{pending.agent.agentId}）· 版本 V{pending.agent.version}</Typography.Paragraph>}
-        {pending && pending.kind === 'set-exclusivity' && <Typography.Paragraph>区域：{pending.territory.name} · 版本 V{pending.territory.version} → {pending.exclusive ? '独占' : '非独占'}</Typography.Paragraph>}
-        <Form layout="vertical">
-          <Form.Item label="备注">
-            <Input.TextArea rows={3} maxLength={200} showCount value={reason} onChange={(e) => setReason(e.target.value)} placeholder="请填写操作原因" />
-          </Form.Item>
-          <Form.Item label="幂等请求号">
-            <Input value={idempotencyKey} readOnly />
-          </Form.Item>
+  const prepareAppointment = async () => {
+    try {
+      const { received, ...values } = await appointmentForm.validateFields()
+      if (!received) return
+      const input: AppointmentInput = { ...values, partnerId: values.partnerId.trim(), regionCode: values.regionCode.trim(), reason: values.reason?.trim(), priceTier: values.regionType === 'city' ? values.priceTier ?? 0 : 0 }
+      if (values.regionType !== 'store') { delete input.parentCode; delete input.storeName; delete input.storeAddress; delete input.storeContact }
+      if (!input.promotionCode?.trim()) delete input.promotionCode
+      else input.promotionCode = input.promotionCode.trim()
+      setSubmitError(''); setUncertain(false); setReview({ kind: 'appoint', input, key: crypto.randomUUID() })
+    } catch { /* Form shows field errors. */ }
+  }
+  const prepareDecision = async () => {
+    if (!decision) return
+    try {
+      const values = await decisionForm.validateFields()
+      const input: DecisionInput = { decision: decision.decision, version: decision.row.version, reason: values.reason.trim(), ...(decision.decision === 'APPROVE' && values.feeAmount != null ? { feeAmount: values.feeAmount } : {}) }
+      setSubmitError(''); setUncertain(false); setReview({ kind: 'decision', id: decision.row.applicationId, name: decision.row.applicant?.name || '未填写姓名', input, key: crypto.randomUUID() })
+    } catch { /* Form shows field errors. */ }
+  }
+  const submit = async () => {
+    if (!review || busy) return
+    setBusy(true); setSubmitError('')
+    try {
+      const result = review.kind === 'appoint' ? await api.appoint(review.input, review.key) : await api.decide(review.id, review.input, review.key)
+      setReceipt(result); setReview(undefined); setAppointmentOpen(false); setDecision(undefined)
+      setRefresh(v => v + 1); message.success('操作成功，已取得服务端回执')
+    } catch (e) { setSubmitError(messageOf(e)); setUncertain(true) }
+    finally { setBusy(false) }
+  }
+  const reasonRules = [{ required: true, whitespace: true, message: '请填写操作原因' }]
+  const receivedRule = [{ validator: (_: unknown, value: boolean) => value ? Promise.resolve() : Promise.reject(new Error('请确认线下款项已实际到账')) }]
+  const feeField = <Form.Item name="feeAmount" label="线下实际到账金额（元，选填）" rules={[{ validator: (_: unknown, v: number | null | undefined) => v == null || (v > 0 && Math.abs(v * 100 - Math.round(v * 100)) < 0.00001) ? Promise.resolve() : Promise.reject(new Error('请输入正数且最多两位小数')) }]}><InputNumber min={0.01} step={0.01} style={{ width: '100%' }} placeholder="留空按现有价格表" /></Form.Item>
+  const currentCheck = checkResult && checkResult.regionType === regionType && checkResult.regionCode === regionCode?.trim() ? checkResult : undefined
+  return <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space style={{ width: '100%', justifyContent: 'space-between' }}><Typography.Title level={3} style={{ margin: 0 }}>区域代理</Typography.Title>{canManage && <Button type="primary" onClick={() => { appointmentForm.resetFields(); setCheckResult(undefined); setCheckError(''); setAppointmentOpen(true) }}>总部直接任命</Button>}</Space>
+    <Alert type="info" showIcon message="同级同区域最多一名有效代理，父子区域互不排斥；同一人可拥有多份任命。" description="代理推荐人与合伙人上级独立展示。省、市代理只升不降赠联创，区县赠私董；单店至少天使，不额外赠级。" />
+    {isMockAuth && <Alert type="warning" message="当前为演示登录，请切换真实 API 模式查看任命和申请；此页不生成虚构代理记录。" />}
+    {error && <Alert type="error" message={error} action={<Button onClick={() => setRefresh(v => v + 1)}>重新加载</Button>} />}
+    <Tabs activeKey={tab} onChange={setTab} items={[
+      { key: 'assignments', label: '代理任命', children: <Card>
+        <Form form={filterForm} layout="inline" onFinish={v => setQuery({ page: 1, pageSize: query.pageSize, ...v })} style={{ marginBottom: 16, gap: 8 }}>
+          <Form.Item name="regionType"><Select allowClear placeholder="全部代理级别" options={regionOptions} style={{ width: 150 }} /></Form.Item>
+          <Form.Item name="regionCode"><Input allowClear placeholder="精确地区码 / 门店编号" /></Form.Item>
+          <Form.Item name="name"><Input allowClear placeholder="代理人姓名" /></Form.Item><Form.Item name="phone"><Input allowClear placeholder="代理人手机号" /></Form.Item>
+          <Button htmlType="submit" type="primary">查询</Button><Button onClick={() => { filterForm.resetFields(); setQuery({ page: 1, pageSize: 20 }) }}>重置</Button>
         </Form>
-        {submitError && <Alert type="error" showIcon message={submitError} description={blocked ? '请刷新后使用新请求号，或保留原请求号查询未知结果' : undefined} />}
-      </Modal>
-    </Space>
-  )
+        <Table<Assignment> rowKey="assignmentId" loading={loading} dataSource={list?.items ?? []} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], onChange: (page, pageSize) => setQuery(v => ({ ...v, page, pageSize })) }} />
+      </Card> },
+      { key: 'applications', label: '代理申请审核', children: <Card>
+        <Form form={appFilterForm} layout="inline" onFinish={v => setAppQuery({ page: 1, pageSize: appQuery.pageSize, ...v })} style={{ marginBottom: 16, gap: 8 }}>
+          <Form.Item name="status"><Select allowClear placeholder="全部审核状态" style={{ width: 150 }} options={Object.entries(reviewLabels).map(([value, label]) => ({ value, label }))} /></Form.Item>
+          <Form.Item name="regionType"><Select allowClear placeholder="全部代理级别" options={regionOptions} style={{ width: 150 }} /></Form.Item>
+          <Form.Item name="name"><Input allowClear placeholder="申请人姓名" /></Form.Item><Form.Item name="phone"><Input allowClear placeholder="申请人手机号" /></Form.Item>
+          <Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { appFilterForm.resetFields(); setAppQuery({ page: 1, pageSize: 20 }) }}>重置</Button>
+        </Form>
+        <Table<AgencyApplication> rowKey="applicationId" loading={loading} dataSource={applications?.items ?? []} scroll={{ x: 1480 }} pagination={{ current: appQuery.page, pageSize: appQuery.pageSize, total: applications?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], onChange: (page, pageSize) => setAppQuery(v => ({ ...v, page, pageSize })) }} columns={[
+          { title: '申请人 / 手机号 / 等级', key: 'person', width: 220, render: (_, r) => person(r.applicant) },
+          { title: '代理级别', dataIndex: 'regionType', width: 120, render: (v: RegionType) => regionLabels[v] || '未知级别' },
+          { title: '申请区域', key: 'region', width: 160, render: (_, r) => r.regionName || r.regionCode || '—' },
+          { title: '代理推荐人', key: 'referrer', width: 210, render: (_, r) => person(r.referrer) },
+          { title: '申请报价（元）', dataIndex: 'payableAmount', width: 140, render: money },
+          { title: '审核状态', dataIndex: 'status', width: 110, render: (v: AgencyApplication['status']) => <Tag>{reviewLabels[v] || '未知状态'}</Tag> },
+          { title: '申请时间', dataIndex: 'createdAt', width: 180, render: date },
+          { title: '审核时间', dataIndex: 'reviewedAt', width: 180, render: date },
+          { title: '拒绝原因', dataIndex: 'rejectionReason', width: 200, render: v => v || '—' },
+          { title: '操作', key: 'actions', width: 160, fixed: 'right', render: (_, row) => canManage && row.status === 'PENDING_REVIEW' ? <Space>{(['APPROVE', 'REJECT'] as const).map(value => <Button key={value} type="link" danger={value === 'REJECT'} onClick={() => { decisionForm.resetFields(); setDecision({ row, decision: value }) }}>{value === 'APPROVE' ? '同意' : '拒绝'}</Button>)}</Space> : '—' },
+        ]} />
+      </Card> },
+    ]} />
+    <Drawer open={!!detailId} title="代理区域详情" width="85%" onClose={() => setDetailId(undefined)}>
+      {detailError && <Alert type="error" message={detailError} action={<Button onClick={() => setRefresh(v => v + 1)}>重试</Button>} />}
+      {detailLoading && <Typography.Text>正在加载详情…</Typography.Text>}
+      {detail && <Space direction="vertical" style={{ width: '100%' }} size={20}>
+        <Descriptions bordered column={2} items={[
+          { key: 'agent', label: '代理人', children: person(detail.assignment.agent) }, { key: 'level', label: '代理级别', children: regionLabels[detail.assignment.regionType] },
+          { key: 'region', label: '代理区域', children: `${detail.assignment.regionName || '—'}（${detail.assignment.regionCode}）` }, { key: 'status', label: '状态', children: detail.assignment.status === 'ACTIVE' ? '有效' : '停用' },
+          { key: 'ref', label: '代理推荐人', children: person(detail.assignment.referrer) }, { key: 'up', label: '合伙人上级', children: person(detail.assignment.upline) },
+          { key: 'time', label: '成为代理时间', children: date(detail.assignment.appointedAt) }, { key: 'login', label: '最后登录时间', children: date(detail.assignment.lastLoginAt) },
+        ]} />
+        <Typography.Title level={5}>同用户其他代理任命</Typography.Title><Table<Assignment> rowKey="assignmentId" dataSource={detail.otherAssignments} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={false} />
+        <Typography.Title level={5}>{detail.childType === 'costore' || detail.assignment.regionType === 'store' ? '直属合店老板' : `直属${regionLabels[detail.childType as RegionType] || '下级'}`}</Typography.Title>
+        {detail.assignment.regionType === 'store' ? <Table<CostoreChild> rowKey="costoreId" dataSource={detail.items as CostoreChild[]} columns={[{ title: '合店老板', key: 'owner', render: (_, r) => person(r.owner) }, { title: '所属门店编号', dataIndex: 'storeId' }]} pagination={{ current: detail.page, pageSize: detail.pageSize, total: detail.total, showSizeChanger: false, onChange: setDetailPage }} /> : <Table<Assignment> rowKey="assignmentId" dataSource={detail.items as Assignment[]} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={{ current: detail.page, pageSize: detail.pageSize, total: detail.total, showSizeChanger: false, onChange: setDetailPage }} />}
+      </Space>}
+    </Drawer>
+    <Modal title="总部直接任命代理" open={appointmentOpen} onCancel={() => setAppointmentOpen(false)} onOk={prepareAppointment} okText="核对任命" width={640}>
+      <Alert type="warning" showIcon message="提交即声明线下款项已到账，将立即任命、按规则赠级及记账。" />
+      <Form form={appointmentForm} layout="vertical" initialValues={{ regionType: 'district', priceTier: 0 }} style={{ marginTop: 16 }}>
+        <Form.Item name="partnerId" label="代理用户 ID" rules={[{ required: true, whitespace: true }]}><Input placeholder="输入已有用户 ID，按字符串处理" /></Form.Item>
+        <Form.Item name="regionType" label="代理级别" rules={[{ required: true }]}><Select options={regionOptions} /></Form.Item>
+        <Form.Item name="regionCode" label={regionType === 'store' ? '稳定门店编号' : '六位行政区划码'} rules={[{ required: true, whitespace: true }, { validator: (_: unknown, v: string) => regionType === 'store' || /^\d{6}$/.test(v?.trim()) ? Promise.resolve() : Promise.reject(new Error('请输入六位行政区划码')) }]}><Input /></Form.Item>
+        <Space style={{ marginBottom: 16 }}><Button loading={checking} onClick={check}>检验区域占用</Button>{currentCheck && <Tag color={currentCheck.available ? 'green' : 'red'}>{currentCheck.available ? '当前可任命' : '已有有效代理'}</Tag>}</Space>
+        {checkError && <Alert type="error" message={checkError} />}
+        <Typography.Paragraph type="secondary">占用检验仅作提示，提交时服务端会再次校验。</Typography.Paragraph>
+        {regionType === 'city' && <Form.Item name="priceTier" label="市代价格档位"><Select options={[0, 1, 2].map(value => ({ value, label: `档位 ${value}` }))} /></Form.Item>}
+        {regionType === 'store' && <><Form.Item name="parentCode" label="所属区县六位码" rules={[{ required: true }, { pattern: /^\d{6}$/, message: '请输入六位区县码' }]}><Input /></Form.Item><Form.Item name="storeName" label="门店名称"><Input /></Form.Item><Form.Item name="storeAddress" label="门店地址"><Input /></Form.Item><Form.Item name="storeContact" label="门店联系方式"><Input /></Form.Item></>}
+        <Form.Item name="promotionCode" label="代理推荐码（选填）"><Input placeholder="有效代理推荐码；留空表示无推荐人" /></Form.Item>
+        {feeField}<Form.Item name="reason" label="任命原因" rules={reasonRules}><Input.TextArea rows={3} /></Form.Item>
+        <Form.Item name="received" valuePropName="checked" rules={receivedRule}><Checkbox>我已确认线下款项实际到账</Checkbox></Form.Item>
+      </Form>
+    </Modal>
+    <Modal title={decision?.decision === 'APPROVE' ? '同意代理申请' : '拒绝代理申请'} open={!!decision} onCancel={() => setDecision(undefined)} onOk={prepareDecision} okText="核对审核">
+      {decision && <><p>申请人：{decision.row.applicant?.name || '—'}；区域：{decision.row.regionName || decision.row.regionCode || '—'}</p><Form form={decisionForm} layout="vertical">
+        {decision.decision === 'APPROVE' && <><Alert type="warning" message="同意代表已确认线下到账，将立即执行真实任命、赠级及记账；申请报价不是支付凭证。" />{feeField}<Form.Item name="received" valuePropName="checked" rules={receivedRule}><Checkbox>我已确认线下款项实际到账</Checkbox></Form.Item></>}
+        <Form.Item name="reason" label={decision.decision === 'REJECT' ? '拒绝原因' : '审核原因'} rules={reasonRules}><Input.TextArea rows={3} /></Form.Item>
+      </Form></>}
+    </Modal>
+    <Modal title="确认提交" open={!!review} maskClosable={false} closable={!busy} confirmLoading={busy} cancelButtonProps={{ disabled: busy }} onCancel={() => setReview(undefined)} onOk={submit} okText={uncertain ? '使用原请求重试' : '确认提交'}>
+      {review && <><p>{review.kind === 'appoint' ? `任命用户 ${review.input.partnerId} 至 ${regionLabels[review.input.regionType]} ${review.input.regionCode}` : `审核申请人 ${review.name}：${review.input.decision === 'APPROVE' ? '同意' : '拒绝'}`}</p><p>原因：{review.input.reason}</p>{(review.kind === 'appoint' || review.input.decision === 'APPROVE') && <Alert type="warning" message="已确认线下款项到账" description={`实际到账金额：${review.input.feeAmount == null ? '按现有价格表' : money(review.input.feeAmount)}；提交会产生真实任命和记账。`} />}<Typography.Paragraph type="secondary">请求号：{review.key}</Typography.Paragraph></>}
+      {submitError && <Alert type="error" message={submitError} description="先刷新列表核对执行结果。重试沿用当前请求号和原始参数，勿直接新建请求绕过冲突。" />}
+    </Modal>
+    <Modal title="服务端操作回执" open={!!receipt} onCancel={() => setReceipt(undefined)} footer={<Button onClick={() => setReceipt(undefined)}>关闭</Button>} width={760}>
+      {receipt && <Space direction="vertical" style={{ width: '100%' }}><p>审计编号：{receipt.operationId}</p>{receipt.assignment && <p>任命区域：{receipt.assignment.regionName || receipt.assignment.regionCode}；代理人：{receipt.assignment.agent?.name || '—'}</p>}{'fee' in receipt && <><p>本次记账收入：{money(receipt.fee.amount)}；任命时间：{date(receipt.fee.period)}；实际提升等级：{receipt.grantedTier ? tierLabels[receipt.grantedTier] || '未知等级' : '未提升'}</p><Table rowKey="id" dataSource={receipt.commissions} pagination={false} locale={{ emptyText: '本次无实际落账佣金' }} columns={[{ title: '技术费基数（元）', dataIndex: 'base_amount', render: money }, { title: '比例', dataIndex: 'rate', render: (v: number) => `${v * 100}%` }, { title: '佣金（元）', dataIndex: 'amount', render: money }, { title: '状态', dataIndex: 'status', render: (v: string) => v === 'pending' ? '待结算' : '未知状态' }, { title: '说明', dataIndex: 'note' }]} /></>}{'application' in receipt && <p>申请审核结果：{reviewLabels[receipt.application.status]}</p>}</Space>}
+    </Modal>
+  </Space>
 }

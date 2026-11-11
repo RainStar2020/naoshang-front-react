@@ -1,3 +1,4 @@
+import { displayText } from '../../i18n/hqLabels'
 import * as api from '../../api'
 
 import {
@@ -70,7 +71,7 @@ export function mapStaffAssignment(raw: unknown): StaffAssignment {
 
   const statusRaw = str(r.status, 'ACTIVE').toUpperCase()
 
-  const status = (statusRaw === 'FROZEN' || statusRaw === 'LEFT' ? statusRaw : 'ACTIVE') as StaffStatus
+  const status = (statusRaw === 'DISABLED' ? 'FROZEN' : statusRaw === 'FROZEN' || statusRaw === 'LEFT' ? statusRaw : 'ACTIVE') as StaffStatus
 
   const inv = str(r.invitationStatus, 'ACTIVE').toUpperCase()
 
@@ -98,7 +99,7 @@ export function mapStaffAssignment(raw: unknown): StaffAssignment {
 
     roleCode,
 
-    roleTitle: str(r.roleTitle || storeRoleLabels[roleCode] || roleCode),
+    roleTitle: str(r.roleTitle) || stringList(r.roles).map(role => displayText(role, 'role')).join('、') || (r.roleCode || r.role ? storeRoleLabels[roleCode] : ''),
 
     status,
 
@@ -334,7 +335,7 @@ export async function realStaffList(query: StaffQuery): Promise<StaffList> {
 
   try {
 
-    const page = asPage(await unwrapData(await api.getStaff({ ...query } as never)), query.page, query.pageSize)
+    const page = asPage(await unwrapData(await api.getStaff({ ...query, status: query.status === 'FROZEN' ? 'DISABLED' : query.status } as never)), query.page, query.pageSize)
 
     const items = page.items.map(mapStaffAssignment)
 

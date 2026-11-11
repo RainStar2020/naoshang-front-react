@@ -1,3 +1,4 @@
+import { displayText } from '../i18n/hqLabels'
 const colorMap: Record<string, string> = {
   上架中: 'green',
   已下架: 'gray',
@@ -14,5 +15,5 @@ const colorMap: Record<string, string> = {
 
 export default function StatusTag({ status }: { status: string }) {
   const cls = colorMap[status] || 'gray'
-  return <span className={`status-tag status-${cls}`}>{status}</span>
+  return <span className={`status-tag status-${cls}`}>{displayText(status, 'status')}</span>
 }

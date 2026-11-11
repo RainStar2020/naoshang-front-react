@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { mapPartnerAudit, mapPartnerCatalog, mapPartnerDetail, mapPartnerList, mapPartnerProfile, mapPartnerPromotionTask } from './partners'
+import { asAnnualStatus, mapPartnerAudit, mapPartnerCatalog, mapPartnerDetail, mapPartnerList, mapPartnerProfile, mapPartnerPromotionTask } from './partners'
 
 it('mapPartnerCatalog fills missing receipts/levels/audit arrays', () => {
   const catalog = mapPartnerCatalog({})
@@ -241,4 +241,76 @@ it('mapPartnerAudit normalizes save-benefits aliases', () => {
   for (const action of ['save-benefits', 'SAVE_LEVEL_DESC', 'updateLevelBenefits', 'saveBenefits']) {
     expect(mapPartnerAudit({ operationId: 'x', action, before: { summary: 'a' }, after: { summary: 'b' } }).action).toBe('save-benefits')
   }
+})
+
+it('asAnnualStatus defaults missing/unknown to NOT_OPEN, never ACTIVE', () => {
+  expect(asAnnualStatus(undefined)).toBe('NOT_OPEN')
+  expect(asAnnualStatus(null)).toBe('NOT_OPEN')
+  expect(asAnnualStatus('')).toBe('NOT_OPEN')
+  expect(asAnnualStatus('UNKNOWN')).toBe('NOT_OPEN')
+  expect(asAnnualStatus('FROZEN')).toBe('NOT_OPEN')
+  expect(asAnnualStatus('ACTIVE')).toBe('ACTIVE')
+  expect(asAnnualStatus('EXPIRED')).toBe('EXPIRED')
+  expect(asAnnualStatus('NOT_OPEN')).toBe('NOT_OPEN')
+})
+
+it('mapPartnerProfile keeps annualStatus independent of partnerStatus', () => {
+  const profile = mapPartnerProfile({
+    contextId: 'partner:p9',
+    accountId: 'p9',
+    partnerStatus: 'ACTIVE',
+    annualStatus: 'NOT_OPEN',
+    annualValidUntil: null,
+  })
+  expect(profile.partnerStatus).toBe('ACTIVE')
+  expect(profile.annualStatus).toBe('NOT_OPEN')
+  expect(profile.annualValidUntil).toBeNull()
+})
+
+it('mapPartnerProfile maps ACTIVE / EXPIRED annualStatus and annualValidUntil', () => {
+  const active = mapPartnerProfile({
+    contextId: 'c-active',
+    accountId: 'a1',
+    partnerStatus: 'ACTIVE',
+    annualStatus: 'ACTIVE',
+    annualValidUntil: '2027-10-01T00:00:00.000Z',
+  })
+  expect(active.annualStatus).toBe('ACTIVE')
+  expect(active.annualValidUntil).toBe('2027-10-01T00:00:00.000Z')
+
+  const expired = mapPartnerProfile({
+    contextId: 'c-expired',
+    accountId: 'a2',
+    partnerStatus: 'FROZEN',
+    annualStatus: 'EXPIRED',
+    annualValidUntil: '2025-10-01T00:00:00.000Z',
+  })
+  expect(expired.annualStatus).toBe('EXPIRED')
+  expect(expired.annualValidUntil).toBe('2025-10-01T00:00:00.000Z')
+})
+
+it('mapPartnerProfile missing annualStatus stays NOT_OPEN even when partnerStatus ACTIVE', () => {
+  const profile = mapPartnerProfile({
+    contextId: 'c-missing-annual',
+    accountId: 'a3',
+    partnerStatus: 'ACTIVE',
+  })
+  expect(profile.partnerStatus).toBe('ACTIVE')
+  expect(profile.annualStatus).toBe('NOT_OPEN')
+  expect(profile.annualValidUntil).toBeNull()
+})
+
+it('mapPartnerList preserves per-row annualStatus so list can distinguish 未开通/正常/已到期', () => {
+  const list = mapPartnerList({
+    items: [
+      { contextId: 'c1', accountId: 'a1', partnerStatus: 'ACTIVE', annualStatus: 'NOT_OPEN', annualValidUntil: null },
+      { contextId: 'c2', accountId: 'a2', partnerStatus: 'ACTIVE', annualStatus: 'ACTIVE', annualValidUntil: '2027-01-01T00:00:00.000Z' },
+      { contextId: 'c3', accountId: 'a3', partnerStatus: 'FROZEN', annualStatus: 'EXPIRED', annualValidUntil: '2025-01-01T00:00:00.000Z' },
+    ],
+    total: 3,
+  }, 1, 10)
+  expect(list.items.map((row) => row.annualStatus)).toEqual(['NOT_OPEN', 'ACTIVE', 'EXPIRED'])
+  expect(list.items[0].annualValidUntil).toBeNull()
+  expect(list.items[1].annualValidUntil).toBe('2027-01-01T00:00:00.000Z')
+  expect(list.items[2].partnerStatus).toBe('FROZEN')
 })

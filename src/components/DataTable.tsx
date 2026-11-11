@@ -1,3 +1,4 @@
+import { displayText } from '../i18n/hqLabels'
 import type { ReactNode } from 'react'
 
 export interface Column<T> {
@@ -39,7 +40,7 @@ export default function DataTable<T extends { id: string }>({ columns, rows, emp
             <tr key={row.id}>
               {columns.map((c) => (
                 <td key={c.key} style={{ textAlign: c.align || 'left' }}>
-                  {c.render ? c.render(row, i) : String((row as Record<string, unknown>)[c.key] ?? '')}
+                  {c.render ? c.render(row, i) : displayText((row as Record<string, unknown>)[c.key], c.key)}
                 </td>
               ))}
             </tr>

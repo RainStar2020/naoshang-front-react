@@ -38,6 +38,17 @@ it('目录与列表覆盖多业务线/渠道；金额为整数分；含待分配
   expect(list.items.some(row => row.allocationStatus === 'PENDING')).toBe(true)
 })
 
+it('全球奖/创始奖可按 channel 筛选，且不必带 module', async () => {
+  const global = await service.list(token, { page: 1, pageSize: 20, channel: 'GLOBAL_AWARD' })
+  expect(global.items.length).toBeGreaterThan(0)
+  expect(global.items.every((row) => row.channel === 'GLOBAL_AWARD')).toBe(true)
+  expect(Object.keys(global)).toEqual(expect.arrayContaining(['items', 'total', 'page', 'pageSize', 'summary']))
+
+  const founding = await service.list(token, { page: 1, pageSize: 20, channel: 'FOUNDER_AWARD', period: '2026-10' })
+  expect(founding.items.length).toBeGreaterThan(0)
+  expect(founding.items.every((row) => row.channel === 'FOUNDER_AWARD')).toBe(true)
+})
+
 it('筛选门店/结算状态；详情含引擎缺口说明且不暴露密码', async () => {
   const filtered = await service.list(token, { page: 1, pageSize: 20, storeId: 'store-wutong' })
   expect(filtered.items.length).toBeGreaterThan(0)

@@ -434,6 +434,16 @@ for (const field of ['roles', 'ownerTypes', 'partnerLevels', 'statuses', 'paymen
   enumLabels[field] = enumLabels[singular[field]]
 }
 
+// 2026-11-10 契约：按业务维度保留独立状态，不合并成 SUCCESS。
+Object.assign(enumLabels.status, {
+  PAID: '已支付', REFUNDING: '退款中', REFUNDED: '已退款',
+  ON_SALE: '上架', UNUSED: '未用', USED: '已用', VOID: '作废',
+  AVAILABLE: '可用', NOT_STARTED: '未开始', RESERVED: '占用',
+  SHIPPED: '已发货', SIGNED: '已签约', SETTLED: '已结算',
+})
+Object.assign(enumLabels.paymentStatus, { REFUNDING: '退款中', PAID: '已支付', PENDING_PAYMENT: '待支付' })
+Object.assign(fieldLabels, { reason: '操作原因', bankName: '银行名称', bankAccount: '银行卡号', accountHolder: '收款人', territoryId: '辖区编码', commissionRule: '佣金规则' })
+
 /**
  * 无字段上下文（或字段未登记）时的全局枚举回退。
  * 同值多义时以 `enumLabels[field]` 为准；此处仅兜底常见跨模块值。

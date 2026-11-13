@@ -36,7 +36,7 @@ export const promoMaterialService = {
     if (isMockAuth) return mockPromoMaterialMutate(input, { operatorId: account.accountId, operatorName: account.nickname })
     return (await real.realPromoMaterialMutate(input)) as Awaited<ReturnType<typeof mockPromoMaterialMutate>>
   },
-  /** 图片素材底图上传：mock 走演示资产；真实走 HQ assets upload-intents。 */
+  /** 图片素材底图上传：mock 走演示资产；真实走一次 POST /assets。 */
   async upload(token: string, file: File) {
     await authorize(token, 'materials:edit')
     if (isMockAuth) return mockCmsUpload(file)

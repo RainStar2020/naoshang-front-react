@@ -1,6 +1,32 @@
-/** HQ assets 上传意图与完成回调（2 个接口）。仅声明文档明确的契约；未定义的字段保留为 unknown。 */
+/** HQ assets 上传。一次 POST /assets 为现行上传路径；旧的意图/完成接口仍保留。 */
 import { apiClient, mergeRequestHeaders, type RequestOptions } from './client'
-import type { AssetsEndpoints } from '../types/hq/assets'
+import type { AssetsEndpoints, AssetsUploadSuccess } from '../types/hq/assets'
+import { mapAssetsUploadTransportError, parseAssetsUploadResponse } from '../utils/assetsUpload'
+
+/** @see POST /api/hq/assets */
+export async function postAssets(
+  request: { file: File; purpose: string; fileName?: string },
+  options: RequestOptions = {},
+): Promise<AssetsUploadSuccess> {
+  const form = new FormData()
+  form.append('file', request.file)
+  form.append('purpose', request.purpose)
+  if (request.fileName) form.append('fileName', request.fileName)
+
+  const headers = mergeRequestHeaders(options)
+  // Let Axios set the multipart boundary; do not force Content-Type.
+  headers.delete('Content-Type')
+
+  try {
+    const response = await apiClient.post<unknown>('/assets', form, {
+      ...options,
+      headers,
+    })
+    return parseAssetsUploadResponse(response.data)
+  } catch (error) {
+    throw mapAssetsUploadTransportError(error)
+  }
+}
 
 /** @see POST /api/hq/assets/upload-intents */
 export async function postAssetsUploadIntents(request: AssetsEndpoints['POST /assets/upload-intents']['request'], options: RequestOptions = {}): Promise<AssetsEndpoints['POST /assets/upload-intents']['response']> {

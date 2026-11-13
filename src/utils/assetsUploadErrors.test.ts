@@ -13,7 +13,26 @@ it('detects legacy 40400 upload-intents missing', () => {
     data: null,
   })
   expect(isAssetsUploadUnavailableError(err)).toBe(true)
-  expect(ASSETS_UPLOAD_UNAVAILABLE_MESSAGE).toMatch(/upload-intents/)
+})
+
+it('detects 404 on the new POST /assets endpoint', () => {
+  const err = new ApiError({
+    code: 40400,
+    message: '总部后台接口不存在：POST /api/hq/assets',
+    data: null,
+  }, 404)
+  expect(isAssetsUploadUnavailableError(err)).toBe(true)
+  expect(ASSETS_UPLOAD_UNAVAILABLE_MESSAGE).toMatch(/POST \/api\/hq\/assets/)
+  expect(isAssetsUploadUnavailableError({ message: 'Not Found', status: 404 })).toBe(true)
+})
+
+it('does not treat validation failures as an unavailable upload API', () => {
+  const err = new ApiError({
+    code: 40000,
+    message: '不支持的 purpose',
+    data: null,
+  }, 400)
+  expect(isAssetsUploadUnavailableError(err)).toBe(false)
 })
 
 it('contentHasLocalMedia finds data urls', () => {

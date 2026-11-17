@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Checkbox, Drawer, Input, Modal, Select, Space, Statistic, Table, Tabs, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Checkbox, Drawer, Input, Modal, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
 import { announcementsService as service } from '../services/announcements'
@@ -8,6 +8,7 @@ import CmsContentEditor, { CmsAssetInput } from '../components/CmsContentEditor'
 import { ContentPreview, emptyContent } from '../utils/richContent'
 import { formatUserDate } from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import SummaryTable from '../components/SummaryTable'
 const roleLabels = { parent: '家长（有孩子档案）', coach: '健脑官（待账号API）', partner: '合伙人', agency: '代理', costore: '合店老板' }
 const statusLabels = { draft: '草稿', published: '已发布', scheduled: '待定时发布', offline: '已下线' }
 const actions = { save: '保存公告草稿', publish: '发布公告', offline: '下线公告' }
@@ -33,7 +34,11 @@ function Statistics({ row, token, close }: { row: ManagedAnnouncement; token: st
   useEffect(() => { let alive = true; setStats(null); setError(''); service.stats(token, row.draft.id).then(value => { if (alive) setStats(value) }).catch(err => { if (alive) setError(err.message) }); return () => { alive = false } }, [token, row.draft.id, refresh])
   return <Drawer open width={980} title={`${row.draft.title} · 已读统计`} onClose={close}><Space direction="vertical" size={20} style={{ width: '100%' }}>
     <Button onClick={() => setRefresh(value => value + 1)}>刷新统计</Button>{error && <Alert type="error" message={error} />}
-    {stats && <><Space size={48}><Statistic title="目标账号" value={stats.targetCount} /><Statistic title="已读人数" value={stats.readCount} /><Statistic title="未读人数" value={stats.unreadCount} /></Space>{!stats.available && <Alert type="warning" message="公告当前不可读取。未发布无目标统计；定时或下线公告显示目标范围及保留记录，不代表已经送达。" />}
+    {stats && <><SummaryTable items={[
+      { key: 'targetCount', label: '目标账号', value: stats.targetCount },
+      { key: 'readCount', label: '已读人数', value: stats.readCount },
+      { key: 'unreadCount', label: '未读人数', value: stats.unreadCount },
+    ]} />{!stats.available && <Alert type="warning" message="公告当前不可读取。未发布无目标统计；定时或下线公告显示目标范围及保留记录，不代表已经送达。" />}
       <Space><Input aria-label="搜索阅读账号" placeholder="昵称 / 手机号 / 账号ID" value={keyword} onChange={event => setKeyword(event.target.value)} /><Select aria-label="筛选阅读状态" value={filter} onChange={setFilter} options={[{ value: 'all', label: '全部阅读状态' }, { value: 'read', label: '已读' }, { value: 'unread', label: '未读' }]} /></Space>
       <Table rowKey="accountId" size="small" pagination={{ pageSize: 10, showTotal: total => `筛选结果 ${total} 个账号` }} dataSource={stats.recipients.filter(item => `${item.nickname} ${item.phone} ${item.accountId}`.includes(keyword) && (filter === 'all' || (filter === 'read' ? !!item.firstReadAt : !item.firstReadAt)))} columns={[{ title: '账号', key: 'account', render: (_, item) => <span>{item.nickname} / {item.phone}</span> }, { title: '账号ID', dataIndex: 'accountId' }, { title: '当前身份', key: 'roles', render: (_, item) => (item.roles ?? []).map(role => roleLabels[role]).join('、') || '普通账号' }, { title: '阅读状态', key: 'read', render: (_, item) => <Tag color={item.firstReadAt ? 'green' : 'default'}>{item.firstReadAt ? '已读' : '未读'}</Tag> }, { title: '首次阅读时间', key: 'time', render: (_, item) => item.firstReadAt ? formatUserDate(item.firstReadAt) : '—' }]} />
     </>}
@@ -68,7 +73,7 @@ export default function Announcements() {
       ]} />
     </Card> }, { key: 'audit', label: `操作记录（${catalog?.audit.length ?? 0}）`, children: <Table rowKey="id" dataSource={catalog?.audit} columns={[{ title: '操作', key: 'action', render: (_, row) => actions[row.action] }, { title: '对象', dataIndex: 'announcementId' }, { title: '变更前版本', key: 'bv', render: (_, row) => `V${row.beforeVersion}` }, { title: '变更后版本', key: 'av', render: (_, row) => `V${row.afterVersion}` }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '时间', key: 'time', render: (_, row) => formatUserDate(row.occurredAt) }]} /> }]} />
     {editor && <Editor row={editor === 'new' ? null : editor} token={token} close={() => setEditor(null)} save={request} />}{preview && <Preview row={preview} close={() => setPreview(null)} />}{stats && <Statistics row={stats} token={token} close={() => setStats(null)} />}
-    {pending && <Modal open title={actions[pending.action]} maskClosable={false} onCancel={() => { if (!busy) setPending(null) }} onOk={() => void confirm()} okText="确认操作" cancelText="返回修改" confirmLoading={busy} okButtonProps={{ disabled: blocked }} cancelButtonProps={{ disabled: busy }}><p>公告：{pending.action === 'save' ? pending.value.title : catalog?.items.find(row => row.draft.id === pending.id)?.draft.title}<br />版本：V{pending.version}</p>{pendingDraft && <p>目标范围：{(pendingDraft.audience ?? []).map(role => roleLabels[role]).join('、') || '全部正常账号'}<br />发布时间：{pendingDraft.publishAt ? formatUserDate(pendingDraft.publishAt) : '立即发布'}<br />置顶：{pendingDraft.pinned ? '是' : '否'}</p>}{submitError && <Alert type="error" message={submitError} />}{blocked && <Button onClick={() => { setPending(null); setEditor(null); setRefresh(value => value + 1) }}>关闭并刷新</Button>}</Modal>}
+    {pending && <Modal open title={actions[pending.action]} maskClosable={false} onCancel={() => { if (!busy) setPending(null) }} onOk={() => void confirm()} okText="确认操作" cancelText="返回修改" confirmLoading={busy} okButtonProps={{ disabled: blocked }} cancelButtonProps={{ disabled: busy }}><p>公告：{pending.action === 'save' ? pending.value.title : catalog?.items.find(row => row.draft.id === pending.id)?.draft.title}</p>{pendingDraft && <p>目标范围：{(pendingDraft.audience ?? []).map(role => roleLabels[role]).join('、') || '全部正常账号'}<br />发布时间：{pendingDraft.publishAt ? formatUserDate(pendingDraft.publishAt) : '立即发布'}<br />置顶：{pendingDraft.pinned ? '是' : '否'}</p>}{submitError && <Alert type="error" message={submitError} />}{blocked && <Button onClick={() => { setPending(null); setEditor(null); setRefresh(value => value + 1) }}>关闭并刷新</Button>}</Modal>}
   </Space>
 }
 

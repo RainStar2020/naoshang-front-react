@@ -11,7 +11,6 @@ import {
   Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tabs,
   Tag,
@@ -39,8 +38,29 @@ import {
 } from "../types/stores";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
+import SummaryTable from "../components/SummaryTable";
 
-const money = (n: number) => `￥${(n / 100).toFixed(2)}`;
+const money = (n: number) => `￥${Number(n || 0).toFixed(2)}`;
+
+// 确认弹窗只展示用户可理解的操作说明，不暴露 action、请求号、版本等内部字段
+function storePendingConfirmText(p: StoreMutation): string {
+  switch (p.action) {
+    case "create":
+      return `创建门店「${p.name}」`;
+    case "save-profile":
+      return `保存门店「${p.name}」的资料`;
+    case "change-owner":
+      return `更换门店「${p.storeId}」的店主`;
+    case "set-status":
+      return `更新门店「${p.storeId}」的营业状态`;
+    case "set-coach-status":
+      return `更新门店「${p.storeId}」健脑官的状态`;
+    case "mark-coach-credential-reset":
+      return `重置门店「${p.storeId}」健脑官的登录凭证`;
+    default:
+      return "确认提交该操作";
+  }
+}
 const statusColor: Record<StoreStatus, string> = {
   ACTIVE: "green",
   FROZEN: "orange",
@@ -50,7 +70,7 @@ const statusColor: Record<StoreStatus, string> = {
 type ProfileForm = {
   name: string;
   managerName: string;
-  contact: string;
+  managerPhone: string;
   address: string;
   regionCodes: string[];
   regionNames: string[];
@@ -101,6 +121,7 @@ export default function Stores() {
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState<StoreMutation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [blocked, setBlocked] = useState(false);
   const [api, holder] = message.useMessage();
@@ -180,7 +201,7 @@ export default function Stores() {
     setForm({
       name: row.name,
       managerName: row.managerName,
-      contact: row.contact,
+      managerPhone: row.managerPhone || row.contact.replace(/^[^0-9]*/, "").slice(-11),
       address: row.address,
       regionCodes: [...row.regionCodes],
       regionNames: [...row.regionNames],
@@ -290,7 +311,7 @@ export default function Stores() {
       storeId: editing.storeId,
       name: form.name.trim(),
       managerName: form.managerName.trim(),
-      contact: form.contact.trim(),
+      managerPhone: form.managerPhone.trim(),
       address: form.address.trim(),
       regionCodes: form.regionCodes as [string, string, string],
       regionNames: names as [string, string, string],
@@ -426,7 +447,7 @@ export default function Stores() {
         </Space>
       </Space>
       <HqDataSourceAlert
-        mockMessage="内存 Mock，整页刷新恢复种子。金额界面按元展示（存分）；密码永不回显。监管写须原因/版本/幂等/确认；不替代小程序/门店日常开店流。"
+        mockMessage="内存 Mock，整页刷新恢复种子。金额按元展示与存储；密码永不回显。监管写须原因/版本/幂等/确认；不替代小程序/门店日常开店流。"
         mockDescription={
           <span>
             完整员工角色与任职 CRUD 见{" "}
@@ -480,16 +501,19 @@ export default function Stores() {
       </Card>
       {error && <Alert type="error" message={error} />}
       {list && (
-        <Space size={32} wrap>
-          <Statistic title="筛选门店" value={list.summary.stores} />
-          <Statistic title="营业中" value={list.summary.active} />
-          <Statistic title="冻结" value={list.summary.frozen} />
-          <Statistic title="停业" value={list.summary.closed} />
-          <Statistic
-            title="在职健脑官（筛选内）"
-            value={list.summary.coachesActive}
-          />
-        </Space>
+        <SummaryTable
+          items={[
+            { key: "stores", label: "门店总数", value: list.summary.stores },
+            { key: "active", label: "营业中", value: list.summary.active },
+            { key: "frozen", label: "已冻结", value: list.summary.frozen },
+            { key: "closed", label: "已停业", value: list.summary.closed },
+            {
+              key: "coachesActive",
+              label: "在职健脑官",
+              value: list.summary.coachesActive,
+            },
+          ]}
+        />
       )}
       <Card title="门店主档">
         <Table<StoreProfile>
@@ -954,9 +978,8 @@ export default function Stores() {
       >
         {editing && form && (
           <Space direction="vertical" style={{ width: "100%" }} size={12}>
-            <Typography.Text>
-              {editing.storeId} 只 当前 V{editing.version}
-            </Typography.Text>
+            <Typography.Text>门店编号：{editing.storeId}</Typography.Text>
+            <Typography.Text strong>门店名称</Typography.Text>
             <Input
               aria-label="门店名称"
               value={form.name}
@@ -966,6 +989,7 @@ export default function Stores() {
               }
               placeholder="门店名称"
             />
+            <Typography.Text strong>负责人姓名</Typography.Text>
             <Input
               aria-label="负责人"
               value={form.managerName}
@@ -975,15 +999,17 @@ export default function Stores() {
               }
               placeholder="负责人姓名"
             />
+            <Typography.Text strong>负责人联系电话</Typography.Text>
             <Input
               aria-label="联系手机"
-              value={form.contact}
+              value={form.managerPhone}
               maxLength={11}
               onChange={(e) =>
-                setForm((v) => v && { ...v, contact: e.target.value })
+                setForm((v) => v && { ...v, managerPhone: e.target.value })
               }
               placeholder="11 位手机号"
             />
+            <Typography.Text strong>所在地区</Typography.Text>
             <Cascader
               aria-label="门店地区"
               style={{ width: "100%" }}
@@ -1008,6 +1034,7 @@ export default function Stores() {
               }
               placeholder="省 / 市 / 区"
             />
+            <Typography.Text strong>详细地址</Typography.Text>
             <Input.TextArea
               aria-label="门店地址"
               value={form.address}
@@ -1017,10 +1044,10 @@ export default function Stores() {
                 setForm((v) => v && { ...v, address: e.target.value })
               }
             />
+            <Typography.Text strong>合店费用（元）</Typography.Text>
             <Space wrap>
-              <span>合店费用（分）</span>
               <InputNumber
-                aria-label="合店费用分"
+                aria-label="合店费用元"
                 min={0}
                 value={form.feeAmount}
                 onChange={(feeAmount) =>
@@ -1029,53 +1056,49 @@ export default function Stores() {
                   )
                 }
               />
-              <span>下限边界（分）</span>
-              <InputNumber
-                aria-label="费用下限分"
-                min={0}
-                value={form.minimumFeeAmount}
-                onChange={(minimumFeeAmount) =>
-                  setForm(
-                    (v) =>
-                      v && {
-                        ...v,
-                        minimumFeeAmount: Number(minimumFeeAmount || 0),
-                      },
-                  )
-                }
-              />
-              <Typography.Text type="secondary">
-                {money(form.feeAmount)} / 下限 {money(form.minimumFeeAmount)}
-              </Typography.Text>
+              <Typography.Text type="secondary">{money(form.feeAmount)}</Typography.Text>
             </Space>
-            <Input
-              aria-label="门头照资源编号"
-              value={form.storefrontAssetId}
-              onChange={(e) =>
-                setForm((v) => v && { ...v, storefrontAssetId: e.target.value })
-              }
-              placeholder="门头照资源 ID（可空）"
-            />
-            <Input
-              aria-label="门头照地址"
-              value={form.storefrontUrl}
-              onChange={(e) =>
-                setForm((v) => v && { ...v, storefrontUrl: e.target.value })
-              }
-              placeholder="门头照 Mock URL（与资源 ID 成对）"
-            />
-            <Select
-              aria-label="归属代理"
-              allowClear
-              placeholder="归属代理"
-              style={{ width: "100%" }}
-              value={form.agentId}
-              onChange={(agentId) => setForm((v) => v && { ...v, agentId })}
-              options={(catalog?.agents ?? []).map((row) => ({
-                value: row.agentId,
-                label: row.name,
-              }))}
-            />
+            <Typography.Text strong>门头照</Typography.Text>
+            {form.storefrontUrl ? (
+              <Space align="start">
+                <img src={form.storefrontUrl} alt="门头照" style={{ width: 180, height: 110, objectFit: "cover", borderRadius: 6 }} />
+                <Button danger onClick={() => setForm((v) => v && { ...v, storefrontAssetId: "", storefrontUrl: "" })}>删除照片</Button>
+              </Space>
+            ) : (
+              <>
+              <Input
+                aria-label="上传门头照"
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploading(true);
+                  try {
+                    const uploaded = await service.upload(token, file);
+                    setForm(
+                      (v) =>
+                        v && {
+                          ...v,
+                          storefrontAssetId: uploaded.assetId,
+                          storefrontUrl: uploaded.url,
+                        }
+                    );
+                  } catch (err) {
+                    setSubmitError(err instanceof Error ? err.message : "图片上传失败，请重试");
+                  } finally {
+                    setUploading(false);
+                    e.target.value = "";
+                  }
+                }}
+                disabled={uploading}
+              />
+              {uploading && (
+                <Typography.Text type="secondary">图片上传中…</Typography.Text>
+              )}
+              </>
+            )}
+            <Typography.Text strong>备注</Typography.Text>
             <Input.TextArea
               aria-label="备注"
               value={reason}
@@ -1351,14 +1374,8 @@ export default function Stores() {
         {pending && (
           <Space direction="vertical" style={{ width: "100%" }}>
             <Typography.Paragraph>
-              操作：{pending.action}
-              <br />
-              备注：{pending.reason || "（无）"}
-              <br />
-              请求号：{pending.idempotencyKey}
-              <br />
-              版本：{"version" in pending ? pending.version : "—"}
-            </Typography.Paragraph>
+              请确认是否{storePendingConfirmText(pending)}。
+            </Typography.Paragraph>
             {submitError && <Alert type="error" message={submitError} />}
           </Space>
         )}

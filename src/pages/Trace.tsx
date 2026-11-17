@@ -7,7 +7,6 @@ import {
   Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tabs,
   Tag,
@@ -29,6 +28,7 @@ import {
   type UnifiedAuditEntry,
   type UploadResource,
 } from '../types/trace'
+import SummaryTable from '../components/SummaryTable'
 
 const assetStatusLabel: Record<AssetStatus, string> = {
   PENDING: '待完成',
@@ -213,14 +213,16 @@ if (!trimmed) { message.error('请填写操作原因'); return }
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Title level={3} style={{ margin: 0 }}>通用资源与操作追溯</Typography.Title>
 
-      <Space size={32} wrap>
-        <Statistic title="上传资源" value={catalog?.resourceSummary.total ?? 0} />
-        <Statistic title="可用 READY" value={catalog?.resourceSummary.ready ?? 0} />
-        <Statistic title="待完成" value={catalog?.resourceSummary.pending ?? 0} />
-        <Statistic title="已隔离" value={catalog?.resourceSummary.quarantined ?? 0} />
-        <Statistic title="失败任务" value={catalog?.taskSummary.failed ?? 0} />
-        <Statistic title="审计条目" value={catalog?.auditSummary.total ?? 0} />
-      </Space>
+      <SummaryTable
+        items={[
+          { key: "total", label: "上传资源", value: catalog?.resourceSummary.total ?? 0 },
+          { key: "ready", label: "可用 READY", value: catalog?.resourceSummary.ready ?? 0 },
+          { key: "pending", label: "待完成", value: catalog?.resourceSummary.pending ?? 0 },
+          { key: "quarantined", label: "已隔离", value: catalog?.resourceSummary.quarantined ?? 0 },
+          { key: "failed", label: "失败任务", value: catalog?.taskSummary.failed ?? 0 },
+          { key: "audit", label: "审计条目", value: catalog?.auditSummary.total ?? 0 },
+        ]}
+      />
 
       <Tabs
         items={[

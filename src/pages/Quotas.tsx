@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Descriptions, Drawer, Input, InputNumber, Modal, Select, Space, Statistic, Table, Tabs, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Descriptions, Drawer, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
 import { quotasService as service } from '../services/quotas'
@@ -7,6 +7,7 @@ import { QuotaError, type QuotaBalance, type QuotaDetail, type QuotaLedger, type
 import { formatUserDate } from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
 import { DebouncedSearchInput } from '../components/DebouncedSearchInput'
+import SummaryTable from '../components/SummaryTable'
 import { isMockAuth } from '../services/auth'
 const typeLabels = { STANDARD: '标准名额', ACTIVITY: '活动名额' }
 const levelLabels = { 'DEMO-VIP': 'VIP', 'DEMO-ANGEL': '天使', 'DEMO-BOARD': '私董', 'DEMO-FOUNDER': '联创' }
@@ -44,7 +45,14 @@ export default function Quotas() {
     <HqDataSourceAlert mockMessage="内存Mock，整页刷新恢复演示数据，尚未同步小程序。标准/活动名额均永久有效；活动名额不可转让、不可退款。充值须原因/版本/幂等/确认，禁止前端推导入账终态。" mockDescription="活动升级服务费按每个¥2,000.00的服务报价展示；付款前仅占用，成功后才消耗。总部不提供个人购买、划转、代付或退款操作。" />
     <Card><Space wrap><DebouncedSearchInput aria-label="名额所属账号搜索" placeholder="昵称 / 手机号 / 账号编号" allowClear value={query.keyword} onChange={keyword => setQuery(value => ({ ...value, keyword, page: 1 }))} style={{ width: 290 }} /><Select aria-label="筛选充值资格" allowClear placeholder="全部充值资格" value={query.eligibility} onChange={eligibility => setQuery(value => ({ ...value, eligibility, page: 1 }))} style={{ width: 220 }} options={[{ value: 'ALLOWED', label: '当前可总部充值' }, { value: 'DENIED', label: '当前不可总部充值' }]} /><Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>重置筛选</Button></Space></Card>
     {error && <Alert type="error" showIcon message={error} />}
-    {list && <Space wrap size={36}>{[{ title: '名额账户数', value: list.summary.owners }, { title: '总名额', value: list.summary.totalQuota }, { title: '冻结名额', value: list.summary.frozenQuota }, { title: '标准合计', value: list.summary.standardRemaining }, { title: '活动合计', value: list.summary.activityRemaining }, { title: '当前可充值', value: list.summary.rechargeable }].map(item => <Statistic key={item.title} {...item} />)}</Space>}
+    {list && <SummaryTable items={[
+      { key: 'owners', label: '名额账户数', value: list.summary.owners },
+      { key: 'totalQuota', label: '总名额', value: list.summary.totalQuota },
+      { key: 'frozenQuota', label: '冻结名额', value: list.summary.frozenQuota },
+      { key: 'standardRemaining', label: '标准名额合计', value: list.summary.standardRemaining },
+      { key: 'activityRemaining', label: '活动名额合计', value: list.summary.activityRemaining },
+      { key: 'rechargeable', label: '当前可充值', value: list.summary.rechargeable },
+    ]} />}
     <Card title="VIP名额账户"><Table<QuotaOwner> rowKey={(row) => row.quotaId || row.ownerAccountId} loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1200 }} pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page, pageSize })) }} columns={[
       { title: '账户姓名手机号', key: 'account', width: 160, render: (_, row) => <><div>{row.name || '—'}</div><Typography.Text type="secondary">{row.phone || '—'}</Typography.Text></> },
       { title: '展示编号', dataIndex: 'displayId', width: 140, render: (value: string) => value || '—' },
@@ -60,7 +68,7 @@ export default function Quotas() {
       {detail && <Space direction="vertical" size={18} style={{ width: '100%' }}>
         {canRecharge && detail.owner.eligibility.canRecharge && <Button type="primary" onClick={() => openRecharge(detail.owner)}>总部充值</Button>}
         <Descriptions bordered column={2} size="small" items={[{ key: 'owner', label: '所属账号', children: `${detail.owner.name} / ${detail.owner.ownerAccountId}` }, { key: 'phone', label: '手机号 / 编号', children: `${detail.owner.phone} / ${detail.owner.displayId}` }, { key: 'context', label: '经营身份', children: `${detail.owner.contextId} / ${levelLabels[detail.owner.partnerLevel]}` }, { key: 'qualification', label: '特定充值资格', children: detail.owner.eligibility.qualified ? '已获授权' : '未获授权' }, { key: 'allowed', label: '当前可充值', children: detail.owner.eligibility.canRecharge ? '是' : '否' }, { key: 'limit', label: '服务返回限额', span: 2, children: `单次${detail.owner.eligibility.perOperationLimit} / 授权剩余${detail.owner.eligibility.remainingLimit}；${detail.owner.eligibility.limitLabel}` }, { key: 'why', label: '资格说明', span: 2, children: detail.owner.eligibility.reason }]} />
-        <Table<QuotaBalance> size="small" rowKey="quotaType" dataSource={detail.owner.balances} pagination={false} columns={balanceColumns()} />
+        <Table<QuotaBalance> size="small" rowKey="quotaType" dataSource={detail.owner.balances} pagination={false} columns={balanceColumns()} />
         <Space wrap><Select aria-label="名额明细类型" allowClear placeholder="全部名额类型" value={quotaType} style={{ width: 180 }} onChange={setQuotaType} options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))} /><Input aria-label="名额关联记录搜索" placeholder="批次号 / 订单号 / 操作号" allowClear value={recordKeyword} onChange={event => setRecordKeyword(event.target.value)} style={{ width: 280 }} /></Space>
         <Tabs items={[
           { key: 'batches', label: `批次（${detail.batches.length}）`, children: <Table size="small" rowKey="batchId" scroll={{ x: 1100 }} dataSource={detail.batches.filter(matches)} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
@@ -123,7 +131,7 @@ export default function Quotas() {
       {rechargeOwner && <Space direction="vertical" size={16} style={{ width: '100%' }}><Typography.Paragraph>{rechargeOwner.name} · {rechargeOwner.phone}<br />{rechargeOwner.ownerAccountId} / {rechargeOwner.contextId}<br />{levelLabels[rechargeOwner.partnerLevel]}</Typography.Paragraph><Alert type="info" message={`已获特定充值资格；单次上限${rechargeOwner.eligibility.perOperationLimit}，授权剩余${rechargeOwner.eligibility.remainingLimit}。`} description={rechargeOwner.eligibility.limitLabel} /><Select aria-label="充值名额类型" placeholder="明确选择标准或活动名额" value={type} style={{ width: '100%' }} onChange={setType} options={rechargeOwner.eligibility.allowedTypes.map(value => ({ value, label: typeLabels[value] }))} /><InputNumber aria-label="充值名额数量" placeholder="填写整数数量" min={1} max={Math.min(rechargeOwner.eligibility.perOperationLimit, rechargeOwner.eligibility.remainingLimit)} precision={0} value={quantity} onChange={setQuantity} style={{ width: '100%' }} /><Input.TextArea aria-label="名额充值原因" placeholder="填写总部充值原因" showCount maxLength={200} value={reason} onChange={event => setReason(event.target.value)} /><Typography.Text type="secondary">本次只调整名额，不修改合伙等级、年度期限、孩子权益或历史收益；所有类型永久有效，活动名额不可转让退款。</Typography.Text>{submitError && !pending && <Alert type="error" message={submitError} />}</Space>}
     </Modal>
     <Modal title="确认总部名额充值" open={!!pending} confirmLoading={busy} okText={blocked ? '请关闭并刷新' : submitError ? '沿用原请求重试' : (isMockAuth ? '确认Mock充值' : '确认充值')} okButtonProps={{ disabled: blocked }} cancelText={submitError ? '关闭并刷新' : '返回修改'} closable={!busy && (!submitError || blocked)} maskClosable={!busy && (!submitError || blocked)} cancelButtonProps={{ disabled: busy || !!submitError && !blocked }} onCancel={() => { if (!busy && (!submitError || blocked)) { if (submitError) { setRechargeOwner(null); setRefresh(value => value + 1) }; setPending(null); setSubmitError('') } }} onOk={submit}>
-      {pending && <Space direction="vertical" style={{ width: '100%' }}><Typography.Paragraph>对象：{rechargeOwner?.name} / {pending.targetAccountId}<br />类型：{typeLabels[pending.quotaType]}<br />数量：{pending.quantity}个（永久有效）<br />备注：{pending.reason || '（无）'}</Typography.Paragraph><Typography.Text type="secondary">请求号：{pending.idempotencyKey}</Typography.Text>{submitError && <Alert type="error" message={submitError} />}</Space>}
+      {pending && <Space direction="vertical" style={{ width: '100%' }}><Typography.Paragraph>对象：{rechargeOwner?.name} / {pending.targetAccountId}<br />类型：{typeLabels[pending.quotaType]}<br />数量：{pending.quantity}个（永久有效）</Typography.Paragraph>{submitError && <Alert type="error" message={submitError} />}</Space>}
     </Modal>
   </Space>
 }

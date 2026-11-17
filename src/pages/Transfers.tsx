@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Button, Card, Descriptions, Drawer, Input, Modal, Select, Space, Statistic, Table, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Descriptions, Drawer, Input, Modal, Select, Space, Table, Tag, Typography, message } from 'antd'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
@@ -13,6 +13,7 @@ import {
   type TransferMutation,
   type TransferOverallStatus,
 } from '../types/transfers'
+import SummaryTable from '../components/SummaryTable'
 
 const statusLabel: Record<TransferOverallStatus, string> = {
   PENDING: '待双边审核',
@@ -177,16 +178,16 @@ export default function Transfers() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>转店信息</Typography.Title>
+      <Typography.Title level={3} style={{ margin: 0 }}>转店信息</Typography.Title>
       <Card>
-        <Space wrap size={24}>
-          <Statistic title="申请总数" value={summary.applications} />
-          <Statistic title="待双边审核" value={summary.pending} />
-          <Statistic title="双方已同意" value={summary.bilateralApproved} />
-          <Statistic title="待服务端迁移" value={summary.awaitingMigration} />
-          <Statistic title="已拒绝" value={summary.rejected} />
-          <Statistic title="异常标记" value={summary.exceptions} />
-        </Space>
+        <SummaryTable items={[
+          { key: 'applications', label: '申请总数', value: summary.applications },
+          { key: 'pending', label: '待双边审核', value: summary.pending },
+          { key: 'bilateralApproved', label: '双方已同意', value: summary.bilateralApproved },
+          { key: 'awaitingMigration', label: '待服务端迁移', value: summary.awaitingMigration },
+          { key: 'rejected', label: '已拒绝', value: summary.rejected },
+          { key: 'exceptions', label: '异常标记', value: summary.exceptions },
+        ]} />
       </Card>
       <Card>
         <Space wrap style={{ marginBottom: 16 }}>
@@ -403,7 +404,7 @@ export default function Transfers() {
         cancelButtonProps={{ disabled: busy }}
         destroyOnClose
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space direction="vertical" style={{ width: '100%' }}>
           {pending?.action === 'add-note' && (
             <Input.TextArea rows={3} maxLength={200} showCount placeholder="监管备注 1—200 字" value={note} onChange={e => setNote(e.target.value)} />
           )}

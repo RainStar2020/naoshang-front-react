@@ -181,7 +181,7 @@ function ensureProfile(input: Extract<StoreMutation, { action: 'save-profile' }>
   const name = input.name.trim()
   const managerName = input.managerName.trim()
   const address = input.address.trim()
-  const contact = input.contact.trim()
+  const contact = (input.managerPhone ?? input.contact ?? '').trim()
   if (!name || Array.from(name).length > 60) fail('INVALID_INPUT', '请填写1—60字门店名称')
   if (!managerName || Array.from(managerName).length > 30) fail('INVALID_INPUT', '请填写1—30字负责人姓名')
   if (!/^1\d{10}$/.test(contact)) fail('INVALID_INPUT', '请填写正确联系手机号')
@@ -272,7 +272,7 @@ export function mockStoreMutate(input: StoreMutation, operator: HqAccount) {
       const before = `${row.name}/${row.feeAmount}分/V${row.version}`
       row.name = input.name.trim()
       row.managerName = input.managerName.trim()
-      row.contact = input.contact.trim()
+      row.contact = (input.managerPhone ?? input.contact ?? '').trim()
       row.address = input.address.trim()
       row.regionNames = [...input.regionNames] as [string, string, string]
       row.regionCodes = [...input.regionCodes] as [string, string, string]
@@ -397,4 +397,13 @@ export function mockStoreMutate(input: StoreMutation, operator: HqAccount) {
 
     fail('INVALID_INPUT', '未知操作')
   })
+}
+
+/** 模拟门头照上传：校验图片类型与大小，返回演示 assetId 与本地预览 URL。 */
+export function mockStoreUpload(file: File): { assetId: string; url: string; previewUrl: string; kind: 'image'; mockOnly: boolean } {
+  if (!['image/png', 'image/jpeg'].includes(file.type)) fail('INVALID_INPUT', '门头照仅支持 PNG/JPG 图片')
+  if (!file.size || file.size > 10 * 1024 * 1024) fail('INVALID_INPUT', '门头照大小不能超过 10MB')
+  const assetId = crypto.randomUUID()
+  const url = `https://mock-assets.invalid/storefront/${assetId}`
+  return { assetId, url, previewUrl: URL.createObjectURL(file), kind: 'image', mockOnly: true }
 }

@@ -13,6 +13,7 @@ export interface StoreProfile {
   name: string
   status: StoreStatus
   managerName: string
+  managerPhone?: string
   contact: string
   address: string
   regionNames: [string, string, string]
@@ -139,7 +140,9 @@ export type StoreMutation = { reason: string; idempotencyKey: string; version: n
       storeId: string
       name: string
       managerName: string
-      contact: string
+      managerPhone?: string
+      /** 兼容旧接口/旧测试数据，页面编辑使用 managerPhone。 */
+      contact?: string
       address: string
       regionNames: [string, string, string]
       regionCodes: [string, string, string]

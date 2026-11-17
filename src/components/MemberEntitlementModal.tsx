@@ -29,6 +29,5 @@ export default function MemberEntitlementModal({ request: { member, tier, action
     <Typography.Paragraph style={{ marginTop: 16 }}>涉及学习等级：</Typography.Paragraph><Space size={[0, 8]} wrap>{tier.levels.map(level => <Tag key={level.levelId}>{level.name}</Tag>)}</Space>
     {error && <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}><Alert type="error" message={error} role="alert" />{conflict && <Button onClick={() => { onClose(); onRefresh() }}>刷新权益并关闭</Button>}</Space>}
     <Form name="memberEntitlementAction" form={form} layout="vertical" requiredMark={false} disabled={busy || conflict} style={{ marginTop: 20 }}><Form.Item name="reason" label="备注" rules={[{ required: true, whitespace: true, message: "请填写操作原因" }, { max: 200, message: "操作原因不能超过200字" }]}><Input.TextArea maxLength={200} showCount rows={3} placeholder="请填写操作原因" /></Form.Item></Form>
-    <Typography.Text type="secondary" style={{ fontSize: 12 }}>Mock 操作 · 请求号：{requestId}</Typography.Text>
   </Modal>
 }

@@ -277,22 +277,10 @@ export const adminNavGroups: AdminNavGroup[] = [
     icon: "group-revenue",
     children: [
       {
-        path: "/revenue/partners",
-        label: "合伙人收益",
+        path: "/revenue",
+        label: "收益",
         permission: "revenue:access",
         icon: "revenue-partners",
-      },
-      {
-        path: "/revenue/stores",
-        label: "合店收益",
-        permission: "revenue:access",
-        icon: "revenue-stores",
-      },
-      {
-        path: "/revenue/agents",
-        label: "代理收益",
-        permission: "revenue:access",
-        icon: "revenue-agents",
       },
       {
         path: "/revenue/global",
@@ -308,7 +296,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       },
       {
         path: "/revenue/settlement",
-        label: "结算重算与冲正",
+        label: "全员月度分红监管",
         permission: "revenue:access",
         icon: "revenue-settlement",
       },
@@ -380,9 +368,7 @@ export const dedicatedPagePaths: readonly string[] = [
   "/training",
   "/transfers",
   // P2 第二批：收益列表 + 提现（HQ-22～23）
-  "/revenue/partners",
-  "/revenue/stores",
-  "/revenue/agents",
+  "/revenue",
   "/revenue/global",
   "/revenue/founding",
   "/revenue/settlement",

@@ -45,6 +45,18 @@ export interface IncomeEntry {
   version: number
   mockOnly: boolean
   allowedActions: ('reassign-allocation' | 'request-recalc' | 'request-reverse')[]
+  /** 收益列表扩展字段；真实接口按后端返回展示，旧数据允许缺省。 */
+  ownerAccountId?: string | null
+  sourceAgentId?: string | null
+  displayId?: string | null
+  bizType?: string | null
+  bizTypeLabel?: string | null
+  typeLabel?: string | null
+  identity?: string | null
+  wholesaleIdentity?: { tier?: string | null; tierLabel?: string | null; label?: string | null } | null
+  agencyIdentity?: { agentId?: string | null; regionCode?: string | null; label?: string | null } | null
+  regionCode?: string | null
+  note?: string | null
 }
 
 export interface IncomeAudit {
@@ -75,6 +87,15 @@ export interface IncomeQuery {
   accountId?: string
   /** 结算月份，YYYY-MM */
   period?: string
+  beneficiaryKeyword?: string
+  tierLabel?: string
+  regionKeyword?: string
+  agencyLabel?: string
+  sourceAgentId?: string
+  headquartersOnly?: boolean
+  minAmount?: number
+  maxAmount?: number
+  bizTypeKeyword?: string
 }
 
 export interface IncomeList {

@@ -10,7 +10,6 @@ import {
   Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tabs,
   Tag,
@@ -31,6 +30,7 @@ import {
   type SupportMutation,
 } from '../types/support'
 import { ContentPreview } from '../utils/richContent'
+import SummaryTable from '../components/SummaryTable'
 
 const statusLabel: Record<AgreementStatus, string> = {
   DRAFT: '草稿',
@@ -177,12 +177,14 @@ export default function Support() {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Title level={3} style={{ margin: 0 }}>协议与客服预留</Typography.Title>
 
-      <Space size={48} wrap>
-        <Statistic title="协议条数" value={catalog?.agreements.length ?? 0} />
-        <Statistic title="待处理反馈" value={catalog?.feedbackSummary.open ?? 0} />
-        <Statistic title="已处理反馈" value={catalog?.feedbackSummary.handled ?? 0} />
-        <Statistic title="反馈图片上限" value={catalog?.supportConfig.feedbackMaxImages ?? '—'} />
-      </Space>
+      <SummaryTable
+        items={[
+          { key: "agreements", label: "协议条数", value: catalog?.agreements.length ?? 0 },
+          { key: "open", label: "待处理反馈", value: catalog?.feedbackSummary.open ?? 0 },
+          { key: "handled", label: "已处理反馈", value: catalog?.feedbackSummary.handled ?? 0 },
+          { key: "feedbackMaxImages", label: "反馈图片上限", value: catalog?.supportConfig.feedbackMaxImages ?? '—' },
+        ]}
+      />
 
       <Tabs
         items={[

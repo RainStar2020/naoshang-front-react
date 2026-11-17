@@ -10,7 +10,6 @@ import {
   Radio,
   Select,
   Space,
-  Statistic,
   Table,
   Tag,
   Typography,
@@ -31,6 +30,7 @@ import {
   type WithdrawalDetail,
   type WithdrawalMutation,
 } from '../types/withdrawals'
+import SummaryTable from '../components/SummaryTable'
 
 /** 提现金额单位为元（非分），原样展示。 */
 function yuan(n: number) {
@@ -349,23 +349,25 @@ export default function Withdrawals() {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Title level={3} style={{ margin: 0 }}>
         提现审核与打款回执
-      </Typography.Title>
+      </Typography.Title>
       {catalog && (
-        <>
+        <>
         </>
       )}
 
       <Card>
-        <Space wrap size="large">
-          <Statistic title="申请数" value={summary.applications} />
-          <Statistic title="待审核" value={summary.pendingReview} />
-          <Statistic title="处理中" value={summary.processing} />
-          <Statistic title="已完成" value={summary.succeeded} />
-          <Statistic title="未通过" value={summary.rejected} />
-          <Statistic title="回执失败" value={summary.receiptFailed} />
-          <Statistic title="在途金额" value={yuan(summary.pendingAmount)} />
-          <Statistic title="已完成金额" value={yuan(summary.succeededAmount)} />
-        </Space>
+        <SummaryTable
+          items={[
+            { key: "applications", label: "申请数", value: summary.applications },
+            { key: "pendingReview", label: "待审核", value: summary.pendingReview },
+            { key: "processing", label: "处理中", value: summary.processing },
+            { key: "succeeded", label: "已完成", value: summary.succeeded },
+            { key: "rejected", label: "未通过", value: summary.rejected },
+            { key: "receiptFailed", label: "回执失败", value: summary.receiptFailed },
+            { key: "pendingAmount", label: "在途金额", value: yuan(summary.pendingAmount) },
+            { key: "succeededAmount", label: "已完成金额", value: yuan(summary.succeededAmount) },
+          ]}
+        />
       </Card>
 
       <Card>
@@ -477,7 +479,7 @@ export default function Withdrawals() {
         }
       >
         {detail && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="申请单号">{detail.application.redemptionNo || '—'}</Descriptions.Item>
               <Descriptions.Item label="状态">
@@ -558,7 +560,7 @@ export default function Withdrawals() {
         okText="确认提交"
         destroyOnClose
       >
-        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
           {pending?.action === 'register-receipt' && (
             <>
               <Radio.Group value={receipt} onChange={(e) => setReceipt(e.target.value)}>

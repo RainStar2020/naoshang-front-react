@@ -9,7 +9,6 @@ import {
   Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tabs,
   Tag,
@@ -39,12 +38,19 @@ import { visiblePartnerCatalogAudit } from "../utils/partnerCatalogAudit";
 import { annualStatusLabel, annualStatusTagColor } from "../utils/partnerAnnualStatus";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
+import SummaryTable from "../components/SummaryTable";
 /** 经营态筛选文案（partnerStatus），与年度权益无关 */
 const partnerStatusLabels: Record<PartnerProfile["partnerStatus"], string> = {
-  ACTIVE: "经营正常",
+  ACTIVE: "正常",
   FROZEN: "已冻结",
   EXPIRED: "已到期",
   PENDING_ANNUAL: "年度待开通",
+};
+const partnerStatusColor: Record<PartnerProfile["partnerStatus"], string> = {
+  ACTIVE: "success",
+  FROZEN: "error",
+  EXPIRED: "warning",
+  PENDING_ANNUAL: "default",
 };
 const taskLabels: Record<string, string> = {
   IN_PROGRESS: "进行中",
@@ -54,36 +60,6 @@ const taskLabels: Record<string, string> = {
   COMPLETED: "已完成",
   EXPIRED: "已过期",
   SUPERSEDED: "已由人工升级替代",
-};
-const renderPromotionTask = (task: PartnerProfile["task"]) => {
-  const statusRaw = String(task?.status ?? "").toUpperCase();
-  const label = String(task?.statusLabel ?? "");
-  const ongoing =
-    !!task &&
-    task.enabled !== false &&
-    (statusRaw === "ONGOING" ||
-      statusRaw === "IN_PROGRESS" ||
-      label === "进行中");
-  if (!ongoing) return <Tag>已过期</Tag>;
-  const progressParts = (task.items ?? [])
-    .filter((item) => item.label || item.progressText)
-    .map((item) => `${item.label} ${item.progressText}`.trim());
-  const progressLine = progressParts.length
-    ? progressParts.join(" · ")
-    : task.text || (task.target ? `${task.progress} / ${task.target}` : "");
-  return (
-    <>
-      <Tag color="processing">进行中</Tag>
-      {progressLine ? (
-        <>
-          <br />
-          <Typography.Text style={{ fontSize: 12 }} type="secondary">
-            {progressLine}
-          </Typography.Text>
-        </>
-      ) : null}
-    </>
-  );
 };
 const receiptLabels = {
   PROCESSING: "处理中",
@@ -303,21 +279,18 @@ export default function Partners() {
                 </Card>
                 {list && (
                   <Card>
-                    <Space size={48} wrap>
-                      <Statistic
-                        title="筛选身份数（完整结果）"
-                        value={list.summary.total}
-                      />
-                      <Statistic title="经营正常" value={list.summary.active} />
-                      <Statistic
-                        title="冻结（含年度到期）"
-                        value={list.summary.frozen}
-                      />
-                      <Statistic
-                        title="年度到期"
-                        value={list.summary.annualExpired}
-                      />
-                    </Space>
+                    <SummaryTable
+                      items={[
+                        { key: "total", label: "身份总数", value: list.summary.total },
+                        { key: "active", label: "经营正常", value: list.summary.active },
+                        { key: "frozen", label: "已冻结", value: list.summary.frozen },
+                        {
+                          key: "annualExpired",
+                          label: "年度到期",
+                          value: list.summary.annualExpired,
+                        },
+                      ]}
+                    />
                   </Card>
                 )}
                 {listError && <Alert type="error" message={listError} />}
@@ -360,13 +333,23 @@ export default function Partners() {
                       {
                         title: "等级",
                         key: "level",
-                        width: 120,
+                        width: 110,
                         render: (_, row) => levelName(row.partnerLevel),
+                      },
+                      {
+                        title: "合伙人状态",
+                        key: "partnerStatus",
+                        width: 120,
+                        render: (_, row) => (
+                          <Tag color={partnerStatusColor[row.partnerStatus]}>
+                            {partnerStatusLabels[row.partnerStatus]}
+                          </Tag>
+                        ),
                       },
                       {
                         title: "介绍人",
                         key: "superior",
-                        width: 120,
+                        width: 110,
                         render: (_, row) => row.superior?.name ?? "未绑定",
                       },
                       {
@@ -385,12 +368,6 @@ export default function Partners() {
                         width: 180,
                         render: (_, row) =>
                           formatUserDate(row.annualValidUntil),
-                      },
-                      {
-                        title: "晋升任务",
-                        key: "task",
-                        width: 280,
-                        render: (_, row) => renderPromotionTask(row.task),
                       },
                       {
                         title: "操作",
@@ -686,11 +663,12 @@ export default function Partners() {
                         : profile.superior.name
                       : "未绑定",
                   },
-                  // {
-                  //   key: "status",
-                  //   label: "经营状态",
-                  //   children: partnerStatusLabels[profile.partnerStatus],
-                  // },
+                  {
+                    key: "partnerStatus",
+                    label: "合伙人状态",
+                    children:
+                      partnerStatusLabels[profile.partnerStatus],
+                  },
                   {
                     key: "annual",
                     label: "年度权益",
@@ -993,10 +971,6 @@ export default function Partners() {
               : pending.action === "save-level-names"
                 ? `保存四档展示名：${pending.names.map((row) => row.title).join(" / ")}`
                 : `保存${levelName(pending.partnerLevel)}展示说明`}
-            <br />
-            {pending.action === "save-level-names"
-              ? "按各档当前版本校验"
-              : `当前版本：V${pending.version}`}
           </p>
           <Input.TextArea
             aria-label="备注"

@@ -16,6 +16,7 @@ const Orders = lazy(() => import('./pages/Orders'))
 const Coupons = lazy(() => import('./pages/Coupons'))
 const Payments = lazy(() => import('./pages/Payments'))
 import Revenue from './pages/Revenue'
+import DividendAudit from './pages/DividendAudit'
 import Stores from './pages/Stores'
 const Training = lazy(() => import('./pages/Training'))
 const Transfers = lazy(() => import('./pages/Transfers'))
@@ -59,12 +60,12 @@ const pages: Record<string, React.ComponentType> = {
   '/support': Support,
   '/trace': Trace,
   '/products': Products,
-  '/revenue/partners': Revenue,
+  '/revenue': Revenue,
   '/revenue/stores': Revenue,
   '/revenue/agents': Revenue,
   '/revenue/global': Revenue,
   '/revenue/founding': Revenue,
-  '/revenue/settlement': Revenue,
+  '/revenue/settlement': DividendAudit,
   '/stores': Stores,
   '/training': Training,
   '/transfers': Transfers,

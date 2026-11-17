@@ -13,7 +13,6 @@ import {
   Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tag,
   Typography,
@@ -21,6 +20,7 @@ import {
   message,
 } from 'antd'
 import CmsContentEditor from '../components/CmsContentEditor'
+import SummaryTable from '../components/SummaryTable'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
 import { promoMaterialService } from '../services/promo-materials'
@@ -868,23 +868,33 @@ export default function Materials() {
       </div>
 
         <Alert type="warning" showIcon message="当前模块功能正在开发中" />
-
-
-
+
+
+
 
       {summary && (
         <Card size="small">
-          <Space wrap size={24}>
-            <Statistic title="模板数" value={summary.templates} />
-            <Statistic title="草稿" value={summary.draft} />
-            <Statistic title="已发布" value={summary.published} />
-            <Statistic title="已下线" value={summary.offline} />
-            {type === 'image' && <Statistic title="图片已框选区" value={summary.imageWithRegion} />}
-            {(type === 'image' || type === 'article') && (
-              <Statistic title={type === 'image' ? '缺区/缺码位' : '缺码位'} value={summary.missingQrRegion} />
-            )}
-            {type === 'video' && <Statistic title="视频 H5" value={summary.videoH5} />}
-          </Space>
+          <SummaryTable
+            items={[
+              { key: 'templates', label: '模板数', value: summary.templates },
+              { key: 'draft', label: '草稿', value: summary.draft },
+              { key: 'published', label: '已发布', value: summary.published },
+              { key: 'offline', label: '已下线', value: summary.offline },
+              ...(type === 'image'
+                ? [{ key: 'imageWithRegion', label: '图片已框选区', value: summary.imageWithRegion }]
+                : []),
+              ...(type === 'image' || type === 'article'
+                ? [{
+                    key: 'missingQrRegion',
+                    label: type === 'image' ? '缺区/缺码位' : '缺码位',
+                    value: summary.missingQrRegion,
+                  }]
+                : []),
+              ...(type === 'video'
+                ? [{ key: 'videoH5', label: '视频 H5', value: summary.videoH5 }]
+                : []),
+            ]}
+          />
         </Card>
       )}
 
@@ -980,7 +990,7 @@ export default function Materials() {
         destroyOnClose
       >
         {detail && (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions column={1} size="small" bordered>
               <Descriptions.Item label="ID">{detail.template.materialId}</Descriptions.Item>
               <Descriptions.Item label="标题">{detail.template.title}</Descriptions.Item>
@@ -1132,7 +1142,7 @@ export default function Materials() {
             )}
 
             {createStep === 'qr' && (
-              <>
+              <>
                 {imagePreviewUrl ? (
                   <ImageQrRegionPicker
                     imageUrl={imagePreviewUrl}
@@ -1156,7 +1166,7 @@ export default function Materials() {
             <Form.Item name="categoryId" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
               <Select options={categoriesForType.map((c) => ({ value: c.categoryId, label: c.name }))} />
             </Form.Item>
-
+
 
             <Form.Item
               name="mediaUrl"
@@ -1228,7 +1238,7 @@ export default function Materials() {
         width={640}
       >
         {regionTarget && (
-          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
             <ImageQrRegionPicker
               imageUrl={regionTarget.mediaUrl}
               value={

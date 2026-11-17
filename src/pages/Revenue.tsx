@@ -10,7 +10,6 @@ import {
   Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tag,
   Typography,
@@ -33,6 +32,7 @@ import {
   type SettlementStatus,
 } from "../types/income";
 import { downloadCsv } from "../utils/csv";
+import SummaryTable from "../components/SummaryTable";
 import {
   buildRevenueListQuery,
   revenueDimensionFromPath,
@@ -97,6 +97,13 @@ export default function Revenue() {
     pageMeta.channel,
   );
   const [period, setPeriod] = useState<string>();
+  const [beneficiaryKeyword, setBeneficiaryKeyword] = useState("");
+  const [tierLabel, setTierLabel] = useState("");
+  const [regionKeyword, setRegionKeyword] = useState("");
+  const [agencyLabel, setAgencyLabel] = useState("");
+  const [sourceAgentId, setSourceAgentId] = useState("");
+  const [headquartersOnly, setHeadquartersOnly] = useState(false);
+  const [amountRange, setAmountRange] = useState<[number | undefined, number | undefined]>([undefined, undefined]);
   const [allocationStatus, setAllocationStatus] = useState<AllocationStatus>();
   const [settlementStatus, setSettlementStatus] = useState<SettlementStatus>();
   const [storeId, setStoreId] = useState<string>();
@@ -156,6 +163,15 @@ export default function Revenue() {
           settlementStatus,
           storeId,
           period,
+          beneficiaryKeyword: beneficiaryKeyword || undefined,
+          tierLabel: tierLabel || undefined,
+          regionKeyword: regionKeyword || undefined,
+          agencyLabel: agencyLabel || undefined,
+          sourceAgentId: sourceAgentId || undefined,
+          headquartersOnly: headquartersOnly || undefined,
+          minAmount: amountRange[0] === undefined ? undefined : amountRange[0] * 100,
+          maxAmount: amountRange[1] === undefined ? undefined : amountRange[1] * 100,
+          bizTypeKeyword: dimension === "partners" ? keyword || undefined : undefined,
         }),
       );
       setRows(list.items);
@@ -179,6 +195,8 @@ export default function Revenue() {
     storeId,
     period,
     dimension,
+    beneficiaryKeyword, tierLabel, regionKeyword, agencyLabel, sourceAgentId,
+    headquartersOnly, amountRange,
   ]);
 
   const loadDetail = useCallback(
@@ -464,6 +482,19 @@ export default function Revenue() {
     [canManage],
   );
 
+  const partnerColumns = useMemo(() => [
+    { title: "收益归属人", width: 190, render: (_: unknown, row: IncomeEntry) => <span>{row.beneficiaryName || row.accountName}<br /><Typography.Text type="secondary">{row.phone} · {row.displayId || row.accountId}</Typography.Text></span> },
+    { title: "身份层级", width: 130, render: (_: unknown, row: IncomeEntry) => row.wholesaleIdentity?.tierLabel || row.identityLabel || "—" },
+    { title: "收益类型", width: 140, render: (_: unknown, row: IncomeEntry) => row.typeLabel || row.bizTypeLabel || row.title || "—" },
+    { title: "区域代理", width: 150, render: (_: unknown, row: IncomeEntry) => <span>{row.regionLabel || "—"}<br /><Typography.Text type="secondary">{row.agencyIdentity?.label || row.agencyIdentity?.agentId || "—"}</Typography.Text></span> },
+    { title: "收益金额", dataIndex: "amount", width: 120, render: (v: number) => <Typography.Text type={v < 0 ? "danger" : undefined}>{fen(v)}</Typography.Text> },
+    { title: "分成比例", width: 100, render: (_: unknown, row: IncomeEntry) => `${(row.rateBps / 100).toFixed(2)}%` },
+    { title: "状态", width: 110, render: (_: unknown, row: IncomeEntry) => <Tag color={settleColor[row.settlementStatus]}>{settleLabel[row.settlementStatus]}</Tag> },
+    { title: "账期", width: 100, render: (_: unknown, row: IncomeEntry) => row.createdAt?.slice(0, 7) || "—" },
+    { title: "备注摘要", width: 220, ellipsis: true, render: (_: unknown, row: IncomeEntry) => row.pendingNote || row.note || row.title || "—" },
+    { title: "操作", width: 180, render: (_: unknown, row: IncomeEntry) => <Space><Button size="small" onClick={() => setDetailId(row.entryId)}>详情</Button>{canManage && (row.allowedActions || []).includes("reassign-allocation") && <Button size="small" type="primary" onClick={() => openMutate(row, "reassign-allocation")}>改分配</Button>}</Space> },
+  ], [canManage]);
+
   const mutateTitle =
     pending?.action === "reassign-allocation"
       ? "改分配（不直接计入可提现）"
@@ -485,45 +516,41 @@ export default function Revenue() {
       ) : null}
 
       <Card>
-        <Space wrap size="large">
-          <Statistic title="原流水数" value={summary.entries} />
-          <Statistic title="待分配" value={summary.pendingAllocation} />
-          <Statistic title="待结算" value={summary.pendingSettlement} />
-          <Statistic title="已结算" value={summary.settled} />
-          <Statistic title="重算待审" value={summary.recalcPending} />
-          <Statistic title="已冲正" value={summary.reversed} />
-          <Statistic title="已结算金额" value={fen(summary.settledAmount)} />
-          <Statistic title="待处理金额" value={fen(summary.pendingAmount)} />
-        </Space>
+        <SummaryTable
+          items={[
+            { key: "entries", label: "原流水数", value: summary.entries },
+            { key: "pendingAllocation", label: "待分配", value: summary.pendingAllocation },
+            { key: "pendingSettlement", label: "待结算", value: summary.pendingSettlement },
+            { key: "settled", label: "已结算", value: summary.settled },
+            { key: "recalcPending", label: "重算待审", value: summary.recalcPending },
+            { key: "reversed", label: "已冲正", value: summary.reversed },
+            { key: "settledAmount", label: "已结算金额", value: fen(summary.settledAmount) },
+            { key: "pendingAmount", label: "待处理金额", value: fen(summary.pendingAmount) },
+          ]}
+        />
       </Card>
 
       <Card>
         <Space wrap style={{ marginBottom: 12 }}>
           <Input.Search
             allowClear
-            placeholder="流水号 / 单号 / 标题 / 账户 / 手机 / 门店"
+            placeholder={dimension === "partners" ? "entryId / 备注 / 收益类型关键词" : "流水号 / 单号 / 标题 / 账户 / 手机 / 门店"}
             style={{ width: 320 }}
             onSearch={(v) => {
               setPage(1);
               setKeyword(v);
             }}
           />
-          {!pageMeta.lockChannel && (
-            <Select
-              allowClear
-              placeholder="业务线"
-              style={{ width: 120 }}
-              options={(catalog?.modules || []).map((m) => ({
-                value: m.value,
-                label: m.label,
-              }))}
-              value={module}
-              onChange={(v) => {
-                setPage(1);
-                setModule(v);
-              }}
-            />
-          )}
+          {dimension === "partners" && <>
+            <Input placeholder="归属人姓名/手机号/displayId/accountId" style={{ width: 230 }} value={beneficiaryKeyword} onChange={e => { setPage(1); setBeneficiaryKeyword(e.target.value) }} />
+            <Input placeholder="身份层级" style={{ width: 130 }} value={tierLabel} onChange={e => { setPage(1); setTierLabel(e.target.value) }} />
+            <Input placeholder="代理区域/区域编码" style={{ width: 160 }} value={regionKeyword} onChange={e => { setPage(1); setRegionKeyword(e.target.value) }} />
+            <Input placeholder="代理身份" style={{ width: 130 }} value={agencyLabel} onChange={e => { setPage(1); setAgencyLabel(e.target.value) }} />
+            <Input placeholder="来源代理 ID" style={{ width: 140 }} value={sourceAgentId} onChange={e => { setPage(1); setSourceAgentId(e.target.value) }} />
+            <Input placeholder="金额下限" type="number" style={{ width: 110 }} onChange={e => setAmountRange([e.target.value ? Number(e.target.value) : undefined, amountRange[1]])} />
+            <Input placeholder="金额上限" type="number" style={{ width: 110 }} onChange={e => setAmountRange([amountRange[0], e.target.value ? Number(e.target.value) : undefined])} />
+            <Select value={headquartersOnly ? "HQ" : undefined} allowClear placeholder="总部归属" style={{ width: 120 }} options={[{ value: "HQ", label: "仅总部" }]} onChange={v => setHeadquartersOnly(v === "HQ")} />
+          </>}
           {!pageMeta.lockChannel && (
             <Select
               allowClear
@@ -604,7 +631,7 @@ export default function Revenue() {
         <Table
           rowKey="entryId"
           loading={loading}
-          columns={columns}
+          columns={dimension === "partners" ? partnerColumns : columns}
           dataSource={rows}
           scroll={{ x: 1800 }}
           pagination={{

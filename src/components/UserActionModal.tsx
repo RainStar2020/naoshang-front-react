@@ -54,7 +54,7 @@ export default function UserActionModal({ request: { account, action }, stores, 
   const prefix = Form.useWatch('prefix', form)
   const serial = Form.useWatch('serial', form)
   return <Modal open title={title} onCancel={() => { if (!busy) onClose() }} onOk={() => void submit()} confirmLoading={busy} okText="确认提交" cancelText="取消" okButtonProps={{ danger: action === 'freeze' && !account.frozen, disabled: conflict }} cancelButtonProps={{ disabled: busy }} closable={!busy} maskClosable={false}>
-    <Typography.Paragraph>操作对象：<strong>{account.nickname}</strong>（{account.displayId}）</Typography.Paragraph>
+    <Typography.Paragraph>操作对象：<strong>{account.nickname}</strong>（{account.displayId}）</Typography.Paragraph>
     {error && <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}><Alert type="error" message={error} role="alert" />{conflict && <Button onClick={() => { onClose(); onRefresh() }}>刷新资料并关闭</Button>}</Space>}
     <Form name="userAction" form={form} layout="vertical" disabled={busy || conflict} requiredMark={false} style={{ marginTop: 20 }} initialValues={action === 'change-display-id' ? (() => { const match = account.displayId.match(/^(VIP|TS|SD|LC)(\d{4})$/); return match ? { prefix: match[1] as UserDisplayIdPrefix, serial: match[2] } : { prefix: 'VIP' as UserDisplayIdPrefix, serial: '' } })() : undefined}>
       {action === 'change-store' && <><Typography.Paragraph type="secondary">当前门店：{account.storeName ?? '未绑定门店'}</Typography.Paragraph><Form.Item name="storeId" label="新所属门店" rules={[{ required: true, message: '请选择新门店' }]}><Select showSearch optionFilterProp="label" placeholder="请选择可用门店" options={stores.filter(store => store.active && store.storeId !== account.storeId).map(store => ({ value: store.storeId, label: `${store.name} · ${store.number}` }))} /></Form.Item></>}
@@ -66,6 +66,5 @@ export default function UserActionModal({ request: { account, action }, stores, 
       </>}
       <Form.Item name="reason" label="备注" rules={[{ required: true, whitespace: true, message: "请填写操作原因" }, { max: 200, message: "操作原因不能超过200字" }]}><Input.TextArea rows={3} showCount maxLength={200} placeholder="请填写操作原因" /></Form.Item>
     </Form>
-    <Typography.Text type="secondary" style={{ fontSize: 12 }}>请求号：{requestId}</Typography.Text>
   </Modal>
 }

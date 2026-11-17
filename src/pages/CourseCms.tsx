@@ -93,13 +93,11 @@ await cmsService.mutate(token, { ...pending, reason: `后台内容维护：${pen
     {preview && <CoursePreview course={preview} onClose={() => setPreview(null)} />}
     {tierPreview && <Modal open title={tierPreview.name} footer={null} onCancel={() => setTierPreview(null)}><Typography.Paragraph>{tierPreview.summary}</Typography.Paragraph>{tierPreview.coverUrl && <img src={cmsService.resolveAsset(tierPreview.coverUrl)} alt="会员等级封面" style={{ maxWidth: '100%' }} />}<ContentPreview value={tierPreview.benefits} resolveUrl={cmsService.resolveAsset} /></Modal>}
     {pending && <Modal open title={labels[pending.action]} onCancel={() => { if (!submitting) setPending(null) }} onOk={() => void confirm()} okText="确认操作" cancelText="返回修改" confirmLoading={submitting} closable={!submitting} maskClosable={false} cancelButtonProps={{ disabled: submitting }} okButtonProps={{ disabled: blocked }}>
-      <Typography.Paragraph>对象：{pending.action === 'save-course' ? pending.value.name : pending.action === 'save-tier' ? pending.value.name : catalog?.courses.find(course => course.draft.levelId === pending.targetId)?.draft.name}<br />当前版本：V{pending.version}</Typography.Paragraph>
+      <Typography.Paragraph>对象：{pending.action === 'save-course' ? pending.value.name : pending.action === 'save-tier' ? pending.value.name : catalog?.courses.find(course => course.draft.levelId === pending.targetId)?.draft.name}</Typography.Paragraph>
       {pendingCourse && <Typography.Paragraph>目标会员等级：{catalog?.tiers.find(tier => tier.membershipTierId === pendingCourse.membershipTierId)?.name}<br />章节数量：{pendingCourse.chapters.length}</Typography.Paragraph>}
       <Alert type={pending.action === 'offline' ? 'warning' : 'info'} message={pending.action === 'publish' ? '将当前草稿发布为新版本；等级归属变化会影响发布目录，请确认目标会员等级和章节内容。' : pending.action === 'offline' ? '下线后从可消费目录隐藏；保留历史发布快照、授权记录和学习进度。' : pending.action === 'save-course' ? '仅保存草稿，已发布版本保持不变。' : '保存会员等级展示配置，授权ID保持稳定。'} />
       {submitError && <Alert style={{ marginTop: 12 }} type="error" message={submitError} role="alert" />}
       {blocked && <Button onClick={() => { setPending(null); setCourseEditor(null); setTierEditor(null); setRefresh(value => value + 1) }}>关闭并刷新</Button>}
-      
-      <Typography.Text type="secondary" style={{ fontSize: 12 }}>请求号：{pending.idempotencyKey}</Typography.Text>
     </Modal>}
   </Space>
 }

@@ -56,15 +56,13 @@ describe("adminNavGroups §4.3 信息架构", () => {
     expect(system.children.some((c) => c.path === "/agents")).toBe(false);
   });
 
-  it("收益独立一级含六个二级；资金结算仅提现", () => {
+  it("收益入口统一展示收益；资金结算仅提现", () => {
     const revenue = adminNavGroups.find((g) => g.key === "revenue")!;
     expect(revenue.label).toBe("收益");
     expect(
       revenue.children.map((c) => [c.path, c.label, c.permission]),
     ).toEqual([
-      ["/revenue/partners", "合伙人收益", "revenue:access"],
-      ["/revenue/stores", "合店收益", "revenue:access"],
-      ["/revenue/agents", "代理收益", "revenue:access"],
+      ["/revenue", "收益", "revenue:access"],
       ["/revenue/global", "全球奖", "revenue:access"],
       ["/revenue/founding", "创始奖", "revenue:access"],
       ["/revenue/settlement", "结算重算与冲正", "revenue:access"],
@@ -74,17 +72,15 @@ describe("adminNavGroups §4.3 信息架构", () => {
     expect(finance.children.map((c) => c.path)).toEqual(["/withdrawals"]);
   });
 
-  it("adminModules 由分组扁平生成且不含旧 /revenue", () => {
+  it("adminModules 由分组扁平生成且包含统一收益入口", () => {
     expect(adminModules).toEqual(adminNavGroups.flatMap((g) => g.children));
-    expect(adminModules.some((m) => m.path === "/revenue")).toBe(false);
+    expect(adminModules.some((m) => m.path === "/revenue")).toBe(true);
     expect(
       adminModules
         .filter((m) => m.path.startsWith("/revenue/"))
         .map((m) => m.path),
     ).toEqual([
-      "/revenue/partners",
-      "/revenue/stores",
-      "/revenue/agents",
+      
       "/revenue/global",
       "/revenue/founding",
       "/revenue/settlement",

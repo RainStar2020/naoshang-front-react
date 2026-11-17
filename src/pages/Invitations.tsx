@@ -9,7 +9,6 @@ import {
   Modal,
   Select,
   Space,
-  Statistic,
   Table,
   Tabs,
   Tag,
@@ -33,6 +32,7 @@ import {
 import { formatUserDate } from "../components/UserDetailDrawer";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
+import SummaryTable from "../components/SummaryTable";
 import { useDebouncedValue } from "../utils/useDebouncedValue";
 function person(row: InvitationAccount | null) {
   return row ? `${row.name} / ${row.phone}` : "未绑定介绍人";
@@ -270,14 +270,13 @@ export default function Invitations() {
       </Card>
       {error && <Alert type="error" message={error} />}
       {list && (
-        <Space size={40}>
-          <Statistic
-            title="筛选账号数（完整结果）"
-            value={list.summary.accounts}
-          />
-          <Statistic title="已绑定" value={list.summary.bound} />
-          <Statistic title="未绑定" value={list.summary.unbound} />
-        </Space>
+        <SummaryTable
+          items={[
+            { key: "accounts", label: "账号总数", value: list.summary.accounts },
+            { key: "bound", label: "已绑定", value: list.summary.bound },
+            { key: "unbound", label: "未绑定", value: list.summary.unbound },
+          ]}
+        />
       )}
       <Card title="账号邀请关系">
         <Table<InvitationRelation>
@@ -684,10 +683,6 @@ export default function Invitations() {
                     ) ?? null,
                   )
                 : "解绑，无介绍人"}
-              <br />
-              备注：{pending.reason || "（无）"}
-              <br />
-              请求号：{pending.idempotencyKey}
             </Typography.Paragraph>
             {submitError && <Alert type="error" message={submitError} />}
           </Space>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Checkbox, Descriptions, Drawer, Input, Modal, Select, Space, Statistic, Switch, Table, Tabs, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Checkbox, Descriptions, Drawer, Input, Modal, Select, Space, Switch, Table, Tabs, Tag, Typography, message } from 'antd'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
 import { formatUserDate } from '../components/UserDetailDrawer'
@@ -22,9 +22,21 @@ import {
 } from '../types/staff'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
 import { DebouncedSearchInput } from '../components/DebouncedSearchInput'
+import SummaryTable from '../components/SummaryTable'
 
 const statusLabels: Record<StaffStatus, string> = { ACTIVE: '有效', FROZEN: '停用', LEFT: '离职' }
 const statusColor: Record<StaffStatus, string> = { ACTIVE: 'green', FROZEN: 'orange', LEFT: 'default' }
+
+// 确认弹窗只展示用户可理解的操作说明，不暴露 action、请求号、版本等内部字段
+function staffPendingConfirmText(p: StaffMutation): string {
+  switch (p.action) {
+    case 'save-role': return '保存员工角色'
+    case 'create-assignment': return '创建门店任职'
+    case 'update-assignment': return '更新门店任职'
+    case 'set-status': return '更新任职状态'
+    default: return '确认提交该操作'
+  }
+}
 
 export default function StaffRoles() {
   const { session } = useAuth()
@@ -185,7 +197,13 @@ export default function StaffRoles() {
             <Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>重置筛选</Button>
           </Space></Card>
           {error && <Alert type="error" message={error} />}
-          {list && <Space size={32}><Statistic title="筛选任职数" value={list.summary.assignments} /><Statistic title="在职" value={list.summary.active} /><Statistic title="冻结" value={list.summary.frozen} /><Statistic title="离职保留" value={list.summary.left} /><Statistic title="跨店开放" value={list.summary.crossStoreAllowed} /></Space>}
+          {list && <SummaryTable items={[
+            { key: 'assignments', label: '任职总数', value: list.summary.assignments },
+            { key: 'active', label: '在职', value: list.summary.active },
+            { key: 'frozen', label: '已冻结', value: list.summary.frozen },
+            { key: 'left', label: '离职保留', value: list.summary.left },
+            { key: 'crossStoreAllowed', label: '跨店开放', value: list.summary.crossStoreAllowed },
+          ]} />}
           <Card title="任职列表">
             <Table<StaffAssignment> rowKey="assignmentId" loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1400 }}
               pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}条任职`, onChange: (page, pageSize) => setQuery(v => ({ ...v, page, pageSize })) }}
@@ -302,7 +320,7 @@ export default function StaffRoles() {
       onCancel={() => { if (!busy && (!submitError || blocked)) { if (blocked) { closeEditors(); setRefresh(n => n + 1) }; setPending(null); setSubmitError('') } }}
       onOk={submit}>
       {pending && <Space direction="vertical" style={{ width: '100%' }}>
-        <Typography.Paragraph>操作：{pending.action}<br />备注：{pending.reason || '（无）'}<br />请求号：{pending.idempotencyKey}<br />版本：{pending.version}</Typography.Paragraph>
+        <Typography.Paragraph>请确认是否{staffPendingConfirmText(pending)}。</Typography.Paragraph>
         {submitError && <Alert type="error" message={submitError} />}
       </Space>}
     </Modal>

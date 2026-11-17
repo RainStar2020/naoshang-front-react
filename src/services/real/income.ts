@@ -161,6 +161,8 @@ export function mapIncomeEntry(raw: unknown): IncomeEntry {
   const owner = record(r.ownerUser)
   const store = record(r.store)
   const region = record(r.region)
+  const wholesaleIdentity = record(r.wholesaleIdentity)
+  const agencyIdentity = record(r.agencyIdentity)
   const settlementStatus = asSettlement(r.settlementStatus || r.settleStatus || r.status)
   const allocationStatus = asAllocStatus(r.allocationStatus || r.allocStatus)
   const kind = asKind(r.kind || r.entryKind || r.type)
@@ -197,6 +199,17 @@ export function mapIncomeEntry(raw: unknown): IncomeEntry {
     settledAt: nullableStr(r.settledAt || r.settleTime),
     version: num(r.version, 1),
     mockOnly: false,
+    ownerAccountId: nullableStr(r.ownerAccountId),
+    sourceAgentId: nullableStr(r.sourceAgentId || r.agentId),
+    displayId: nullableStr(r.displayId || owner.displayId),
+    bizType: nullableStr(r.bizType),
+    bizTypeLabel: nullableStr(r.bizTypeLabel),
+    typeLabel: nullableStr(r.typeLabel),
+    identity: nullableStr(r.identity),
+    wholesaleIdentity: Object.keys(wholesaleIdentity).length ? { tier: nullableStr(wholesaleIdentity.tier), tierLabel: nullableStr(wholesaleIdentity.tierLabel), label: nullableStr(wholesaleIdentity.label) } : null,
+    agencyIdentity: Object.keys(agencyIdentity).length ? { agentId: nullableStr(agencyIdentity.agentId), regionCode: nullableStr(agencyIdentity.regionCode), label: nullableStr(agencyIdentity.label) } : null,
+    regionCode: nullableStr(r.regionCode || region.code),
+    note: nullableStr(r.note || r.remark),
   }
   return cast({
     ...entryBase,

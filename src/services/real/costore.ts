@@ -15,14 +15,14 @@ import {
   type CostoreRefundStatus,
 } from '../../types/costore'
 import type { RichContent } from '../../types/cms'
-import { arr, asPage, bool, cast, mapHqError, moneyToFen, mutationBody, nullableStr, num, record, str, unwrapData } from './bridge'
+import { arr, asPage, bool, cast, mapHqError, mutationBody, nullableStr, num, record, str, unwrapData } from './bridge'
 
 const APP_STATUSES = new Set<CostoreApplicationStatus>(['PENDING_PAYMENT', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED'])
 const PAY_STATUSES = new Set<CostorePaymentStatus>(['NOT_STARTED', 'PENDING', 'PENDING_PAYMENT', 'PAID', 'CANCELLED', 'REFUNDING', 'REFUNDED'])
 const REFUND_STATUSES = new Set(['PENDING', 'SUCCEEDED', 'FAILED'])
 const CONTRACT_STATUSES = new Set(['NOT_SIGNED', 'PENDING_CONFIRMATION', 'SIGNED'])
 const ENTITLEMENT_STATUSES = new Set(['NOT_OPEN', 'PENDING_CONFIRMATION', 'OPEN'])
-const AUDIT_ACTIONS = new Set(['save-plan', 'retry-refund'])
+const AUDIT_ACTIONS = new Set(['save-plan', 'approve', 'reject', 'retry-refund'])
 
 function emptyContent(): RichContent {
   return { version: 1, format: 'nodes', nodes: [] }
@@ -84,12 +84,15 @@ function asAuditAction(value: unknown): CostoreAudit['action'] {
   return (AUDIT_ACTIONS.has(raw) ? raw : 'save-plan') as CostoreAudit['action']
 }
 
+// 金额统一按【元】透传（后端全站元制），仅做非负兜底；不再元转分
 function moneyAmount(value: unknown): number {
-  return Math.max(0, moneyToFen(value))
+  return Math.max(0, num(value))
 }
 
+const ALLOWED_ACTION_SET = new Set(['approve', 'reject', 'retry-refund'])
+
 function mapAllowedActions(raw: unknown, refundStatus: CostoreRefundStatus): CostoreApplication['allowedActions'] {
-  const fromApi = arr(raw).map((item) => str(item).toLowerCase().replace(/_/g, '-')).filter((item) => item === 'retry-refund') as CostoreApplication['allowedActions']
+  const fromApi = arr(raw).map((item) => str(item).toLowerCase().replace(/_/g, '-')).filter((item) => ALLOWED_ACTION_SET.has(item)) as CostoreApplication['allowedActions']
   if (fromApi.length) return fromApi
   return refundStatus === 'FAILED' ? ['retry-refund'] : []
 }
@@ -138,6 +141,7 @@ export function mapCostoreApplication(raw: unknown, index = 0): CostoreApplicati
     applicantPhone: str(r.applicantPhone || r.phone || r.mobile),
     storeId: str(r.storeId),
     storeName: str(r.storeName || r.store),
+    storeContact: str(r.storeContact || r.contact || record(r.store).contact),
     durationId: str(r.durationId || r.planDurationId || r.duration),
     durationLabel: str(r.durationLabel || r.durationName || r.planTitle || monthsFallback),
     monthlyFee: moneyAmount(r.monthlyFee ?? r.monthFee ?? r.price),

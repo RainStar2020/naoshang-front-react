@@ -10,6 +10,15 @@ import { entitlementActions, type EntitlementRequest } from './MemberEntitlement
 
 type ProfileMode = 'update-profile' | 'set-status' | null
 
+// 确认弹窗只展示用户可理解的操作说明，不暴露 action、请求号、版本等内部字段
+function memberPendingConfirmText(p: MemberProfileMutation): string {
+  switch (p.action) {
+    case 'update-profile': return '保存会员资料'
+    case 'set-status': return '更新会员状态'
+    default: return '确认提交该操作'
+  }
+}
+
 export default function MemberDetailDrawer({ memberId, token, operator, options, refresh, onClose, onAction, onRefresh }: {
   memberId: string; token: string; operator: HqAccount; options: MemberOptions | null; refresh: number
   onClose: () => void; onAction: (request: EntitlementRequest) => void; onRefresh?: () => void
@@ -198,7 +207,7 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
       onCancel={() => { if (!submitting && (!submitError || blocked)) { if (blocked) { closeEditors(); setRetry(n => n + 1); onRefresh?.() }; setPending(null); setSubmitError('') } }}
       onOk={submit}>
       {pending && <Space direction="vertical" style={{ width: '100%' }}>
-        <Typography.Paragraph>操作：{pending.action}<br />备注：{pending.reason || '（无）'}<br />请求号：{pending.idempotencyKey}<br />版本：{pending.version}</Typography.Paragraph>
+        <Typography.Paragraph>请确认是否{memberPendingConfirmText(pending)}。</Typography.Paragraph>
         {submitError && <Alert type="error" message={submitError} />}
       </Space>}
     </Modal>

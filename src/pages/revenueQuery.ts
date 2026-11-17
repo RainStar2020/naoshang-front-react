@@ -38,7 +38,7 @@ export function revenueDimensionFromPath(pathname: string): RevenueDimension {
   const path = normalizeRevenuePath(pathname);
   if (path.endsWith("/revenue/global") || path.endsWith("/global")) return "global";
   if (path.endsWith("/revenue/founding") || path.endsWith("/founding")) return "founding";
-  if (path.endsWith("/revenue/partners") || path.endsWith("/partners")) return "partners";
+  if (path === "/revenue" || path.endsWith("/revenue/partners") || path.endsWith("/partners")) return "partners";
   if (path.endsWith("/revenue/stores") || path.endsWith("/stores")) return "stores";
   if (path.endsWith("/revenue/agents") || path.endsWith("/agents")) return "agents";
   return "settlement";
@@ -46,7 +46,7 @@ export function revenueDimensionFromPath(pathname: string): RevenueDimension {
 
 export const revenuePageMeta: Record<RevenueDimension, RevenuePageMeta> = {
   partners: {
-    title: "合伙人收益",
+    title: "收益",
     module: "wholesale",
     blurb:
       "HQ-22：总部联查合伙人侧收益；字段与公式以后端为准，前端不推导结算结果。不替代小程序个人收益页；不在此出金（提现见「资金结算」）。",
@@ -96,6 +96,15 @@ export function buildRevenueListQuery(input: {
   settlementStatus?: SettlementStatus;
   storeId?: string;
   period?: string;
+  beneficiaryKeyword?: string;
+  tierLabel?: string;
+  regionKeyword?: string;
+  agencyLabel?: string;
+  sourceAgentId?: string;
+  headquartersOnly?: boolean;
+  minAmount?: number;
+  maxAmount?: number;
+  bizTypeKeyword?: string;
 }): IncomeQuery {
   const meta = revenuePageMeta[input.dimension];
   const query: IncomeQuery = {
@@ -107,6 +116,17 @@ export function buildRevenueListQuery(input: {
   if (input.settlementStatus) query.settlementStatus = input.settlementStatus;
   if (input.storeId) query.storeId = input.storeId;
   if (input.period) query.period = input.period;
+  Object.assign(query, {
+    beneficiaryKeyword: input.beneficiaryKeyword,
+    tierLabel: input.tierLabel,
+    regionKeyword: input.regionKeyword,
+    agencyLabel: input.agencyLabel,
+    sourceAgentId: input.sourceAgentId,
+    headquartersOnly: input.headquartersOnly,
+    minAmount: input.minAmount,
+    maxAmount: input.maxAmount,
+    bizTypeKeyword: input.bizTypeKeyword,
+  });
 
   if (meta.lockChannel) {
     query.channel = meta.channel;

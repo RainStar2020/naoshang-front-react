@@ -406,7 +406,12 @@ export function mockListIncome(query: IncomeQuery): IncomeList {
         e.accountName.toLowerCase().includes(kw) ||
         e.phone.includes(kw) ||
         (e.storeName || '').toLowerCase().includes(kw) ||
-        (e.beneficiaryName || '').toLowerCase().includes(kw),
+        (e.beneficiaryName || '').toLowerCase().includes(kw) ||
+        (e.bizType || '').toLowerCase().includes(kw) ||
+        (e.bizTypeLabel || '').toLowerCase().includes(kw) ||
+        (e.typeLabel || '').toLowerCase().includes(kw) ||
+        (e.pendingNote || '').toLowerCase().includes(kw) ||
+        (e.note || '').toLowerCase().includes(kw),
     )
   }
   if (query.module) items = items.filter((e) => e.module === query.module)
@@ -425,6 +430,16 @@ export function mockListIncome(query: IncomeQuery): IncomeList {
         e.title.includes(period),
     )
   }
+  const contains = (value: unknown, needle: string) => String(value || '').toLowerCase().includes(needle.toLowerCase())
+  if (query.beneficiaryKeyword) items = items.filter(e => [e.accountName, e.phone, e.accountId, e.displayId, e.beneficiaryName].some(v => contains(v, query.beneficiaryKeyword!)))
+  if (query.tierLabel) items = items.filter(e => contains(e.wholesaleIdentity?.tierLabel || e.identityLabel, query.tierLabel!))
+  if (query.regionKeyword) items = items.filter(e => [e.regionLabel, e.regionCode, e.agencyIdentity?.regionCode].some(v => contains(v, query.regionKeyword!)))
+  if (query.agencyLabel) items = items.filter(e => contains(e.agencyIdentity?.label, query.agencyLabel!))
+  if (query.sourceAgentId) items = items.filter(e => contains(e.sourceAgentId || e.allocationAgentId || e.agencyIdentity?.agentId, query.sourceAgentId!))
+  if (query.headquartersOnly) items = items.filter(e => e.ownerAccountId === 'HQ')
+  if (query.minAmount !== undefined) items = items.filter(e => e.amount >= query.minAmount!)
+  if (query.maxAmount !== undefined) items = items.filter(e => e.amount <= query.maxAmount!)
+  if (query.bizTypeKeyword) items = items.filter(e => [e.bizType, e.bizTypeLabel, e.typeLabel, e.pendingNote, e.note].some(v => contains(v, query.bizTypeKeyword!)))
 
   const originals = state.entries.filter((e) => e.kind === 'ORIGINAL')
   const summary = {

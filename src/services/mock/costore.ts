@@ -28,7 +28,7 @@ const plans: CostorePlan[] = [
     title: '合店老板6个月方案',
     durationId: 'six-months',
     months: 6,
-    priceBoundary: { referenceMonthlyFee: 69800, note: '698元/月起为附件参考；城市实际报价、税费与可售方案由服务端返回。' },
+    priceBoundary: { referenceMonthlyFee: 698, note: '698元/月起为附件参考；城市实际报价、税费与可售方案由服务端返回。' },
     benefits: rich('合店权益由服务端判定；按月赠软件卡、分红资格等不在后台自行授予。'),
     agreementVersion: 1,
     agreement: rich('合店协议演示版本。实际签署方式及协议效力待后端确认。'),
@@ -39,7 +39,7 @@ const plans: CostorePlan[] = [
     title: '合店老板12个月方案',
     durationId: 'twelve-months',
     months: 12,
-    priceBoundary: { referenceMonthlyFee: 69800, note: '698元/月起为附件参考；城市实际报价、税费与可售方案由服务端返回。' },
+    priceBoundary: { referenceMonthlyFee: 698, note: '698元/月起为附件参考；城市实际报价、税费与可售方案由服务端返回。' },
     benefits: rich('合店权益由服务端判定；按月赠软件卡、分红资格等不在后台自行授予。'),
     agreementVersion: 1,
     agreement: rich('合店协议演示版本。实际签署方式及协议效力待后端确认。'),
@@ -66,10 +66,11 @@ const sample = (
   applicantPhone: `138000000${String(n + 2).padStart(2, '0')}`,
   storeId: n % 2 ? 'demo-store-1' : 'demo-store-2',
   storeName: n % 2 ? '脑商训练营梧桐街店' : '脑商训练营文化路店',
+  storeContact: '周曦 15584849657',
   durationId: n % 2 ? 'six-months' : 'twelve-months',
   durationLabel: n % 2 ? '6个月' : '12个月',
-  monthlyFee: 69800,
-  payableAmount: (n % 2 ? 6 : 12) * 69800,
+  monthlyFee: 698,
+  payableAmount: (n % 2 ? 6 : 12) * 698,
   orderId: paymentStatus === 'NOT_STARTED' ? null : `costore-order-${n}`,
   applicationStatus,
   paymentStatus,
@@ -83,7 +84,7 @@ const sample = (
   reviewedAt: ['APPROVED', 'REJECTED'].includes(applicationStatus) ? '2026-10-12T10:00:00+08:00' : null,
   rejectionReason: applicationStatus === 'REJECTED' ? '门店审核未通过；退款状态以支付服务回执为准。' : null,
   version: 1,
-  allowedActions: refundStatus === 'FAILED' ? ['retry-refund'] : [],
+  allowedActions: refundStatus === 'FAILED' ? ['retry-refund', 'update-payment'] : ['update-payment'],
   ...overrides,
 })
 
@@ -164,7 +165,7 @@ export function mockCostoreDetail(applicationId: string): CostoreDetail {
 }
 
 export function mockCostoreMutate(input: CostoreMutation, operator: HqAccount): CostoreCatalog | CostoreDetail {
-  if (!['save-plan', 'retry-refund'].includes(input.action)) {
+  if (!['save-plan', 'approve', 'reject', 'retry-refund', 'update-payment'].includes(input.action)) {
     fail('INVALID_INPUT', '未知合店监管操作')
   }
   validateRequest(input.reason, input.idempotencyKey)
@@ -178,7 +179,36 @@ export function mockCostoreMutate(input: CostoreMutation, operator: HqAccount): 
   }
 
   let result: CostoreCatalog | CostoreDetail
-  if (input.action === 'save-plan') {
+  if (input.action === 'update-payment') {
+    const application = applications.find((row) => row.applicationId === input.applicationId) ?? fail('NOT_FOUND', '合店申请不存在')
+    if (application.version !== input.version) fail('VERSION_CONFLICT', '申请已更新，请刷新')
+    const before = `支付${application.paymentStatus}`
+    application.paymentStatus = input.paymentStatus
+    application.paidAt = input.paymentStatus === 'PAID' ? new Date().toISOString() : null
+    application.version += 1
+    audit.push({ operationId: crypto.randomUUID(), requestId: input.idempotencyKey, action: input.action, targetId: application.applicationId, operatorName: operator.nickname, reason: input.reason.trim(), before, after: `支付${application.paymentStatus}`, occurredAt: new Date().toISOString(), beforeVersion: input.version, afterVersion: application.version })
+    result = mockCostoreDetail(application.applicationId)
+  } else if (input.action === 'approve' || input.action === 'reject') {
+    const application = applications.find((row) => row.applicationId === input.applicationId) ?? fail('NOT_FOUND', '合店申请不存在')
+    if (application.version !== input.version) fail('VERSION_CONFLICT', '申请已更新，请刷新')
+    if (!['PENDING_REVIEW', 'PENDING_PAYMENT'].includes(application.applicationStatus)) {
+      fail('INVALID_STATE', '申请不在待审状态')
+    }
+    const approve = input.action === 'approve'
+    const before = `申请${application.applicationStatus}；V${application.version}`
+    application.applicationStatus = approve ? 'APPROVED' : 'REJECTED'
+    application.rejectionReason = approve ? null : input.reason.trim()
+    application.reviewedAt = new Date().toISOString()
+    application.version += 1
+    application.allowedActions = []
+    audit.push({
+      operationId: crypto.randomUUID(), requestId: input.idempotencyKey, action: input.action,
+      targetId: application.applicationId, operatorName: operator.nickname, reason: input.reason.trim(),
+      before, after: `申请${application.applicationStatus}；V${application.version}`, occurredAt: new Date().toISOString(),
+      beforeVersion: input.version, afterVersion: application.version,
+    })
+    result = mockCostoreDetail(application.applicationId)
+  } else if (input.action === 'save-plan') {
     const plan = plans.find((row) => row.planId === input.planId) ?? fail('NOT_FOUND', '合店方案不存在')
     if (plan.version !== input.version) fail('VERSION_CONFLICT', '方案已更新，请刷新')
 

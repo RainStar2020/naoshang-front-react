@@ -12,7 +12,7 @@ import {
   type StoreStaffBrief,
   type StoreStatus,
 } from '../../types/stores'
-import { arr, asPage, bool, mapHqError, moneyToFen, mutationBody, num, record, str, stringList, nullableStr, unwrapData } from './bridge'
+import { arr, asPage, bool, mapHqError, mutationBody, num, record, str, stringList, nullableStr, unwrapData } from './bridge'
 
 function regionTriple(raw: Record<string, unknown>, kind: 'Names' | 'Codes'): [string, string, string] {
   const key = kind === 'Names' ? 'regionNames' : 'regionCodes'
@@ -47,12 +47,13 @@ export function mapStoreProfile(raw: unknown): StoreProfile {
     name: str(r.name || r.storeName, '未命名门店'),
     status: statusOf(r),
     managerName: str(r.managerName || r.manager || r.ownerName),
-    contact: str(r.contact || r.phone || r.mobile),
+    managerPhone: str(r.managerPhone || r.phone || r.mobile || r.contact).match(/1\d{10}/)?.[0] || '',
+    contact: str(r.contact || r.phone || r.mobile || r.managerPhone),
     address: str(r.address || r.detailAddress),
     regionNames: regionTriple(r, 'Names'),
     regionCodes: regionTriple(r, 'Codes'),
-    feeAmount: moneyToFen(r.feeAmount ?? r.fee ?? r.costoreFee),
-    minimumFeeAmount: moneyToFen(r.minimumFeeAmount ?? r.minFeeAmount ?? 698),
+    feeAmount: num(r.feeAmount ?? r.fee ?? r.costoreFee),
+    minimumFeeAmount: num(r.minimumFeeAmount ?? r.minFeeAmount ?? 698),
     storefrontAssetId: nullableStr(r.storefrontAssetId ?? r.storefrontId),
     storefrontUrl: nullableStr(r.storefrontUrl ?? r.coverUrl),
     agentId: nullableStr(r.agentId),
@@ -252,4 +253,11 @@ export async function realStoreMutate(input: StoreMutation): Promise<{ detail: S
     await unwrapData(await api.postStoresByStoreIdMutate({ storeId }, body as never))
     return { detail: await realStoreDetail(storeId) }
   } catch (error) { return mapHqError(error, StoreError) }
+}
+
+/** 门头照：POST /assets（purpose=storefront），返回真实 assetId 与可访问 URL。 */
+export async function realStoreUpload(file: File): Promise<{ assetId: string; url: string; previewUrl: string; kind: 'image'; mockOnly: boolean }> {
+  const { realUploadAsset } = await import('./assets')
+  const uploaded = await realUploadAsset(file, 'storefront')
+  return { assetId: uploaded.assetId, url: uploaded.url, previewUrl: uploaded.previewUrl, kind: 'image', mockOnly: false }
 }

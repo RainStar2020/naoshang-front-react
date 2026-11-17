@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Descriptions, Drawer, Input, InputNumber, Modal, Select, Space, Statistic, Table, Tabs, Tag, Typography, message } from 'antd'
+import { Alert, Button, Card, Descriptions, Drawer, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, Typography, message } from 'antd'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
 import { trainingService } from '../services/training'
 import { TrainingError, type FeedbackKind, type FeedbackStatus, type LessonBucket, type LessonConsumeRecord, type TrainingFeedback, type TrainingMemberBalance, type TrainingMemberDetail, type TrainingMutation } from '../types/training'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import SummaryTable from '../components/SummaryTable'
 
 const kindLabel: Record<FeedbackKind, string> = { training: '陪练', 'self-study': '智习', camp: '集训' }
 const bucketLabel: Record<LessonBucket, string> = { training: '陪练课时', special: '专项课时' }
+
+// 确认弹窗只展示用户可理解的操作说明，不暴露 action、请求号等内部字段
+function trainingPendingConfirmText(p: TrainingMutation): string {
+  switch (p.action) {
+    case 'proxy-feedback': return '提交训练反馈'
+    case 'consume-lessons': return '登记消课'
+    case 'withdraw-feedback': return '撤回训练反馈'
+    default: return '确认提交该操作'
+  }
+}
 
 export default function Training() {
   const { session } = useAuth()
@@ -158,12 +169,12 @@ export default function Training() {
         {
           key: 'balances', label: '课时余额与核销',
           children: <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Card><Space wrap size="large">
-              <Statistic title="学员" value={balanceSummary.members} />
-              <Statistic title="陪练剩余合计" value={balanceSummary.trainingRemaining} />
-              <Statistic title="专项剩余合计" value={balanceSummary.specialRemaining} />
-              <Statistic title="低余额（≤2）" value={balanceSummary.lowBalance} />
-            </Space></Card>
+            <Card><SummaryTable items={[
+              { key: 'members', label: '学员', value: balanceSummary.members },
+              { key: 'trainingRemaining', label: '陪练剩余合计', value: balanceSummary.trainingRemaining },
+              { key: 'specialRemaining', label: '专项剩余合计', value: balanceSummary.specialRemaining },
+              { key: 'lowBalance', label: '低余额（≤2）', value: balanceSummary.lowBalance },
+            ]} /></Card>
             <Space wrap>
               <Input.Search allowClear placeholder="姓名 / 学号 / memberId" style={{ width: 260 }} onSearch={value => { setBalanceKeyword(value); setBalancePage(1) }} />
               <Select allowClear placeholder="门店" style={{ width: 220 }} options={stores.map(row => ({ value: row.storeId, label: row.name }))} value={balanceStoreId} onChange={value => { setBalanceStoreId(value); setBalancePage(1) }} />
@@ -188,12 +199,12 @@ export default function Training() {
         {
           key: 'feedback', label: '训练反馈',
           children: <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Card><Space wrap size="large">
-              <Statistic title="反馈" value={fbSummary.feedback} />
-              <Statistic title="已发布" value={fbSummary.published} />
-              <Statistic title="已撤回" value={fbSummary.withdrawn} />
-              <Statistic title="总部代写" value={fbSummary.hqProxy} />
-            </Space></Card>
+            <Card><SummaryTable items={[
+              { key: 'feedback', label: '反馈', value: fbSummary.feedback },
+              { key: 'published', label: '已发布', value: fbSummary.published },
+              { key: 'withdrawn', label: '已撤回', value: fbSummary.withdrawn },
+              { key: 'hqProxy', label: '总部代写', value: fbSummary.hqProxy },
+            ]} /></Card>
             <Space wrap>
               <Input.Search allowClear placeholder="标题 / 学员 / 反馈号" style={{ width: 260 }} onSearch={value => { setFbKeyword(value); setFbPage(1) }} />
               <Select allowClear placeholder="类型" style={{ width: 140 }} options={Object.entries(kindLabel).map(([value, label]) => ({ value, label }))} value={fbKind} onChange={value => { setFbKind(value); setFbPage(1) }} />
@@ -305,9 +316,7 @@ export default function Training() {
         confirmLoading={busy} okButtonProps={{ disabled: blocked }} onOk={() => void submit()}>
         {pending && <Space direction="vertical">
           <Typography.Paragraph>
-            操作：{pending.action}<br />
-            备注：{pending.reason || '（无）'}<br />
-            请求号：{pending.idempotencyKey}
+            请确认是否{trainingPendingConfirmText(pending)}。
           </Typography.Paragraph>
           {submitError && <Alert type="error" showIcon message={submitError} />}
         </Space>}

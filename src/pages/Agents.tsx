@@ -5,8 +5,10 @@ import { useAuth } from '../auth/AuthProvider'
 import { hasPermission } from '../auth/access'
 import { isMockAuth } from '../services/auth'
 import { regionalAgencyApi as api } from '../api/regionalAgency'
+import { getAgentBenefits, mutateAgentBenefit } from '../api/agentBenefits'
 import type { PageData } from '../types/hq/common'
 import type { AgencyQuery, ApplicationQuery, Assignment, AgencyApplication, AgencyDetail, Brief, RegionType, AppointmentInput, DecisionInput, AppointmentResult, DecisionResult, CostoreChild } from '../types/regionalAgency'
+import type { AgentBenefit, AgentBenefitLevel } from '../types/agentBenefits'
 
 const regionLabels: Record<RegionType, string> = { province: '省级代理', city: '市级代理', district: '区县代理', store: '单店代理' }
 const tierLabels: Record<string, string> = { none: '普通用户', vip: 'VIP', angel: '天使', private: '私董', cofounder: '联创' }
@@ -18,9 +20,69 @@ const person = (p: Brief | null) => p ? <Space direction="vertical" size={0}><sp
 const messageOf = (e: unknown) => e instanceof Error ? e.message : '请求失败，请刷新后核对结果'
 type Review = { kind: 'appoint'; input: AppointmentInput; key: string } | { kind: 'decision'; id: string; name: string; input: DecisionInput; key: string }
 
+const benefitTiers = [
+  { key: 'province', label: '省代权益' },
+  { key: 'city', label: '市代权益' },
+  { key: 'district', label: '区县代理权益' },
+  { key: 'store', label: '单店代理权益' },
+  { key: 'costore_owner', label: '合店老板权益' },
+] as const
+function AgencyBenefits({ canEdit }: { canEdit: boolean }) {
+  const [items, setItems] = useState<AgentBenefit[]>([])
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [pending, setPending] = useState<AgentBenefit>()
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const load = async () => {
+    setLoading(true); setError('')
+    try {
+      const response = await getAgentBenefits()
+      if (response.code !== 0 || !response.data) throw new Error(response.message || '加载代理权益失败')
+      setItems(response.data.items)
+      setDrafts(Object.fromEntries(response.data.items.map((item) => [item.agentLevel, item.content])))
+    } catch (e) { setError(messageOf(e)) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { void load() }, [])
+  const openSave = (level: AgentBenefitLevel) => {
+    const item = items.find((value) => value.agentLevel === level)
+    if (!item) return message.error('未找到该代理等级的权益记录')
+    setReason(`更新${item.title}文案`); setPending(item)
+  }
+  const save = async () => {
+    if (!pending || !reason.trim()) return
+    setSaving(true)
+    try {
+      const response = await mutateAgentBenefit({ agentLevel: pending.agentLevel, content: drafts[pending.agentLevel] ?? '', version: pending.version, reason: reason.trim() }, crypto.randomUUID())
+      if (response.code !== 0 || !response.data) throw new Error(response.message || '保存代理权益失败')
+      const next = response.data.benefit
+      setItems((current) => current.map((item) => item.agentLevel === next.agentLevel ? next : item))
+      setDrafts((current) => ({ ...current, [next.agentLevel]: next.content }))
+      setPending(undefined); message.success(`已保存${next.title}，版本已更新为 ${next.version}`)
+    } catch (e) { message.error(messageOf(e)) }
+    finally { setSaving(false) }
+  }
+  return <Card loading={loading}>
+    {error ? <Alert type="error" message={error} action={<Button onClick={() => void load()}>重新加载</Button>} /> : <Tabs items={benefitTiers.map((tier) => {
+      const item = items.find((value) => value.agentLevel === tier.key)
+      return { key: tier.key, label: item?.title || tier.label, children: <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Input.TextArea value={drafts[tier.key] ?? ''} disabled={!canEdit || !item} onChange={(event) => setDrafts((current) => ({ ...current, [tier.key]: event.target.value }))} rows={12} maxLength={5000} showCount placeholder={`请输入${tier.label}的文本描述`} />
+        {canEdit && <Button type="primary" disabled={!item} onClick={() => openSave(tier.key)}>保存描述</Button>}
+      </Space> }
+    })} />}
+    <Modal title={`确认保存${pending?.title || ''}`} open={!!pending} onCancel={() => !saving && setPending(undefined)} onOk={() => void save()} okText="确认保存" confirmLoading={saving} okButtonProps={{ disabled: !reason.trim() }} destroyOnClose>
+      <Typography.Paragraph>将更新当前等级的完整权益描述。保存后不可撤销，请填写本次修改原因。</Typography.Paragraph>
+      <Input.TextArea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} maxLength={200} showCount placeholder="例如：更新市代权益文案" />
+    </Modal>
+  </Card>
+}
+
 export default function Agents() {
   const { session } = useAuth()
   const canManage = hasPermission(session!.account, 'agents:manage') && !isMockAuth
+  const canEditBenefits = hasPermission(session!.account, 'agents:manage')
   const [tab, setTab] = useState('assignments')
   const [query, setQuery] = useState<AgencyQuery>({ page: 1, pageSize: 20 })
   const [appQuery, setAppQuery] = useState<ApplicationQuery>({ page: 1, pageSize: 20 })
@@ -55,6 +117,7 @@ export default function Agents() {
     if (isMockAuth) return
     let alive = true
     setLoading(true); setError('')
+    if (tab === 'benefits') { setLoading(false); return () => { alive = false } }
     const request = tab === 'assignments' ? api.list(query).then(value => { if (alive) setList(value) }) : api.applications(appQuery).then(value => { if (alive) setApplications(value) })
     request.catch(e => { if (alive) setError(messageOf(e)) }).finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
@@ -121,7 +184,6 @@ export default function Agents() {
   const currentCheck = checkResult && checkResult.regionType === regionType && checkResult.regionCode === regionCode?.trim() ? checkResult : undefined
   return <Space direction="vertical" size={16} style={{ width: '100%' }}>
     <Space style={{ width: '100%', justifyContent: 'space-between' }}><Typography.Title level={3} style={{ margin: 0 }}>区域代理</Typography.Title>{canManage && <Button type="primary" onClick={() => { appointmentForm.resetFields(); setCheckResult(undefined); setCheckError(''); setAppointmentOpen(true) }}>总部直接任命</Button>}</Space>
-    <Alert type="info" showIcon message="同级同区域最多一名有效代理，父子区域互不排斥；同一人可拥有多份任命。" description="代理推荐人与合伙人上级独立展示。省、市代理只升不降赠联创，区县赠私董；单店至少天使，不额外赠级。" />
     {isMockAuth && <Alert type="warning" message="当前为演示登录，请切换真实 API 模式查看任命和申请；此页不生成虚构代理记录。" />}
     {error && <Alert type="error" message={error} action={<Button onClick={() => setRefresh(v => v + 1)}>重新加载</Button>} />}
     <Tabs activeKey={tab} onChange={setTab} items={[
@@ -154,6 +216,7 @@ export default function Agents() {
           { title: '操作', key: 'actions', width: 160, fixed: 'right', render: (_, row) => canManage && row.status === 'PENDING_REVIEW' ? <Space>{(['APPROVE', 'REJECT'] as const).map(value => <Button key={value} type="link" danger={value === 'REJECT'} onClick={() => { decisionForm.resetFields(); setDecision({ row, decision: value }) }}>{value === 'APPROVE' ? '同意' : '拒绝'}</Button>)}</Space> : '—' },
         ]} />
       </Card> },
+      { key: 'benefits', label: '代理权益描述', children: <AgencyBenefits canEdit={canEditBenefits} /> },
     ]} />
     <Drawer open={!!detailId} title="代理区域详情" width="85%" onClose={() => setDetailId(undefined)}>
       {detailError && <Alert type="error" message={detailError} action={<Button onClick={() => setRefresh(v => v + 1)}>重试</Button>} />}
@@ -193,7 +256,7 @@ export default function Agents() {
       </Form></>}
     </Modal>
     <Modal title="确认提交" open={!!review} maskClosable={false} closable={!busy} confirmLoading={busy} cancelButtonProps={{ disabled: busy }} onCancel={() => setReview(undefined)} onOk={submit} okText={uncertain ? '使用原请求重试' : '确认提交'}>
-      {review && <><p>{review.kind === 'appoint' ? `任命用户 ${review.input.partnerId} 至 ${regionLabels[review.input.regionType]} ${review.input.regionCode}` : `审核申请人 ${review.name}：${review.input.decision === 'APPROVE' ? '同意' : '拒绝'}`}</p><p>原因：{review.input.reason}</p>{(review.kind === 'appoint' || review.input.decision === 'APPROVE') && <Alert type="warning" message="已确认线下款项到账" description={`实际到账金额：${review.input.feeAmount == null ? '按现有价格表' : money(review.input.feeAmount)}；提交会产生真实任命和记账。`} />}<Typography.Paragraph type="secondary">请求号：{review.key}</Typography.Paragraph></>}
+      {review && <><p>{review.kind === 'appoint' ? `任命用户 ${review.input.partnerId} 至 ${regionLabels[review.input.regionType]} ${review.input.regionCode}` : `审核申请人 ${review.name}：${review.input.decision === 'APPROVE' ? '同意' : '拒绝'}`}</p><p>原因：{review.input.reason}</p>{(review.kind === 'appoint' || review.input.decision === 'APPROVE') && <Alert type="warning" message="已确认线下款项到账" description={`实际到账金额：${review.input.feeAmount == null ? '按现有价格表' : money(review.input.feeAmount)}；提交会产生真实任命和记账。`} />}</>}
       {submitError && <Alert type="error" message={submitError} description="先刷新列表核对执行结果。重试沿用当前请求号和原始参数，勿直接新建请求绕过冲突。" />}
     </Modal>
     <Modal title="服务端操作回执" open={!!receipt} onCancel={() => setReceipt(undefined)} footer={<Button onClick={() => setReceipt(undefined)}>关闭</Button>} width={760}>

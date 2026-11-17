@@ -1,7 +1,7 @@
 import { authService, isMockAuth } from './auth'
 import { hasPermission } from '../auth/access'
 import { StoreError, type StoreMutation, type StoreQuery } from '../types/stores'
-import { mockStoreCatalog, mockStoreDetail, mockStoreList, mockStoreMutate } from './mock/stores'
+import { mockStoreCatalog, mockStoreDetail, mockStoreList, mockStoreMutate, mockStoreUpload } from './mock/stores'
 import * as real from './real/stores'
 
 async function authorize(token: string, manage = false) {
@@ -31,5 +31,10 @@ export const storeService = {
     const account = await authorize(token, true)
     if (isMockAuth) return mockStoreMutate(input, account)
     return (await real.realStoreMutate(input)) as unknown as Awaited<ReturnType<typeof mockStoreMutate>>
+  },
+  async upload(token: string, file: File) {
+    await authorize(token, true)
+    if (isMockAuth) return mockStoreUpload(file)
+    return real.realStoreUpload(file)
   },
 }

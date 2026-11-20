@@ -22,7 +22,7 @@ describe.skipIf(!enabled)("局域网后台只读联调", () => {
       throw new Error("请通过 HQ_API_PASSWORD 环境变量提供测试账号口令");
     const originalBase = api.apiClient.defaults.baseURL;
     api.apiClient.defaults.baseURL =
-      import.meta.env.HQ_API_TEST_URL || "http://47.96.134.119:3000/api/hq";
+      import.meta.env.HQ_API_TEST_URL || "http://naoshang.chen1413.com.cn:3000/api/hq";
     const routes = Object.values(sources).flatMap((source) =>
       [...String(source).matchAll(/'GET ([^']+)':/g)].map((m) => m[1]),
     );

@@ -601,6 +601,15 @@ button {
   z-index: 1300 !important;
 }
 
+/* Modal 被抬到 1300 后，默认 1050 的下拉层会渲染在弹窗后面，点开像没反应。 */
+.ant-select-dropdown,
+.ant-picker-dropdown,
+.ant-dropdown,
+.ant-cascader-dropdown,
+.ant-tree-select-dropdown {
+  z-index: 1400 !important;
+}
+
 /* Keep body scrollable; leave room under TextArea showCount / tables so footer never covers them. */
 .ant-modal .ant-modal-content {
   display: flex;

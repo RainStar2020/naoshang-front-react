@@ -9,12 +9,13 @@ import ActivationCodeModal, { activationActionNames, type CodeModalAction } from
 import ActivationCodeDetail, { codeStatusNames } from '../components/ActivationCodeDetail'
 import { formatUserDate } from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { pagePagination, pagePaginationDefaults } from '../utils/pagination'
 
 export default function ActivationCodes() {
   const { session } = useAuth()
   const { token, account } = session!
   const [form] = Form.useForm<ActivationFilters>()
-  const [query, setQuery] = useState<ActivationQuery>({ page: 1, pageSize: 10 })
+  const [query, setQuery] = useState<ActivationQuery>({ page: 1, pageSize: 20 })
   const [result, setResult] = useState<ActivationList | null>(null)
   const [options, setOptions] = useState<ActivationOptions | null>(null)
   const [batches, setBatches] = useState<ActivationBatch[]>([])
@@ -50,7 +51,7 @@ export default function ActivationCodes() {
   const done = (value: ActivationMutationResult | null) => {
     const action = modal?.action
     setModal(null); setSelected([]); reload()
-    if (value?.batchId && action === 'generate') { form.resetFields(); form.setFieldValue('batchId', value.batchId); setQuery({ batchId: value.batchId, page: 1, pageSize: 10 }); setTab('codes') }
+    if (value?.batchId && action === 'generate') { form.resetFields(); form.setFieldValue('batchId', value.batchId); setQuery({ batchId: value.batchId, page: 1, pageSize: 20 }); setTab('codes') }
     messageApi.success(action === 'export' ? '所选完整演示码已导出，操作记录已保存' : 'Mock操作已完成；分发/补发不会直接开通权益')
   }
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>{contextHolder}
@@ -66,10 +67,16 @@ export default function ActivationCodes() {
           <Form.Item name="status" label="状态"><Select allowClear placeholder="全部状态" options={Object.entries(codeStatusNames).map(([value, label]) => ({ value, label }))} /></Form.Item>
           <Form.Item name="targetId" label="目标权益"><Select allowClear showSearch optionFilterProp="label" placeholder="全部目标" options={(options?.targets ?? []).map(target => ({ value: target.targetId, label: target.name }))} /></Form.Item>
           <Form.Item name="storeId" label="交付门店"><Select allowClear placeholder="全部门店" options={(options?.stores ?? []).map(store => ({ value: store.storeId, label: store.name }))} /></Form.Item>
-        </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 10 }) }}>重置筛选</Button></Space></Form></Card>
+        </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 20 }) }}>重置筛选</Button></Space></Form></Card>
         <Card variant="borderless" title="激活码列表" extra={<Typography.Text type="secondary">{result ? `共 ${result.total} 个码` : '—'}</Typography.Text>}>
           {canSelect && <Space wrap style={{ marginBottom: 16 }}><Typography.Text>当前页已选 {selected.length} 个</Typography.Text>{(['issue', 'set-expiry', 'revoke', 'reissue', 'export'] as const).filter(action => hasPermission(account, permissions[action])).map(action => <Button key={action} disabled={!options || !eligible(action)} danger={action === 'revoke'} onClick={() => setModal({ action, codes: structuredClone(selected) })}>{activationActionNames[action]}</Button>)}</Space>}
-          {error ? <Alert type="error" message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<ActivationCode> rowKey="codeId" size="middle" dataSource={result?.items ?? []} loading={busy} scroll={{ x: 1200 }} rowSelection={canSelect ? { selectedRowKeys: selected.map(code => code.codeId), onChange: (_, rows) => setSelected(rows) } : undefined} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 个码`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize === value.pageSize ? page : 1, pageSize })) }} locale={{ emptyText: '暂无符合条件的激活码' }} columns={[
+          {error ? <Alert type="error" message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<ActivationCode> rowKey="codeId" size="middle" dataSource={result?.items ?? []} loading={busy} scroll={{ x: 1200 }} rowSelection={canSelect ? { selectedRowKeys: selected.map(code => code.codeId), onChange: (_, rows) => setSelected(rows) } : undefined} pagination={pagePagination({
+  page: query.page,
+  pageSize: query.pageSize,
+  total: result?.total ?? 0,
+  showTotal: total => `共 ${total} 个码`,
+  onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize === value.pageSize ? page : 1, pageSize })),
+})} locale={{ emptyText: '暂无符合条件的激活码' }} columns={[
             { title: '脱敏码', dataIndex: 'maskedCode', width: 140 }, { title: '码ID', dataIndex: 'codeId', width: 140 },
             { title: '类型', key: 'codeType', width: 110, render: (_, code) => code.codeType === 'membership-tier' ? '会员等级码' : '专栏码' }, { title: '目标', dataIndex: 'targetName', width: 140 },
             { title: '状态', key: 'status', width: 100, render: (_, code) => <Tag color={code.status === 'used' ? 'green' : code.status === 'revoked' || code.status === 'expired' ? 'red' : 'blue'}>{codeStatusNames[code.status]}</Tag> }, { title: '版本', key: 'version', width: 80, render: (_, code) => `V${code.version}` },
@@ -80,10 +87,10 @@ export default function ActivationCodes() {
           ]} />}
         </Card>
       </Space> },
-      { key: 'batches', label: `批次（${batches.length}）`, children: <Table rowKey="batchId" dataSource={batches} scroll={{ x: 900 }} pagination={{ pageSize: 10 }} columns={[
-        { title: '批次', dataIndex: 'name' }, { title: '批次ID', dataIndex: 'batchId', width: 140 }, { title: '目标', dataIndex: 'targetName' }, { title: '初始生成数量', dataIndex: 'quantity' }, { title: '批次有效期', key: 'expires', render: (_, batch) => batch.expiresAt ? formatUserDate(batch.expiresAt) : '不设到期时间' }, { title: '创建人', dataIndex: 'createdBy' }, { title: '创建时间', key: 'createdAt', render: (_, batch) => formatUserDate(batch.createdAt) }, { title: '操作', key: 'action', render: (_, batch) => <Button type="link" onClick={() => { form.resetFields(); form.setFieldValue('batchId', batch.batchId); setQuery({ batchId: batch.batchId, page: 1, pageSize: 10 }); setTab('codes') }}>查看本批次码</Button> },
+      { key: 'batches', label: `批次（${batches.length}）`, children: <Table rowKey="batchId" dataSource={batches} scroll={{ x: 900 }} pagination={pagePaginationDefaults} columns={[
+        { title: '批次', dataIndex: 'name' }, { title: '批次ID', dataIndex: 'batchId', width: 140 }, { title: '目标', dataIndex: 'targetName' }, { title: '初始生成数量', dataIndex: 'quantity' }, { title: '批次有效期', key: 'expires', render: (_, batch) => batch.expiresAt ? formatUserDate(batch.expiresAt) : '不设到期时间' }, { title: '创建人', dataIndex: 'createdBy' }, { title: '创建时间', key: 'createdAt', render: (_, batch) => formatUserDate(batch.createdAt) }, { title: '操作', key: 'action', render: (_, batch) => <Button type="link" onClick={() => { form.resetFields(); form.setFieldValue('batchId', batch.batchId); setQuery({ batchId: batch.batchId, page: 1, pageSize: 20 }); setTab('codes') }}>查看本批次码</Button> },
       ]} /> },
-      { key: 'audit', label: `操作记录（${audit.length}）`, children: <Table rowKey="operationId" size="small" dataSource={audit} scroll={{ x: 1000 }} pagination={{ pageSize: 10 }} columns={[
+      { key: 'audit', label: `操作记录（${audit.length}）`, children: <Table rowKey="operationId" size="small" dataSource={audit} scroll={{ x: 1000 }} pagination={pagePaginationDefaults} columns={[
         { title: '操作', key: 'action', render: (_, item) => activationActionNames[item.action] }, { title: '时间', key: 'time', render: (_, item) => formatUserDate(item.occurredAt) }, { title: '涉及码数（含新旧码）', key: 'count', render: (_, item) => (item.codeIds ?? []).length }, { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '操作人ID', dataIndex: 'operatorId' },
       ]} /> },
     ]} />

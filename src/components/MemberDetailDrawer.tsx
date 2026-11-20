@@ -7,6 +7,7 @@ import { membersService } from '../services/members'
 import { usersService } from '../services/users'
 import { formatUserDate } from './UserDetailDrawer'
 import { entitlementActions, type EntitlementRequest } from './MemberEntitlementModal'
+import { modalPaginationDefaults } from '../utils/pagination'
 
 type ProfileMode = 'update-profile' | 'set-status' | null
 
@@ -167,7 +168,7 @@ export default function MemberDetailDrawer({ memberId, token, operator, options,
         { key: 'feedback', label: `训练反馈（${(data.feedback ?? []).length}）`, children: <><Table rowKey="feedbackId" size="small" dataSource={data.feedback ?? []} pagination={false} locale={{ emptyText: '暂无反馈记录' }} columns={[
           { title: '标题', dataIndex: 'title' }, { title: '摘要', dataIndex: 'summary', ellipsis: true }, { title: '类型', dataIndex: 'kind', render: kind => ({ training: '训练', 'self-study': '自学', camp: '集训' }[kind as 'training' | 'self-study' | 'camp']) }, { title: '作者', dataIndex: 'authorName' }, { title: '时间', key: 'createdAt', render: (_, record) => formatUserDate(record.createdAt) },
         ]} /></> },
-        { key: 'audit', label: `权益操作记录（${(data.audit ?? []).length}）`, children: <Table rowKey="operationId" size="small" dataSource={data.audit ?? []} pagination={{ pageSize: 5, hideOnSinglePage: true }} scroll={{ x: 720 }} locale={{ emptyText: '暂无总部权益操作记录' }} columns={[
+        { key: 'audit', label: `权益操作记录（${(data.audit ?? []).length}）`, children: <Table rowKey="operationId" size="small" dataSource={data.audit ?? []} pagination={modalPaginationDefaults} scroll={{ x: 720 }} locale={{ emptyText: '暂无总部权益操作记录' }} columns={[
           { title: '操作', key: 'action', render: (_, item) => item.origin === 'activation-code' ? '用户激活码开通（Mock）' : entitlementActions[item.action] }, { title: '等级', dataIndex: 'tierName' }, { title: '时间', key: 'occurredAt', render: (_, item) => formatUserDate(item.occurredAt) },
           { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' },
           { title: '操作人', dataIndex: 'operatorName' }, { title: '操作人ID', dataIndex: 'operatorId' },

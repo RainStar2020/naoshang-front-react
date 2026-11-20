@@ -47,6 +47,7 @@ import {
   ASSETS_UPLOAD_UNAVAILABLE_MESSAGE,
   isAssetsUploadUnavailableError,
 } from "../utils/assetsUploadErrors";
+import { modalPaginationDefaults } from "../utils/pagination";
 import CmsContentEditor from "./CmsContentEditor";
 
 export function MoneyInput({
@@ -641,7 +642,7 @@ export default function ProductEditor({
       ]}
     >
       {messageHolder}
-      <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      <Space direction="vertical" size={16} style={{ width: "100%" }}>
         {cacheHint && <Alert type="success" showIcon message={cacheHint} />}
         {error && <Alert type="error" message={error} />}
 
@@ -801,7 +802,7 @@ export default function ProductEditor({
           change={(rolePrices) => change({ rolePrices })}
         />
 
-        <Typography.Title level={5}>规格组</Typography.Title>
+        <Typography.Title level={5}>规格组</Typography.Title>
         {draft.specGroups.map((group, i) => (
           <Card
             key={group.id}
@@ -1004,7 +1005,7 @@ export default function ProductEditor({
           rowKey="id"
           size="small"
           dataSource={draft.skus}
-          pagination={{ pageSize: 10 }}
+          pagination={modalPaginationDefaults}
           scroll={{ x: 750 }}
           columns={[
             {

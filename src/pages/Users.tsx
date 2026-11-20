@@ -9,6 +9,7 @@ import StoreBindingModal from '../components/StoreBindingModal'
 import UserDetailDrawer from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
 import { downloadCsv } from '../utils/csv'
+import { pagePagination } from '../utils/pagination'
 
 export default function Users() {
   const { session } = useAuth()
@@ -16,7 +17,7 @@ export default function Users() {
   const account = session!.account
   const canOperate = (['users:freeze', 'users:reset-password', 'users:change-store'] as const).some(permission => hasPermission(account, permission))
   const [form] = Form.useForm<UserFilters>()
-  const [query, setQuery] = useState<UserListQuery>({ page: 1, pageSize: 10 })
+  const [query, setQuery] = useState<UserListQuery>({ page: 1, pageSize: 20 })
   const [result, setResult] = useState<UserListResult | null>(null)
   const [options, setOptions] = useState<UserFilterOptions>({ stores: [], regions: [], tiers: [] })
   const [busy, setBusy] = useState(true)
@@ -71,10 +72,16 @@ export default function Users() {
         <Form.Item name="regionCodes" label="账号地区"><Cascader options={options.regions} changeOnSelect allowClear placeholder="省 / 市 / 区县" disabled={!!optionsError} /></Form.Item>
         <Form.Item name="tier" label="VIP等级"><Select allowClear showSearch optionFilterProp="label" placeholder="全部等级" disabled={!!optionsError} options={options.tiers.map(tier => ({ value: tier.value, label: tier.label }))} /></Form.Item>
         <Form.Item name="status" label="账号状态"><Select allowClear placeholder="全部状态" options={[{ value: 'active', label: '正常' }, { value: 'frozen', label: '冻结' }]} /></Form.Item>
-      </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 10 }) }}>重置筛选</Button></Space>
+      </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 20 }) }}>重置筛选</Button></Space>
     </Form></Card>
     <Card variant="borderless" title="账号列表" extra={<Space><Typography.Text type="secondary">{result ? `共 ${result.total} 个账号` : '—'}</Typography.Text><Button onClick={exportUsers} disabled={!result?.items.length}>导出当前表格</Button></Space>}>
-      {error ? <Alert type="error" showIcon message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<UserAccount> rowKey="accountId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: canOperate ? 1170 : 985 }} locale={{ emptyText: '暂无符合条件的账号，请调整筛选条件' }} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize !== value.pageSize ? 1 : page, pageSize })) }} columns={[
+      {error ? <Alert type="error" showIcon message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<UserAccount> rowKey="accountId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: canOperate ? 1170 : 985 }} locale={{ emptyText: '暂无符合条件的账号，请调整筛选条件' }} pagination={pagePagination({
+          page: query.page,
+          pageSize: query.pageSize,
+          total: result?.total ?? 0,
+          showTotal: total => `共 ${total} 个账号`,
+          onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize !== value.pageSize ? 1 : page, pageSize })),
+        })} columns={[
         { title: '用户账号', key: 'account', width: 180, render: (_, user) => <Space><Avatar src={user.avatarUrl}>{(user.nickname || '?').slice(0, 1)}</Avatar><Button type="link" style={{ padding: 0 }} onClick={() => setDetailId(user.accountId)}>{user.nickname}</Button></Space> }, { title: '编号', dataIndex: 'displayId', width: 120 },
         { title: '手机号', dataIndex: 'phone', width: 135 },
         { title: '地区', key: 'region', width: 170, render: (_, user) => (user.regionNames ?? []).join(' / ') || '未设置' },

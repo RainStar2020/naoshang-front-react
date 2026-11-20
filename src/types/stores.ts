@@ -44,6 +44,20 @@ export interface StoreOwner {
   name: string
   phone: string
   roleLabel: string
+  /** 以下为合店老板接口（costoreOwners）新增字段，旧数据/mock 缺省，故可选 */
+  /** 申请/开通时间 */
+  applyTime?: string | null
+  /** 合作结束时间 */
+  endTime?: string | null
+  /** 合同月数 */
+  contractMonths?: number
+  /** 经营状态文案，如 正常经营 */
+  operatingStatus?: string
+  /** 年度权益状态与到期时间 */
+  annualEntitlement?: {
+    status: string
+    expiresAt: string | null
+  } | null
 }
 
 export interface StoreCoach {

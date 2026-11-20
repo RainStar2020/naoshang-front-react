@@ -141,7 +141,8 @@ export async function realInvitationDetail(accountId: string) {
 
 export async function realInvitationTeam(query: InvitationTeamQuery) {
   try {
-    return cast(mapTeam(await unwrapData(await api.getInvitationsByAccountIdTeam({ accountId: query.accountId }, { ...query } as never)), query))
+    const { accountId, ...params } = query
+    return cast(mapTeam(await unwrapData(await api.getInvitationsByAccountIdTeam({ accountId }, { ...params } as never)), query))
   } catch (error) { return mapHqError(error, InvitationError) }
 }
 

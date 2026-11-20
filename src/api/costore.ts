@@ -43,7 +43,7 @@ export async function getCostoreApplicationsByApplicationId(path: CostoreEndpoin
 }
 
 /**
- * 共创店写操作：通过/驳回/激活/终止。
+ * 共创店写操作：保存方案/通过/驳回/重试退款/修改支付状态。
  * @see POST /api/hq/costore/mutate
  * @param request 请求配置；reason 必须存在于 body 或 X-Reason 请求头。
  * @param options 取消信号、超时和额外请求头。

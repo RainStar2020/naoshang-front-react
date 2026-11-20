@@ -20,7 +20,7 @@ function mapOrder(raw: unknown): SalesOrder {
 
 export async function realListOrders(query: OrderQuery): Promise<OrderList> {
   try {
-    const data = await unwrapData(await api.getOrders({ ...query, page: query.page, pageSize: query.pageSize, keyword: query.keyword, status: query.status } as never))
+    const data = await unwrapData(await api.getOrders({ ...query } as never))
     const page = asPage(data, query.page, query.pageSize)
     const summary = record(page.summary)
     return {

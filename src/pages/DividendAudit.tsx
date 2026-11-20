@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { dividendAuditService } from '../services/dividendAudit'
 import type { DividendAuditItem, DividendAuditOverview, DividendKind, DividendKindOption } from '../types/dividendAudit'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination } from '../utils/pagination'
 
 const money = (value: number) => `¥${Number(value || 0).toFixed(2)}`
 const percent = (value?: number | null) => value == null ? '-' : `${(value / 100).toFixed(2)}%`
@@ -15,16 +16,17 @@ export default function DividendAudit() {
   const [period, setPeriod] = useState<string>()
   const [data, setData] = useState<DividendAuditOverview | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pageSize, setPageSize] = useState(20)
 
   useEffect(() => { void dividendAuditService.kinds().then((value) => { setKinds(value); if (value[0]) setKind(value[0].kind) }).catch(() => message.error('加载分红类型失败')) }, [])
   useEffect(() => { void dividendAuditService.periods(kind).then((value) => { setPeriods(value.periods); setPeriod(value.currentPeriod) }).catch(() => message.error('加载可选月份失败')) }, [kind])
-  const load = useCallback(async (page = 1) => {
+  const load = useCallback(async (page = 1, size = pageSize) => {
     if (!period) return
     setLoading(true)
-    try { setData(await dividendAuditService.overview({ kind, period, page, pageSize: 20 })) }
+    try { setData(await dividendAuditService.overview({ kind, period, page, pageSize: size })) }
     catch { message.error('加载分红明细失败') }
     finally { setLoading(false) }
-  }, [kind, period])
+  }, [kind, period, pageSize])
   useEffect(() => { void load() }, [load])
 
   const columns: ColumnsType<DividendAuditItem> = [
@@ -50,7 +52,13 @@ export default function DividendAudit() {
       ]} />
     </Card>
     <Card title="人员分红明细" style={{ marginTop: 16 }}>
-      <Table rowKey="accountId" loading={loading} columns={columns} dataSource={data?.items ?? []} scroll={{ x: 950 }} pagination={{ current: data?.page ?? 1, pageSize: data?.pageSize ?? 20, total: data?.total ?? 0, showTotal: (total) => `共 ${total} 人`, onChange: (page) => void load(page) }} />
+      <Table rowKey="accountId" loading={loading} columns={columns} dataSource={data?.items ?? []} scroll={{ x: 950 }} pagination={pagePagination({
+        page: data?.page ?? 1,
+        pageSize: data?.pageSize ?? pageSize,
+        total: data?.total ?? 0,
+        showTotal: (total) => `共 ${total} 人`,
+        onChange: (page, size) => { setPageSize(size); void load(page, size) },
+      })} />
     </Card>
   </div>
 }

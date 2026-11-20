@@ -29,6 +29,7 @@ import {
   type UploadResource,
 } from '../types/trace'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination } from '../utils/pagination'
 
 const assetStatusLabel: Record<AssetStatus, string> = {
   PENDING: '待完成',
@@ -93,21 +94,21 @@ export default function Trace() {
   const [resources, setResources] = useState<UploadResource[]>([])
   const [resTotal, setResTotal] = useState(0)
   const [resPage, setResPage] = useState(1)
-  const [resPageSize, setResPageSize] = useState(10)
+  const [resPageSize, setResPageSize] = useState(20)
   const [resKeyword, setResKeyword] = useState('')
   const [resStatus, setResStatus] = useState<AssetStatus | undefined>()
 
   const [tasks, setTasks] = useState<TraceTask[]>([])
   const [taskTotal, setTaskTotal] = useState(0)
   const [taskPage, setTaskPage] = useState(1)
-  const [taskPageSize, setTaskPageSize] = useState(10)
+  const [taskPageSize, setTaskPageSize] = useState(20)
   const [taskKeyword, setTaskKeyword] = useState('')
   const [taskStatus, setTaskStatus] = useState<TraceTaskStatus | undefined>()
 
   const [audits, setAudits] = useState<UnifiedAuditEntry[]>([])
   const [auditTotal, setAuditTotal] = useState(0)
   const [auditPage, setAuditPage] = useState(1)
-  const [auditPageSize, setAuditPageSize] = useState(10)
+  const [auditPageSize, setAuditPageSize] = useState(20)
   const [auditKeyword, setAuditKeyword] = useState('')
   const [auditModule, setAuditModule] = useState<TraceModule | undefined>()
 
@@ -255,13 +256,12 @@ if (!trimmed) { message.error('请填写操作原因'); return }
                   rowKey="assetId"
                   size="middle"
                   dataSource={resources}
-                  pagination={{
-                    current: resPage,
+                  pagination={pagePagination({
+                    page: resPage,
                     pageSize: resPageSize,
                     total: resTotal,
-                    showSizeChanger: true,
                     onChange: (p, ps) => { setResPage(p); setResPageSize(ps) },
-                  }}
+                  })}
                   columns={[
                     { title: 'assetId', dataIndex: 'assetId', width: 160 },
                     { title: 'fileId', dataIndex: 'fileId', width: 160 },
@@ -382,13 +382,12 @@ if (!trimmed) { message.error('请填写操作原因'); return }
                   rowKey="jobId"
                   size="middle"
                   dataSource={tasks}
-                  pagination={{
-                    current: taskPage,
+                  pagination={pagePagination({
+                    page: taskPage,
                     pageSize: taskPageSize,
                     total: taskTotal,
-                    showSizeChanger: true,
                     onChange: (p, ps) => { setTaskPage(p); setTaskPageSize(ps) },
-                  }}
+                  })}
                   columns={[
                     { title: 'jobId', dataIndex: 'jobId', width: 150 },
                     {
@@ -482,13 +481,12 @@ if (!trimmed) { message.error('请填写操作原因'); return }
                   rowKey="entryId"
                   size="middle"
                   dataSource={audits}
-                  pagination={{
-                    current: auditPage,
+                  pagination={pagePagination({
+                    page: auditPage,
                     pageSize: auditPageSize,
                     total: auditTotal,
-                    showSizeChanger: true,
                     onChange: (p, ps) => { setAuditPage(p); setAuditPageSize(ps) },
-                  }}
+                  })}
                   columns={[
                     {
                       title: '时间',

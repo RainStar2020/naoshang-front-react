@@ -14,6 +14,7 @@ import {
   type TransferOverallStatus,
 } from '../types/transfers'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination } from '../utils/pagination'
 
 const statusLabel: Record<TransferOverallStatus, string> = {
   PENDING: '待双边审核',
@@ -51,6 +52,7 @@ export default function Transfers() {
   const [sourceStoreId, setSourceStoreId] = useState<string>()
   const [targetStoreId, setTargetStoreId] = useState<string>()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [rows, setRows] = useState<TransferApplication[]>([])
   const [total, setTotal] = useState(0)
   const [summary, setSummary] = useState({ applications: 0, pending: 0, bilateralApproved: 0, rejected: 0, awaitingMigration: 0, exceptions: 0 })
@@ -80,7 +82,7 @@ export default function Transfers() {
     try {
       const list = await transferService.list(token, {
         page,
-        pageSize: 10,
+        pageSize,
         keyword: keyword || undefined,
         status,
         migrationStatus,
@@ -95,7 +97,7 @@ export default function Transfers() {
     } finally {
       setLoading(false)
     }
-  }, [token, page, keyword, status, migrationStatus, sourceStoreId, targetStoreId])
+  }, [token, page, pageSize, keyword, status, migrationStatus, sourceStoreId, targetStoreId])
 
   const loadDetail = useCallback(async (id: string) => {
     try {
@@ -233,7 +235,12 @@ export default function Transfers() {
           rowKey="applicationId"
           loading={loading}
           dataSource={rows}
-          pagination={{ current: page, pageSize: 10, total, onChange: setPage }}
+          pagination={pagePagination({
+            page,
+            pageSize,
+            total,
+            onChange: (next, size) => { setPage(next); setPageSize(size) },
+          })}
           columns={[
             { title: '申请号', dataIndex: 'applicationId', width: 140 },
             { title: '学员', dataIndex: 'memberName' },

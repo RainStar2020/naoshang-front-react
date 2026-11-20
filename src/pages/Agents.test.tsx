@@ -25,7 +25,7 @@ describe('区域代理页面', () => {
     expect(screen.getByText('浙江省杭州市西湖区')).toBeTruthy()
     expect(screen.queryByText('关闭区域独占')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '详情' }))
-    await waitFor(() => expect(api.detail).toHaveBeenCalledWith('ra1', 1))
+    await waitFor(() => expect(api.detail).toHaveBeenCalledWith('ra1', 1, 10))
     await screen.findByText('直属单店代理')
   })
   it('未填写原因和到账确认时不能提交任命', async () => {

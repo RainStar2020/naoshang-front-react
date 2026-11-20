@@ -9,6 +9,7 @@ import HqDataSourceAlert from '../components/HqDataSourceAlert'
 import { DebouncedSearchInput } from '../components/DebouncedSearchInput'
 import SummaryTable from '../components/SummaryTable'
 import { isMockAuth } from '../services/auth'
+import { pagePagination, modalPaginationDefaults } from '../utils/pagination'
 const typeLabels = { STANDARD: '标准名额', ACTIVITY: '活动名额' }
 const levelLabels = { 'DEMO-VIP': 'VIP', 'DEMO-ANGEL': '天使', 'DEMO-BOARD': '私董', 'DEMO-FOUNDER': '联创' }
 const sourceLabels = { PURCHASE: '购买', ACTIVITY_GRANT: '活动发放', HQ_RECHARGE: '总部充值', TRANSFER: '标准划入' }
@@ -20,7 +21,7 @@ function balanceColumns() { return [{ title: '类型', dataIndex: 'quotaType', r
 export default function Quotas() {
   const { session } = useAuth(); const { token, account } = session!
   const canRecharge = hasPermission(account, 'quotas:recharge')
-  const [query, setQuery] = useState<QuotaQuery>({ page: 1, pageSize: 10 }), [list, setList] = useState<Awaited<ReturnType<typeof service.list>> | null>(null), [loading, setLoading] = useState(false), [error, setError] = useState(''), [refresh, setRefresh] = useState(0)
+  const [query, setQuery] = useState<QuotaQuery>({ page: 1, pageSize: 20 }), [list, setList] = useState<Awaited<ReturnType<typeof service.list>> | null>(null), [loading, setLoading] = useState(false), [error, setError] = useState(''), [refresh, setRefresh] = useState(0)
   const [ownerId, setOwnerId] = useState<string | null>(null), [detail, setDetail] = useState<QuotaDetail | null>(null), [detailError, setDetailError] = useState(''), [quotaType, setQuotaType] = useState<QuotaType | undefined>(), [ledgerKind, setLedgerKind] = useState<QuotaLedger['kind'] | undefined>(), [recordKeyword, setRecordKeyword] = useState('')
   const [rechargeOwner, setRechargeOwner] = useState<QuotaOwner | null>(null), [type, setType] = useState<QuotaType | undefined>(), [quantity, setQuantity] = useState<number | null>(null), [reason, setReason] = useState(''), [pending, setPending] = useState<QuotaRechargeInput | null>(null), [busy, setBusy] = useState(false), [submitError, setSubmitError] = useState(''), [blocked, setBlocked] = useState(false)
   const [api, holder] = message.useMessage()
@@ -43,7 +44,7 @@ export default function Quotas() {
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>{holder}
     <Space style={{ width: '100%', justifyContent: 'space-between' }}><div><Typography.Title level={3} style={{ margin: 0 }}>VIP名额批次、流水与总部充值</Typography.Title><Typography.Text type="secondary">总部名额查询与受控充值（监管配置）；不替代小程序日常购买/划转申请。</Typography.Text></div><Button onClick={() => setRefresh(value => value + 1)}>刷新</Button></Space>
     <HqDataSourceAlert mockMessage="内存Mock，整页刷新恢复演示数据，尚未同步小程序。标准/活动名额均永久有效；活动名额不可转让、不可退款。充值须原因/版本/幂等/确认，禁止前端推导入账终态。" mockDescription="活动升级服务费按每个¥2,000.00的服务报价展示；付款前仅占用，成功后才消耗。总部不提供个人购买、划转、代付或退款操作。" />
-    <Card><Space wrap><DebouncedSearchInput aria-label="名额所属账号搜索" placeholder="昵称 / 手机号 / 账号编号" allowClear value={query.keyword} onChange={keyword => setQuery(value => ({ ...value, keyword, page: 1 }))} style={{ width: 290 }} /><Select aria-label="筛选充值资格" allowClear placeholder="全部充值资格" value={query.eligibility} onChange={eligibility => setQuery(value => ({ ...value, eligibility, page: 1 }))} style={{ width: 220 }} options={[{ value: 'ALLOWED', label: '当前可总部充值' }, { value: 'DENIED', label: '当前不可总部充值' }]} /><Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>重置筛选</Button></Space></Card>
+    <Card><Space wrap><DebouncedSearchInput aria-label="名额所属账号搜索" placeholder="昵称 / 手机号 / 账号编号" allowClear value={query.keyword} onChange={keyword => setQuery(value => ({ ...value, keyword, page: 1 }))} style={{ width: 290 }} /><Select aria-label="筛选充值资格" allowClear placeholder="全部充值资格" value={query.eligibility} onChange={eligibility => setQuery(value => ({ ...value, eligibility, page: 1 }))} style={{ width: 220 }} options={[{ value: 'ALLOWED', label: '当前可总部充值' }, { value: 'DENIED', label: '当前不可总部充值' }]} /><Button onClick={() => setQuery({ page: 1, pageSize: 20 })}>重置筛选</Button></Space></Card>
     {error && <Alert type="error" showIcon message={error} />}
     {list && <SummaryTable items={[
       { key: 'owners', label: '名额账户数', value: list.summary.owners },
@@ -53,7 +54,13 @@ export default function Quotas() {
       { key: 'activityRemaining', label: '活动名额合计', value: list.summary.activityRemaining },
       { key: 'rechargeable', label: '当前可充值', value: list.summary.rechargeable },
     ]} />}
-    <Card title="VIP名额账户"><Table<QuotaOwner> rowKey={(row) => row.quotaId || row.ownerAccountId} loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1200 }} pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}个账号`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page, pageSize })) }} columns={[
+    <Card title="VIP名额账户"><Table<QuotaOwner> rowKey={(row) => row.quotaId || row.ownerAccountId} loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1200 }} pagination={pagePagination({
+  page: query.page,
+  pageSize: query.pageSize,
+  total: list?.total ?? 0,
+  showTotal: total => `共${total}个账号`,
+  onChange: (page, pageSize) => setQuery(value => ({ ...value, page, pageSize })),
+})} columns={[
       { title: '账户姓名手机号', key: 'account', width: 160, render: (_, row) => <><div>{row.name || '—'}</div><Typography.Text type="secondary">{row.phone || '—'}</Typography.Text></> },
       { title: '展示编号', dataIndex: 'displayId', width: 140, render: (value: string) => value || '—' },
       { title: '总名额', dataIndex: 'quotaTotal', width: 100 },
@@ -71,7 +78,7 @@ export default function Quotas() {
         <Table<QuotaBalance> size="small" rowKey="quotaType" dataSource={detail.owner.balances} pagination={false} columns={balanceColumns()} />
         <Space wrap><Select aria-label="名额明细类型" allowClear placeholder="全部名额类型" value={quotaType} style={{ width: 180 }} onChange={setQuotaType} options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))} /><Input aria-label="名额关联记录搜索" placeholder="批次号 / 订单号 / 操作号" allowClear value={recordKeyword} onChange={event => setRecordKeyword(event.target.value)} style={{ width: 280 }} /></Space>
         <Tabs items={[
-          { key: 'batches', label: `批次（${detail.batches.length}）`, children: <Table size="small" rowKey="batchId" scroll={{ x: 1100 }} dataSource={detail.batches.filter(matches)} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
+          { key: 'batches', label: `批次（${detail.batches.length}）`, children: <Table size="small" rowKey="batchId" scroll={{ x: 1100 }} dataSource={detail.batches.filter(matches)} pagination={modalPaginationDefaults} columns={[
             { title: '批次标题', dataIndex: 'title', width: 140, ellipsis: true },
             { title: '批次ID', dataIndex: 'batchId', width: 160 },
             { title: '来源', key: 'source', width: 100, render: (_, row) => sourceLabels[row.source] },
@@ -82,7 +89,7 @@ export default function Quotas() {
             { title: '有效期', key: 'valid', width: 100, render: () => <Tag color="green">永久有效</Tag> },
             { title: '限制', key: 'limit', width: 180, render: (_, row) => row.transferable ? '标准名额可按API规则划转' : '不可转让、不可退款' },
           ]} /> },
-          { key: 'ledger', label: `名额流水（${(detail.ledger ?? []).length}）`, children: <Space direction="vertical" style={{ width: '100%' }}><Select aria-label="筛选名额流水类型" allowClear placeholder="全部流水类型" style={{ width: 200 }} value={ledgerKind} onChange={setLedgerKind} options={Object.entries(kindLabels).map(([value, label]) => ({ value, label }))} /><Table<QuotaLedger> size="small" rowKey="ledgerId" scroll={{ x: 1800 }} dataSource={detail.ledger.filter(row => matches(row) && (!ledgerKind || row.kind === ledgerKind))} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
+          { key: 'ledger', label: `名额流水（${(detail.ledger ?? []).length}）`, children: <Space direction="vertical" style={{ width: '100%' }}><Select aria-label="筛选名额流水类型" allowClear placeholder="全部流水类型" style={{ width: 200 }} value={ledgerKind} onChange={setLedgerKind} options={Object.entries(kindLabels).map(([value, label]) => ({ value, label }))} /><Table<QuotaLedger> size="small" rowKey="ledgerId" scroll={{ x: 1800 }} dataSource={detail.ledger.filter(row => matches(row) && (!ledgerKind || row.kind === ledgerKind))} pagination={modalPaginationDefaults} columns={[
             { title: '业务', key: 'kind', width: 110, render: (_, row) => kindLabels[row.kind] },
             { title: '数量', dataIndex: 'quantity', width: 70 },
             { title: '名额类型', key: 'quotaType', width: 100, render: (_, row) => typeLabels[row.quotaType] },
@@ -97,7 +104,7 @@ export default function Quotas() {
             { title: '操作人', dataIndex: 'operatorName', width: 100 },
             { title: '原因', dataIndex: 'reason', width: 160, ellipsis: true },
           ]} /></Space> },
-          { key: 'orders', label: `购买与占用订单（${detail.orders.length}）`, children: <Table size="small" rowKey="orderId" scroll={{ x: 1000 }} dataSource={detail.orders.filter(row => matches({ ...row, sourceOrderId: row.orderId }))} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
+          { key: 'orders', label: `购买与占用订单（${detail.orders.length}）`, children: <Table size="small" rowKey="orderId" scroll={{ x: 1000 }} dataSource={detail.orders.filter(row => matches({ ...row, sourceOrderId: row.orderId }))} pagination={modalPaginationDefaults} columns={[
             { title: '订单号', dataIndex: 'orderId', width: 180 },
             { title: '类型', key: 'kind', width: 140, render: (_, row) => row.kind === 'PURCHASE' ? '标准名额购买' : '活动升级服务费' },
             { title: '数量', dataIndex: 'quantity', width: 70 },
@@ -109,7 +116,7 @@ export default function Quotas() {
             { title: '目标账号', key: 'target', width: 140, render: (_, row) => row.targetAccountId ?? '—' },
             { title: '更新时间', dataIndex: 'updatedAt', render: formatUserDate },
           ]} /> },
-          { key: 'recharges', label: `总部充值记录（${detail.recharges.length}）`, children: <Table size="small" rowKey="operationId" scroll={{ x: 1100 }} dataSource={detail.recharges.filter(matches)} pagination={{ pageSize: 5, showSizeChanger: false }} columns={[
+          { key: 'recharges', label: `总部充值记录（${detail.recharges.length}）`, children: <Table size="small" rowKey="operationId" scroll={{ x: 1100 }} dataSource={detail.recharges.filter(matches)} pagination={modalPaginationDefaults} columns={[
             { title: '名额类型', key: 'quotaType', width: 100, render: (_, row) => typeLabels[row.quotaType] },
             { title: '数量', dataIndex: 'quantity', width: 70 },
             { title: '操作号', dataIndex: 'operationId', width: 140 },

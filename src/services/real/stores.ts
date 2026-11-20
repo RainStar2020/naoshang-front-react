@@ -82,19 +82,42 @@ export function mapStoreProfile(raw: unknown): StoreProfile {
 
 export function mapStoreOwner(raw: unknown): StoreOwner {
   const r = record(raw)
-  const accountId = nullableStr(r.accountId ?? r.userId ?? r.ownerAccountId ?? r.id)
+  const accountId = nullableStr(
+    r.ownerAccount ?? r.accountId ?? r.userId ?? r.ownerAccountId ?? r.id,
+  )
+  const annualRaw = record(r.annualEntitlement)
+  const annualEntitlement = Object.keys(annualRaw).length
+    ? {
+        status: str(annualRaw.status),
+        expiresAt: nullableStr(annualRaw.expiresAt ?? annualRaw.expireAt),
+      }
+    : null
   return {
     ownerId: str(r.ownerId || r.assignmentId || r.staffId || r.id || accountId),
     accountId,
     displayId: str(r.displayId || r.number || r.code || r.loginAccount || accountId),
     name: str(r.name || r.displayName || r.nickname || r.ownerName),
-    phone: str(r.phone || r.mobile || r.contact || r.managerPhone),
-    roleLabel: str(r.roleLabel || r.roleTitle || r.roleName || '合店老板'),
+    phone: str(r.ownerPhone || r.phone || r.mobile || r.contact || r.managerPhone),
+    roleLabel: str(
+      r.ownerIdentity || r.roleLabel || r.roleTitle || r.roleName || '合店老板',
+    ),
+    applyTime: nullableStr(r.applyTime ?? r.appliedAt ?? r.createdAt),
+    endTime: nullableStr(r.endTime ?? r.endsAt),
+    contractMonths: r.contractMonths == null ? undefined : num(r.contractMonths),
+    operatingStatus: r.operatingStatus == null ? undefined : str(r.operatingStatus),
+    annualEntitlement,
   }
 }
 
 function ownersFromRaw(raw: Record<string, unknown>): StoreOwner[] {
-  const list = arr(raw.owners ?? raw.coOwners ?? raw.storeOwners ?? raw.bosses ?? raw.ownerList)
+  const list = arr(
+    raw.costoreOwners ??
+      raw.owners ??
+      raw.coOwners ??
+      raw.storeOwners ??
+      raw.bosses ??
+      raw.ownerList,
+  )
   return list.map(mapStoreOwner)
 }
 function mapCoach(raw: unknown): StoreCoach {
@@ -175,7 +198,11 @@ export function mapStoreDetail(raw: unknown): StoreDetail {
   const owners = topOwners.length ? topOwners : ownersFromRaw(storeRaw)
   const store = mapStoreProfile({
     ...storeRaw,
-    ownerCount: storeRaw.ownerCount ?? storeRaw.coOwnerCount ?? (owners.length ? owners.length : undefined),
+    ownerCount:
+      r.costoreOwnerCount ??
+      storeRaw.ownerCount ??
+      storeRaw.coOwnerCount ??
+      (owners.length ? owners.length : undefined),
     owners: storeRaw.owners ?? (owners.length ? owners : undefined),
   })
   if (!store.ownerCount && owners.length) store.ownerCount = owners.length

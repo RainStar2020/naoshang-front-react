@@ -53,6 +53,21 @@ const stores = [
   { storeId: 'demo-store-3', name: '脑商训练营合肥店', managerName: '赵教练', ownerCount: 2, active: true },
 ]
 
+
+function canUpdatePayment(application: Pick<CostoreApplication, 'applicationStatus' | 'refundStatus'>) {
+  return application.applicationStatus !== 'CANCELLED' && application.refundStatus !== 'PENDING' && application.refundStatus !== 'SUCCEEDED'
+}
+
+function allowedActionsFor(application: Pick<CostoreApplication, 'applicationStatus' | 'refundStatus'>): CostoreApplication['allowedActions'] {
+  const actions: CostoreApplication['allowedActions'] = []
+  if (application.applicationStatus === 'PENDING_REVIEW' || application.applicationStatus === 'PENDING_PAYMENT') {
+    actions.push('approve', 'reject')
+  }
+  if (application.refundStatus === 'FAILED') actions.push('retry-refund')
+  if (canUpdatePayment(application)) actions.push('update-payment')
+  return actions
+}
+
 const sample = (
   n: number,
   applicationStatus: CostoreApplication['applicationStatus'],
@@ -84,7 +99,7 @@ const sample = (
   reviewedAt: ['APPROVED', 'REJECTED'].includes(applicationStatus) ? '2026-10-12T10:00:00+08:00' : null,
   rejectionReason: applicationStatus === 'REJECTED' ? '门店审核未通过；退款状态以支付服务回执为准。' : null,
   version: 1,
-  allowedActions: refundStatus === 'FAILED' ? ['retry-refund', 'update-payment'] : ['update-payment'],
+  allowedActions: allowedActionsFor({ applicationStatus, refundStatus }),
   ...overrides,
 })
 
@@ -182,10 +197,14 @@ export function mockCostoreMutate(input: CostoreMutation, operator: HqAccount): 
   if (input.action === 'update-payment') {
     const application = applications.find((row) => row.applicationId === input.applicationId) ?? fail('NOT_FOUND', '合店申请不存在')
     if (application.version !== input.version) fail('VERSION_CONFLICT', '申请已更新，请刷新')
+    if (!application.allowedActions.includes('update-payment') || !canUpdatePayment(application)) {
+      fail('INVALID_STATE', '当前申请不允许修改支付状态')
+    }
     const before = `支付${application.paymentStatus}`
     application.paymentStatus = input.paymentStatus
     application.paidAt = input.paymentStatus === 'PAID' ? new Date().toISOString() : null
     application.version += 1
+    application.allowedActions = allowedActionsFor(application)
     audit.push({ operationId: crypto.randomUUID(), requestId: input.idempotencyKey, action: input.action, targetId: application.applicationId, operatorName: operator.nickname, reason: input.reason.trim(), before, after: `支付${application.paymentStatus}`, occurredAt: new Date().toISOString(), beforeVersion: input.version, afterVersion: application.version })
     result = mockCostoreDetail(application.applicationId)
   } else if (input.action === 'approve' || input.action === 'reject') {
@@ -195,16 +214,20 @@ export function mockCostoreMutate(input: CostoreMutation, operator: HqAccount): 
       fail('INVALID_STATE', '申请不在待审状态')
     }
     const approve = input.action === 'approve'
-    const before = `申请${application.applicationStatus}；V${application.version}`
+    const before = `申请${application.applicationStatus}；支付${application.paymentStatus}；V${application.version}`
     application.applicationStatus = approve ? 'APPROVED' : 'REJECTED'
     application.rejectionReason = approve ? null : input.reason.trim()
     application.reviewedAt = new Date().toISOString()
+    if (approve) {
+      application.paymentStatus = 'PAID'
+      application.paidAt = new Date().toISOString()
+    }
     application.version += 1
-    application.allowedActions = []
+    application.allowedActions = allowedActionsFor(application)
     audit.push({
       operationId: crypto.randomUUID(), requestId: input.idempotencyKey, action: input.action,
       targetId: application.applicationId, operatorName: operator.nickname, reason: input.reason.trim(),
-      before, after: `申请${application.applicationStatus}；V${application.version}`, occurredAt: new Date().toISOString(),
+      before, after: `申请${application.applicationStatus}；支付${application.paymentStatus}；V${application.version}`, occurredAt: new Date().toISOString(),
       beforeVersion: input.version, afterVersion: application.version,
     })
     result = mockCostoreDetail(application.applicationId)

@@ -9,6 +9,7 @@ import { getAgentBenefits, mutateAgentBenefit } from '../api/agentBenefits'
 import type { PageData } from '../types/hq/common'
 import type { AgencyQuery, ApplicationQuery, Assignment, AgencyApplication, AgencyDetail, Brief, RegionType, AppointmentInput, DecisionInput, AppointmentResult, DecisionResult, CostoreChild } from '../types/regionalAgency'
 import type { AgentBenefit, AgentBenefitLevel } from '../types/agentBenefits'
+import { pagePagination, modalPagination } from '../utils/pagination'
 
 const regionLabels: Record<RegionType, string> = { province: '省级代理', city: '市级代理', district: '区县代理', store: '单店代理' }
 const tierLabels: Record<string, string> = { none: '普通用户', vip: 'VIP', angel: '天使', private: '私董', cofounder: '联创' }
@@ -93,6 +94,7 @@ export default function Agents() {
   const [refresh, setRefresh] = useState(0)
   const [detailId, setDetailId] = useState<string>()
   const [detailPage, setDetailPage] = useState(1)
+  const [detailPageSize, setDetailPageSize] = useState(10)
   const [detail, setDetail] = useState<AgencyDetail>()
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
@@ -126,10 +128,10 @@ export default function Agents() {
     if (!detailId || isMockAuth) return
     let alive = true
     setDetail(undefined); setDetailLoading(true); setDetailError('')
-    api.detail(detailId, detailPage).then(value => { if (alive) setDetail(value) }).catch(e => { if (alive) setDetailError(messageOf(e)) }).finally(() => { if (alive) setDetailLoading(false) })
+    api.detail(detailId, detailPage, detailPageSize).then(value => { if (alive) setDetail(value) }).catch(e => { if (alive) setDetailError(messageOf(e)) }).finally(() => { if (alive) setDetailLoading(false) })
     return () => { alive = false }
-  }, [detailId, detailPage, refresh])
-  const openDetail = (id: string) => { setDetailPage(1); setDetailId(id) }
+  }, [detailId, detailPage, detailPageSize, refresh])
+  const openDetail = (id: string) => { setDetailPage(1); setDetailPageSize(10); setDetailId(id) }
   const assignmentColumns: ColumnsType<Assignment> = [
     { title: '代理人 / 手机号 / 等级', key: 'agent', width: 220, render: (_, r) => person(r.agent) },
     { title: '代理级别', dataIndex: 'regionType', width: 120, render: (v: RegionType) => regionLabels[v] || '未知级别' },
@@ -194,7 +196,12 @@ export default function Agents() {
           <Form.Item name="name"><Input allowClear placeholder="代理人姓名" /></Form.Item><Form.Item name="phone"><Input allowClear placeholder="代理人手机号" /></Form.Item>
           <Button htmlType="submit" type="primary">查询</Button><Button onClick={() => { filterForm.resetFields(); setQuery({ page: 1, pageSize: 20 }) }}>重置</Button>
         </Form>
-        <Table<Assignment> rowKey="assignmentId" loading={loading} dataSource={list?.items ?? []} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], onChange: (page, pageSize) => setQuery(v => ({ ...v, page, pageSize })) }} />
+        <Table<Assignment> rowKey="assignmentId" loading={loading} dataSource={list?.items ?? []} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={pagePagination({
+  page: query.page,
+  pageSize: query.pageSize,
+  total: list?.total ?? 0,
+  onChange: (page, pageSize) => setQuery(v => ({ ...v, page, pageSize })),
+})} />
       </Card> },
       { key: 'applications', label: '代理申请审核', children: <Card>
         <Form form={appFilterForm} layout="inline" onFinish={v => setAppQuery({ page: 1, pageSize: appQuery.pageSize, ...v })} style={{ marginBottom: 16, gap: 8 }}>
@@ -203,7 +210,12 @@ export default function Agents() {
           <Form.Item name="name"><Input allowClear placeholder="申请人姓名" /></Form.Item><Form.Item name="phone"><Input allowClear placeholder="申请人手机号" /></Form.Item>
           <Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { appFilterForm.resetFields(); setAppQuery({ page: 1, pageSize: 20 }) }}>重置</Button>
         </Form>
-        <Table<AgencyApplication> rowKey="applicationId" loading={loading} dataSource={applications?.items ?? []} scroll={{ x: 1480 }} pagination={{ current: appQuery.page, pageSize: appQuery.pageSize, total: applications?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], onChange: (page, pageSize) => setAppQuery(v => ({ ...v, page, pageSize })) }} columns={[
+        <Table<AgencyApplication> rowKey="applicationId" loading={loading} dataSource={applications?.items ?? []} scroll={{ x: 1480 }} pagination={pagePagination({
+  page: appQuery.page,
+  pageSize: appQuery.pageSize,
+  total: applications?.total ?? 0,
+  onChange: (page, pageSize) => setAppQuery(v => ({ ...v, page, pageSize })),
+})} columns={[
           { title: '申请人 / 手机号 / 等级', key: 'person', width: 220, render: (_, r) => person(r.applicant) },
           { title: '代理级别', dataIndex: 'regionType', width: 120, render: (v: RegionType) => regionLabels[v] || '未知级别' },
           { title: '申请区域', key: 'region', width: 160, render: (_, r) => r.regionName || r.regionCode || '—' },
@@ -230,7 +242,17 @@ export default function Agents() {
         ]} />
         <Typography.Title level={5}>同用户其他代理任命</Typography.Title><Table<Assignment> rowKey="assignmentId" dataSource={detail.otherAssignments} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={false} />
         <Typography.Title level={5}>{detail.childType === 'costore' || detail.assignment.regionType === 'store' ? '直属合店老板' : `直属${regionLabels[detail.childType as RegionType] || '下级'}`}</Typography.Title>
-        {detail.assignment.regionType === 'store' ? <Table<CostoreChild> rowKey="costoreId" dataSource={detail.items as CostoreChild[]} columns={[{ title: '合店老板', key: 'owner', render: (_, r) => person(r.owner) }, { title: '所属门店编号', dataIndex: 'storeId' }]} pagination={{ current: detail.page, pageSize: detail.pageSize, total: detail.total, showSizeChanger: false, onChange: setDetailPage }} /> : <Table<Assignment> rowKey="assignmentId" dataSource={detail.items as Assignment[]} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={{ current: detail.page, pageSize: detail.pageSize, total: detail.total, showSizeChanger: false, onChange: setDetailPage }} />}
+        {detail.assignment.regionType === 'store' ? <Table<CostoreChild> rowKey="costoreId" dataSource={detail.items as CostoreChild[]} columns={[{ title: '合店老板', key: 'owner', render: (_, r) => person(r.owner) }, { title: '所属门店编号', dataIndex: 'storeId' }]} pagination={modalPagination({
+  page: detail.page,
+  pageSize: detailPageSize,
+  total: detail.total,
+  onChange: (page, size) => { setDetailPage(page); setDetailPageSize(size) },
+})} /> : <Table<Assignment> rowKey="assignmentId" dataSource={detail.items as Assignment[]} columns={assignmentColumns} scroll={{ x: 1580 }} pagination={modalPagination({
+  page: detail.page,
+  pageSize: detailPageSize,
+  total: detail.total,
+  onChange: (page, size) => { setDetailPage(page); setDetailPageSize(size) },
+})} />}
       </Space>}
     </Drawer>
     <Modal title="总部直接任命代理" open={appointmentOpen} onCancel={() => setAppointmentOpen(false)} onOk={prepareAppointment} okText="核对任命" width={640}>

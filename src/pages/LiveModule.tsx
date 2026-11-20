@@ -7,6 +7,7 @@ import { liveModules } from '../services/real/registry'
 import { buildMutationRequest, dataRows, parseObject, record, redactCredentials, rowIdentifier, runOperation, type DataRecord, type ModuleInput, type ModuleOperation } from '../services/real/modules'
 
 import { actionLabel, displayText, fieldLabel } from '../i18n/hqLabels'
+import { pagePagination } from '../utils/pagination'
 
 const label = (key: string) => fieldLabel(key)
 const text = (value: unknown, field?: string) => displayText(value, field)
@@ -162,7 +163,13 @@ function LiveModuleContent({ definition }: { definition: typeof liveModules[numb
       <Card title={operation.title} size="small" extra={isPage ? <Tag>共 {String(object.total)} 条</Tag> : undefined}>
         {data === null ? <Empty description={operation.params.length && !Object.keys(submittedPaths).length ? '请填写目标 ID 后查询' : error ? '请求失败，请重试' : '正在读取'} /> :
           isPage || Array.isArray(data) ? <><Records rows={rows} onSelect={(row) => void showRow(row)} />{!rows.length && <Typography.Paragraph type="secondary">后端当前未返回记录；这不代表接口异常。</Typography.Paragraph>}
-            {isPage && <Pagination style={{ marginTop: 16 }} current={page} pageSize={pageSize} total={Number(object.total)} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(total) => `共 ${total} 条`} onChange={(next, size) => { setPage(size === pageSize ? next : 1); setPageSize(size) }} />}
+            {isPage && <Pagination style={{ marginTop: 16 }} {...pagePagination({
+              page,
+              pageSize,
+              total: Number(object.total),
+              showTotal: (total) => `共 ${total} 条`,
+              onChange: (next, size) => { setPage(size === pageSize ? next : 1); setPageSize(size) },
+            })} />}
             {object.summary !== undefined && <Collapse size="small" items={[{ key: 'summary', label: '汇总', children: <DataView value={object.summary} /> }]} />}
           </> : groupedArrays.length ? <Space direction="vertical" style={{ width: '100%' }}>{groupedArrays.map(([key, value]) => <Card size="small" title={`${label(key)}（${(value as unknown[]).length}）`} key={key}>{(value as unknown[]).some((item) => typeof item === 'object' && item !== null) ? <Records rows={dataRows(value)} onSelect={(row) => void showRow(row)} /> : <DataView value={value} />}</Card>)}<DataView value={Object.fromEntries(Object.entries(object).filter(([, value]) => !Array.isArray(value)))} /></Space> : <DataView value={data} />}
         {typeof object.csv === 'string' && <Button onClick={() => {

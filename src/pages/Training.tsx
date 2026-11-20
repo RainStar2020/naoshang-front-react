@@ -7,6 +7,7 @@ import { trainingService } from '../services/training'
 import { TrainingError, type FeedbackKind, type FeedbackStatus, type LessonBucket, type LessonConsumeRecord, type TrainingFeedback, type TrainingMemberBalance, type TrainingMemberDetail, type TrainingMutation } from '../types/training'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination } from '../utils/pagination'
 
 const kindLabel: Record<FeedbackKind, string> = { training: '陪练', 'self-study': '智习', camp: '集训' }
 const bucketLabel: Record<LessonBucket, string> = { training: '陪练课时', special: '专项课时' }
@@ -32,6 +33,7 @@ export default function Training() {
   const [balanceKeyword, setBalanceKeyword] = useState('')
   const [balanceStoreId, setBalanceStoreId] = useState<string>()
   const [balancePage, setBalancePage] = useState(1)
+  const [balancePageSize, setBalancePageSize] = useState(20)
   const [balances, setBalances] = useState<TrainingMemberBalance[]>([])
   const [balanceTotal, setBalanceTotal] = useState(0)
   const [balanceSummary, setBalanceSummary] = useState({ members: 0, trainingRemaining: 0, specialRemaining: 0, lowBalance: 0 })
@@ -40,6 +42,7 @@ export default function Training() {
   const [fbKind, setFbKind] = useState<FeedbackKind>()
   const [fbStatus, setFbStatus] = useState<FeedbackStatus>()
   const [fbPage, setFbPage] = useState(1)
+  const [fbPageSize, setFbPageSize] = useState(20)
   const [feedbackRows, setFeedbackRows] = useState<TrainingFeedback[]>([])
   const [fbTotal, setFbTotal] = useState(0)
   const [fbSummary, setFbSummary] = useState({ feedback: 0, published: 0, withdrawn: 0, hqProxy: 0 })
@@ -73,24 +76,24 @@ export default function Training() {
   const loadBalances = useCallback(async () => {
     setLoading(true)
     try {
-      const list = await trainingService.balances(token, { page: balancePage, pageSize: 10, keyword: balanceKeyword || undefined, storeId: balanceStoreId })
+      const list = await trainingService.balances(token, { page: balancePage, pageSize: balancePageSize, keyword: balanceKeyword || undefined, storeId: balanceStoreId })
       setBalances(list.items); setBalanceTotal(list.total); setBalanceSummary(list.summary)
     } catch (error) {
       message.error(error instanceof TrainingError ? error.message : '加载课时失败')
     } finally { setLoading(false) }
-  }, [token, balancePage, balanceKeyword, balanceStoreId])
+  }, [token, balancePage, balancePageSize, balanceKeyword, balanceStoreId])
 
   const loadFeedback = useCallback(async () => {
     setLoading(true)
     try {
       const list = await trainingService.feedbackList(token, {
-        page: fbPage, pageSize: 10, keyword: fbKeyword || undefined, kind: fbKind, status: fbStatus,
+        page: fbPage, pageSize: fbPageSize, keyword: fbKeyword || undefined, kind: fbKind, status: fbStatus,
       })
       setFeedbackRows(list.items); setFbTotal(list.total); setFbSummary(list.summary)
     } catch (error) {
       message.error(error instanceof TrainingError ? error.message : '加载反馈失败')
     } finally { setLoading(false) }
-  }, [token, fbPage, fbKeyword, fbKind, fbStatus])
+  }, [token, fbPage, fbPageSize, fbKeyword, fbKind, fbStatus])
 
   useEffect(() => { void loadCatalog() }, [loadCatalog])
   useEffect(() => { if (tab === 'balances') void loadBalances() }, [tab, loadBalances])
@@ -181,7 +184,12 @@ export default function Training() {
               <Button onClick={() => void loadBalances()}>刷新</Button>
             </Space>
             <Table<TrainingMemberBalance> rowKey="memberId" loading={loading} dataSource={balances}
-              pagination={{ current: balancePage, pageSize: 10, total: balanceTotal, onChange: setBalancePage }}
+              pagination={pagePagination({
+                page: balancePage,
+                pageSize: balancePageSize,
+                total: balanceTotal,
+                onChange: (p, ps) => { setBalancePage(p); setBalancePageSize(ps) },
+              })}
               columns={[
                 { title: '学员', dataIndex: 'memberName' }, { title: '编号', dataIndex: 'displayId', width: 120 },
                 { title: '门店', dataIndex: 'storeName', render: (value: string | null) => value || '—' },
@@ -213,7 +221,12 @@ export default function Training() {
               <Button onClick={() => void loadFeedback()}>刷新</Button>
             </Space>
             <Table<TrainingFeedback> rowKey="feedbackId" loading={loading} dataSource={feedbackRows}
-              pagination={{ current: fbPage, pageSize: 10, total: fbTotal, onChange: setFbPage }}
+              pagination={pagePagination({
+                page: fbPage,
+                pageSize: fbPageSize,
+                total: fbTotal,
+                onChange: (p, ps) => { setFbPage(p); setFbPageSize(ps) },
+              })}
               columns={[
                 { title: '标题', dataIndex: 'title' },
                 { title: '学员', key: 'm', render: (_, row) => `${row.memberName}（${row.displayId}）` },

@@ -9,6 +9,7 @@ import SoftwareCardModal, { softwareActionNames, type SoftwareModalAction } from
 import SoftwareCardDetail from '../components/SoftwareCardDetail'
 import { formatUserDate } from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { pagePagination, pagePaginationDefaults } from '../utils/pagination'
 
 export default function SoftwareCards() {
   const { session } = useAuth()
@@ -16,7 +17,7 @@ export default function SoftwareCards() {
   const [form] = Form.useForm<SoftwareFilters>()
   const [catalog, setCatalog] = useState<SoftwareCatalog | null>(null)
   const [result, setResult] = useState<SoftwareList | null>(null)
-  const [query, setQuery] = useState<SoftwareQuery>({ page: 1, pageSize: 10 })
+  const [query, setQuery] = useState<SoftwareQuery>({ page: 1, pageSize: 20 })
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [catalogError, setCatalogError] = useState<string | null>(null)
@@ -41,7 +42,7 @@ export default function SoftwareCards() {
   const done = (value: SoftwareMutationResult | null) => {
     const action = modal?.action
     setModal(null); setSelected([]); reload()
-    if (value?.batchId && action === 'import') { form.resetFields(); form.setFieldValue('batchId', value.batchId); setQuery({ batchId: value.batchId, page: 1, pageSize: 10 }); setTab('stock') }
+    if (value?.batchId && action === 'import') { form.resetFields(); form.setFieldValue('batchId', value.batchId); setQuery({ batchId: value.batchId, page: 1, pageSize: 20 }); setTab('stock') }
     messageApi.success(action === 'export' ? '完整演示软件卡已导出，已记录披露状态' : 'Mock操作已记录；未改变外部激活或学习权益')
   }
   return <Space direction="vertical" size={20} style={{ width: '100%' }}>{contextHolder}
@@ -59,10 +60,16 @@ export default function SoftwareCards() {
           <Form.Item name="deliveryMode" label="交付方"><Select allowClear placeholder="全部交付方" options={[{ value: 'hq', label: '总部' }, { value: 'store', label: '门店' }]} /></Form.Item>
           <Form.Item name="storeId" label="交付门店"><Select allowClear placeholder="全部门店" options={(catalog?.options?.stores ?? []).map(store => ({ value: store.storeId, label: store.name }))} /></Form.Item>
           <Form.Item name="claimState" label="领用期限"><Select allowClear placeholder="全部期限" options={[{ value: 'expired', label: '领用已到期' }, { value: 'valid', label: '未到期或不适用' }]} /></Form.Item>
-        </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 10 }) }}>重置筛选</Button></Space></Form></Card>
+        </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 20 }) }}>重置筛选</Button></Space></Form></Card>
         <Card variant="borderless" title="软件卡库存" extra={<Typography.Text type="secondary">{result ? `共 ${result.total} 张卡` : '—'}</Typography.Text>}>
           {actions.length > 0 && <Space wrap style={{ marginBottom: 16 }}><Typography.Text>当前页已选 {selected.length} 张</Typography.Text>{actions.map(action => <Button key={action} disabled={!catalog || !eligible(action)} danger={action === 'retire'} onClick={() => setModal({ action, selected: structuredClone(selected) })}>{softwareActionNames[action]}</Button>)}</Space>}
-          {error ? <Alert type="error" message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<SoftwareCard> rowKey="cardId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: 1300 }} rowSelection={actions.length ? { selectedRowKeys: selected.map(card => card.cardId), onChange: (_, rows) => setSelected(rows) } : undefined} locale={{ emptyText: '暂无符合条件的软件卡' }} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 张卡`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize === value.pageSize ? page : 1, pageSize })) }} columns={[
+          {error ? <Alert type="error" message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<SoftwareCard> rowKey="cardId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: 1300 }} rowSelection={actions.length ? { selectedRowKeys: selected.map(card => card.cardId), onChange: (_, rows) => setSelected(rows) } : undefined} locale={{ emptyText: '暂无符合条件的软件卡' }} pagination={pagePagination({
+  page: query.page,
+  pageSize: query.pageSize,
+  total: result?.total ?? 0,
+  showTotal: total => `共 ${total} 张卡`,
+  onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize === value.pageSize ? page : 1, pageSize })),
+})} columns={[
             { title: '脱敏码', dataIndex: 'maskedCode', width: 140 }, { title: '库存ID', dataIndex: 'cardId', width: 140 },
             { title: '软件卡类型', dataIndex: 'typeName', width: 140 },
             { title: '库存状态', key: 'status', width: 110, render: (_, card) => <Tag color={card.status === 'delivered' ? 'green' : 'blue'}>{softwareStockLabels[card.status]}</Tag> }, { title: '领用到期', key: 'claimExpired', width: 100, render: (_, card) => card.claimExpired ? <Tag color="red">领用已到期</Tag> : '—' }, { title: '完整码导出', key: 'secretExported', width: 110, render: (_, card) => card.secretExportedAt ? <Tag color="orange">完整码已导出</Tag> : '—' },
@@ -77,10 +84,10 @@ export default function SoftwareCards() {
       { key: 'types', label: `软件卡类型（${catalog?.types.length ?? 0}）`, children: <Card variant="borderless" title="软件卡类型" extra={hasPermission(account, 'software:types') && <Button type="primary" disabled={!catalog} onClick={() => setModal({ action: 'save-type', selected: [] })}>新建软件卡类型</Button>}><Table<SoftwareCardType> rowKey="typeId" dataSource={catalog?.types ?? []} pagination={false} scroll={{ x: 900 }} columns={[
         { title: '类型', dataIndex: 'name' }, { title: '编码', dataIndex: 'businessCode', width: 140 }, { title: '外部有效期说明', dataIndex: 'termLabel' }, { title: '外部系统说明', dataIndex: 'systemLabel' }, { title: '状态', key: 'active', render: (_, type) => <Tag color={type.active ? 'green' : 'default'}>{type.active ? '可新增录入/分配' : '已停用新分配'}</Tag> }, { title: '操作', key: 'action', render: (_, type) => hasPermission(account, 'software:types') ? <Button type="link" onClick={() => setModal({ action: 'save-type', selected: [], type })}>编辑</Button> : '只读' },
       ]} /></Card> },
-      { key: 'batches', label: `批次与来源（${catalog?.batches.length ?? 0}）`, children: <Table rowKey="batchId" dataSource={catalog?.batches ?? []} scroll={{ x: 1000 }} pagination={{ pageSize: 10 }} columns={[
-        { title: '批次', dataIndex: 'name' }, { title: '批次ID', dataIndex: 'batchId', width: 140 }, { title: '导入时类型', dataIndex: 'typeName' }, { title: '来源', dataIndex: 'sourceName' }, { title: '参考编号', key: 'referenceNo', render: (_, batch) => batch.referenceNo || '未填写' }, { title: '录入数量', dataIndex: 'quantity' }, { title: '领用截止', key: 'claim', render: (_, batch) => batch.claimDeadline ? formatUserDate(batch.claimDeadline) : '不设截止时间' }, { title: '录入人', dataIndex: 'createdBy' }, { title: '录入时间', key: 'createdAt', render: (_, batch) => formatUserDate(batch.createdAt) }, { title: '操作', key: 'action', render: (_, batch) => <Button type="link" onClick={() => { form.resetFields(); form.setFieldValue('batchId', batch.batchId); setQuery({ batchId: batch.batchId, page: 1, pageSize: 10 }); setTab('stock') }}>查看库存</Button> },
+      { key: 'batches', label: `批次与来源（${catalog?.batches.length ?? 0}）`, children: <Table rowKey="batchId" dataSource={catalog?.batches ?? []} scroll={{ x: 1000 }} pagination={pagePaginationDefaults} columns={[
+        { title: '批次', dataIndex: 'name' }, { title: '批次ID', dataIndex: 'batchId', width: 140 }, { title: '导入时类型', dataIndex: 'typeName' }, { title: '来源', dataIndex: 'sourceName' }, { title: '参考编号', key: 'referenceNo', render: (_, batch) => batch.referenceNo || '未填写' }, { title: '录入数量', dataIndex: 'quantity' }, { title: '领用截止', key: 'claim', render: (_, batch) => batch.claimDeadline ? formatUserDate(batch.claimDeadline) : '不设截止时间' }, { title: '录入人', dataIndex: 'createdBy' }, { title: '录入时间', key: 'createdAt', render: (_, batch) => formatUserDate(batch.createdAt) }, { title: '操作', key: 'action', render: (_, batch) => <Button type="link" onClick={() => { form.resetFields(); form.setFieldValue('batchId', batch.batchId); setQuery({ batchId: batch.batchId, page: 1, pageSize: 20 }); setTab('stock') }}>查看库存</Button> },
       ]} /> },
-      { key: 'audit', label: `操作记录（${catalog?.audit.length ?? 0}）`, children: <Table rowKey="operationId" size="small" dataSource={catalog?.audit ?? []} pagination={{ pageSize: 10 }} scroll={{ x: 1000 }} columns={[
+      { key: 'audit', label: `操作记录（${catalog?.audit.length ?? 0}）`, children: <Table rowKey="operationId" size="small" dataSource={catalog?.audit ?? []} pagination={pagePaginationDefaults} scroll={{ x: 1000 }} columns={[
         { title: '操作', key: 'action', render: (_, entry) => softwareActionNames[entry.action] }, { title: '时间', key: 'time', render: (_, entry) => formatUserDate(entry.occurredAt) }, { title: '涉及卡数', key: 'count', render: (_, entry) => entry.cardIds.length }, { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '操作人ID', dataIndex: 'operatorId' },
       ]} /> },
     ]} />

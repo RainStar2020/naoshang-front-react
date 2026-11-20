@@ -46,6 +46,7 @@ import {
   ASSETS_UPLOAD_UNAVAILABLE_MESSAGE,
   isAssetsUploadUnavailableError,
 } from '../utils/assetsUploadErrors'
+import { pagePagination } from '../utils/pagination'
 
 const statusLabel: Record<PromoMaterialStatus, string> = {
   DRAFT: '草稿',
@@ -328,7 +329,7 @@ export default function Materials() {
   const [summary, setSummary] = useState<ListSummary | null>(null)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<PromoMaterialStatus | undefined>()
   const [loading, setLoading] = useState(false)
@@ -935,13 +936,12 @@ export default function Materials() {
         rowKey="materialId"
         loading={loading}
         dataSource={items}
-        pagination={{
-          current: page,
+        pagination={pagePagination({
+          page,
           pageSize,
           total,
-          showSizeChanger: true,
           onChange: (p, ps) => { setPage(p); setPageSize(ps) },
-        }}
+        })}
         columns={[
           {
             title: '封面',

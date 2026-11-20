@@ -38,6 +38,7 @@ import {
   revenueDimensionFromPath,
   revenuePageMeta,
 } from "./revenueQuery";
+import { pagePagination } from "../utils/pagination";
 
 function fen(n: number) {
   const sign = n < 0 ? "-" : "";
@@ -108,6 +109,7 @@ export default function Revenue() {
   const [settlementStatus, setSettlementStatus] = useState<SettlementStatus>();
   const [storeId, setStoreId] = useState<string>();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [rows, setRows] = useState<IncomeEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState({
@@ -155,7 +157,7 @@ export default function Revenue() {
         buildRevenueListQuery({
           dimension,
           page,
-          pageSize: 10,
+          pageSize,
           keyword: keyword || undefined,
           module,
           channel,
@@ -187,6 +189,7 @@ export default function Revenue() {
   }, [
     token,
     page,
+    pageSize,
     keyword,
     module,
     channel,
@@ -634,13 +637,13 @@ export default function Revenue() {
           columns={dimension === "partners" ? partnerColumns : columns}
           dataSource={rows}
           scroll={{ x: 1800 }}
-          pagination={{
-            current: page,
+          pagination={pagePagination({
+            page,
+            pageSize,
             total,
-            pageSize: 10,
-            onChange: setPage,
             showTotal: (t) => `共 ${t} 条`,
-          }}
+            onChange: (next, size) => { setPage(next); setPageSize(size) },
+          })}
         />
       </Card>
 

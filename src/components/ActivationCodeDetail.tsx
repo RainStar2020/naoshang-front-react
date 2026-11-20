@@ -4,6 +4,7 @@ import { activationCodesService } from '../services/activationCodes'
 import type { ActivationDetail, ActivationStatus } from '../types/activationCodes'
 import { formatUserDate } from './UserDetailDrawer'
 import { activationActionNames } from './ActivationCodeModal'
+import { modalPaginationDefaults } from '../utils/pagination'
 
 export const codeStatusNames: Record<ActivationStatus, string> = { unused: '未分发', issued: '已分发未用', used: '已使用', revoked: '已撤销', expired: '已过期' }
 export default function ActivationCodeDetail({ codeId, token, refresh, onClose }: { codeId: string; token: string; refresh: number; onClose: () => void }) {
@@ -26,7 +27,7 @@ export default function ActivationCodeDetail({ codeId, token, refresh, onClose }
       { key: 'usedBy', label: '使用账号 / 学员', children: `${code.usedByAccountId ?? '—'} / ${code.usedByMemberId ?? '—'}`, span: 2 }, { key: 'usedAt', label: '使用时间', children: formatUserDate(code.usedAt) }, { key: 'order', label: '来源订单ID', children: code.sourceOrderId ?? '无订单关联' },
       { key: 'old', label: '替代旧码ID', children: code.replacesCodeId ?? '—', span: 2 }, { key: 'new', label: '补发新码ID', children: code.replacementCodeId ?? '—', span: 2 },
     ]} />
-    <Table rowKey="operationId" size="small" dataSource={data!.audit} scroll={{ x: 700 }} pagination={{ pageSize: 5, hideOnSinglePage: true }} locale={{ emptyText: '暂无本轮操作记录；预置演示码请查看上方交付/使用字段' }} columns={[
+    <Table rowKey="operationId" size="small" dataSource={data!.audit} scroll={{ x: 700 }} pagination={modalPaginationDefaults} locale={{ emptyText: '暂无本轮操作记录；预置演示码请查看上方交付/使用字段' }} columns={[
       { title: '操作', key: 'action', render: (_, item) => activationActionNames[item.action] }, { title: '时间', key: 'time', render: (_, item) => formatUserDate(item.occurredAt) }, { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '操作人ID', dataIndex: 'operatorId' },
     ]} />
   </Space>}</Drawer>

@@ -39,6 +39,7 @@ import {
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
 import SummaryTable from "../components/SummaryTable";
+import { pagePagination } from "../utils/pagination";
 
 const money = (n: number) => `￥${Number(n || 0).toFixed(2)}`;
 
@@ -85,7 +86,7 @@ export default function Stores() {
   const { session } = useAuth();
   const { token, account } = session!;
   const canManage = hasPermission(account, "stores:manage");
-  const [query, setQuery] = useState<StoreQuery>({ page: 1, pageSize: 10 });
+  const [query, setQuery] = useState<StoreQuery>({ page: 1, pageSize: 20 });
   const [list, setList] = useState<StoreList | null>(null);
   const [catalog, setCatalog] = useState<StoreCatalog | null>(null);
   const [loading, setLoading] = useState(false);
@@ -494,7 +495,7 @@ export default function Stores() {
               label: row.name,
             }))}
           />
-          <Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>
+          <Button onClick={() => setQuery({ page: 1, pageSize: 20 })}>
             重置筛选
           </Button>
         </Space>
@@ -521,16 +522,14 @@ export default function Stores() {
           loading={loading}
           dataSource={list?.items ?? []}
           scroll={{ x: 1600 }}
-          pagination={{
-            current: query.page,
+          pagination={pagePagination({
+            page: query.page,
             pageSize: query.pageSize,
-            total: list?.total,
-            showSizeChanger: true,
-            pageSizeOptions: [5, 10, 20],
+            total: list?.total ?? 0,
             showTotal: (total) => `共${total}家门店`,
             onChange: (page, pageSize) =>
               setQuery((v) => ({ ...v, page, pageSize })),
-          }}
+          })}
           columns={[
             {
               title: "门店",
@@ -831,33 +830,101 @@ export default function Stores() {
                     rowKey={(row) => row.ownerId || row.accountId || row.displayId || row.name}
                     dataSource={detail.owners ?? []}
                     pagination={false}
+                    scroll={{ x: 1150 }}
                     locale={{ emptyText: "暂无合店老板" }}
                     columns={[
                       {
                         title: "姓名",
                         dataIndex: "name",
                         key: "name",
+                        width: 100,
                       },
                       {
                         title: "手机号",
                         dataIndex: "phone",
                         key: "phone",
+                        width: 130,
                         render: (value: string) => value || "—",
-                      },
-                      {
-                        title: "展示编号",
-                        key: "displayId",
-                        render: (_: unknown, row: StoreOwner) => row.displayId || "—",
-                      },
-                      {
-                        title: "账号ID",
-                        key: "accountId",
-                        render: (_: unknown, row: StoreOwner) => row.accountId || "—",
                       },
                       {
                         title: "身份",
                         dataIndex: "roleLabel",
                         key: "role",
+                        width: 120,
+                      },
+                      {
+                        title: "经营状态",
+                        key: "operatingStatus",
+                        width: 110,
+                        render: (_: unknown, row: StoreOwner) =>
+                          row.operatingStatus ? (
+                            <Tag color="success">{row.operatingStatus}</Tag>
+                          ) : (
+                            "—"
+                          ),
+                      },
+                      {
+                        title: "合同期",
+                        key: "contractMonths",
+                        width: 90,
+                        render: (_: unknown, row: StoreOwner) =>
+                          row.contractMonths != null
+                            ? `${row.contractMonths} 个月`
+                            : "—",
+                      },
+                      {
+                        title: "申请时间",
+                        key: "applyTime",
+                        width: 170,
+                        render: (_: unknown, row: StoreOwner) =>
+                          formatUserDate(row.applyTime ?? null),
+                      },
+                      {
+                        title: "合作结束时间",
+                        key: "endTime",
+                        width: 170,
+                        render: (_: unknown, row: StoreOwner) =>
+                          formatUserDate(row.endTime ?? null),
+                      },
+                      {
+                        title: "年度权益",
+                        key: "annualEntitlement",
+                        width: 170,
+                        render: (_: unknown, row: StoreOwner) => {
+                          const entitlement = row.annualEntitlement
+                          if (!entitlement) return "—"
+                          return (
+                            <span>
+                              <Tag
+                                color={
+                                  String(entitlement.status).toLowerCase() ===
+                                  "active"
+                                    ? "processing"
+                                    : "default"
+                                }
+                              >
+                                {String(entitlement.status).toLowerCase() ===
+                                "active"
+                                  ? "生效中"
+                                  : entitlement.status}
+                              </Tag>
+                              <br />
+                              <Typography.Text
+                                type="secondary"
+                                style={{ fontSize: 12 }}
+                              >
+                                {formatUserDate(entitlement.expiresAt)}
+                              </Typography.Text>
+                            </span>
+                          )
+                        },
+                      },
+                      {
+                        title: "账号ID",
+                        key: "accountId",
+                        width: 180,
+                        render: (_: unknown, row: StoreOwner) =>
+                          row.accountId || row.ownerId || "—",
                       },
                     ]}
                   />

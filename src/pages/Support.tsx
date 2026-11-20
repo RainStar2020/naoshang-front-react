@@ -31,6 +31,7 @@ import {
 } from '../types/support'
 import { ContentPreview } from '../utils/richContent'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination } from '../utils/pagination'
 
 const statusLabel: Record<AgreementStatus, string> = {
   DRAFT: '草稿',
@@ -69,7 +70,7 @@ export default function Support() {
   const [feedback, setFeedback] = useState<SupportFeedbackItem[]>([])
   const [fbTotal, setFbTotal] = useState(0)
   const [fbPage, setFbPage] = useState(1)
-  const [fbPageSize, setFbPageSize] = useState(10)
+  const [fbPageSize, setFbPageSize] = useState(20)
   const [fbKeyword, setFbKeyword] = useState('')
   const [fbStatus, setFbStatus] = useState<FeedbackStatus | undefined>('OPEN')
   const [loading, setLoading] = useState(false)
@@ -387,13 +388,12 @@ export default function Support() {
                   rowKey="feedbackId"
                   size="middle"
                   dataSource={feedback}
-                  pagination={{
-                    current: fbPage,
+                  pagination={pagePagination({
+                    page: fbPage,
                     pageSize: fbPageSize,
                     total: fbTotal,
-                    showSizeChanger: true,
                     onChange: (p, ps) => { setFbPage(p); setFbPageSize(ps) },
-                  }}
+                  })}
                   columns={[
                     { title: '反馈ID', dataIndex: 'feedbackId', width: 140 },
                     {

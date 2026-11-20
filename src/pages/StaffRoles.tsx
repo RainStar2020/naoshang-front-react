@@ -23,6 +23,7 @@ import {
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
 import { DebouncedSearchInput } from '../components/DebouncedSearchInput'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination, pagePaginationDefaults, modalPaginationDefaults } from '../utils/pagination'
 
 const statusLabels: Record<StaffStatus, string> = { ACTIVE: '有效', FROZEN: '停用', LEFT: '离职' }
 const statusColor: Record<StaffStatus, string> = { ACTIVE: 'green', FROZEN: 'orange', LEFT: 'default' }
@@ -43,7 +44,7 @@ export default function StaffRoles() {
   const { token, account } = session!
   const canRoles = hasPermission(account, 'staff:roles')
   const canManage = hasPermission(account, 'staff:manage')
-  const [query, setQuery] = useState<StaffQuery>({ page: 1, pageSize: 10 })
+  const [query, setQuery] = useState<StaffQuery>({ page: 1, pageSize: 20 })
   const [list, setList] = useState<StaffList | null>(null)
   const [catalog, setCatalog] = useState<StaffCatalog | null>(null)
   const [loading, setLoading] = useState(false)
@@ -194,7 +195,7 @@ export default function StaffRoles() {
             <Select aria-label="筛选门店" allowClear placeholder="全部门店" style={{ width: 220 }} value={query.storeId} onChange={storeId => setQuery(v => ({ ...v, storeId, page: 1 }))} options={(catalog?.stores ?? []).map(row => ({ value: row.storeId, label: row.name }))} />
             <Select aria-label="筛选角色" allowClear placeholder="全部角色" style={{ width: 160 }} value={query.roleCode} onChange={roleCode => setQuery(v => ({ ...v, roleCode, page: 1 }))} options={storeRoles.map(code => ({ value: code, label: storeRoleLabels[code] }))} />
             <Select aria-label="筛选任职状态" allowClear placeholder="全部状态" style={{ width: 140 }} value={query.status} onChange={status => setQuery(v => ({ ...v, status, page: 1 }))} options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))} />
-            <Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>重置筛选</Button>
+            <Button onClick={() => setQuery({ page: 1, pageSize: 20 })}>重置筛选</Button>
           </Space></Card>
           {error && <Alert type="error" message={error} />}
           {list && <SummaryTable items={[
@@ -206,7 +207,13 @@ export default function StaffRoles() {
           ]} />}
           <Card title="任职列表">
             <Table<StaffAssignment> rowKey="assignmentId" loading={loading} dataSource={list?.items ?? []} scroll={{ x: 1400 }}
-              pagination={{ current: query.page, pageSize: query.pageSize, total: list?.total, showSizeChanger: true, pageSizeOptions: [5, 10, 20], showTotal: total => `共${total}条任职`, onChange: (page, pageSize) => setQuery(v => ({ ...v, page, pageSize })) }}
+              pagination={pagePagination({
+                page: query.page,
+                pageSize: query.pageSize,
+                total: list?.total ?? 0,
+                showTotal: total => `共${total}条任职`,
+                onChange: (page, pageSize) => setQuery(v => ({ ...v, page, pageSize })),
+              })}
               columns={[
                 { title: '员工', key: 'person', width: 140, render: (_, row) => <strong>{row.displayName}</strong> },
                 { title: '门店', key: 'store', width: 180, render: (_, row) => <span>{row.storeName || '—'}</span> },
@@ -242,6 +249,7 @@ export default function StaffRoles() {
       {
         key: 'audit', label: `操作审计（${catalog?.audit.length ?? 0}）`,
         children: <Table rowKey="operationId" dataSource={catalog?.audit ?? []} scroll={{ x: 1000 }}
+          pagination={pagePaginationDefaults}
           columns={[
             { title: '操作', dataIndex: 'action' }, { title: '目标', dataIndex: 'targetId', width: 160 },
             { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '变更前版本', key: 'bv', width: 100, render: (_, row) => `V${row.beforeVersion}` }, { title: '变更后版本', key: 'av', width: 100, render: (_, row) => `V${row.afterVersion}` },

@@ -34,6 +34,7 @@ import HqDataSourceAlert from "../components/HqDataSourceAlert";
 import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
 import SummaryTable from "../components/SummaryTable";
 import { useDebouncedValue } from "../utils/useDebouncedValue";
+import { modalPagination, modalPaginationDefaults, pagePagination } from "../utils/pagination";
 function person(row: InvitationAccount | null) {
   return row ? `${row.name} / ${row.phone}` : "未绑定介绍人";
 }
@@ -43,7 +44,7 @@ export default function Invitations() {
     manage = hasPermission(account, "invitations:manage");
   const [query, setQuery] = useState<InvitationQuery>({
       page: 1,
-      pageSize: 10,
+      pageSize: 20,
     }),
     [list, setList] = useState<InvitationList | null>(null),
     [loading, setLoading] = useState(false),
@@ -54,7 +55,7 @@ export default function Invitations() {
     [detailError, setDetailError] = useState("");
   const [teamQuery, setTeamQuery] = useState<
       Omit<InvitationTeamQuery, "accountId">
-    >({ scope: "DIRECT", page: 1, pageSize: 5 }),
+    >({ scope: "DIRECT", page: 1, pageSize: 10 }),
     [team, setTeam] = useState<InvitationTeam | null>(null),
     [teamError, setTeamError] = useState("");
   const [editing, setEditing] = useState<InvitationRelation | null>(null),
@@ -147,7 +148,7 @@ export default function Invitations() {
   }, [token, editing, action, debouncedKeyword]);
   function openDetail(id: string) {
     setDetailId(id);
-    setTeamQuery({ scope: "DIRECT", page: 1, pageSize: 5 });
+    setTeamQuery({ scope: "DIRECT", page: 1, pageSize: 10 });
   }
   function edit(row: InvitationRelation, nextAction: "rebind" | "unbind") {
     setEditing(row);
@@ -263,7 +264,7 @@ export default function Invitations() {
               { value: "UNBOUND", label: "未绑定介绍人" },
             ]}
           />
-          <Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>
+          <Button onClick={() => setQuery({ page: 1, pageSize: 20 })}>
             重置筛选
           </Button>
         </Space>
@@ -284,16 +285,14 @@ export default function Invitations() {
           loading={loading}
           dataSource={list?.items ?? []}
           scroll={{ x: 1250 }}
-          pagination={{
-            current: query.page,
-            pageSize: query.pageSize,
-            total: list?.total,
-            showSizeChanger: true,
-            pageSizeOptions: [5, 10, 20],
+          pagination={pagePagination({
+            page: query.page,
+            pageSize: query.pageSize ?? 20,
+            total: list?.total ?? 0,
             showTotal: (total) => `共${total}个账号`,
             onChange: (page, pageSize) =>
               setQuery((v) => ({ ...v, page, pageSize })),
-          }}
+          })}
           columns={[
             {
               title: "账号",
@@ -462,14 +461,13 @@ export default function Invitations() {
                         rowKey={(row) => row.account.accountId}
                         loading={!team && !teamError}
                         dataSource={team?.items ?? []}
-                        pagination={{
-                          current: teamQuery.page,
-                          pageSize: teamQuery.pageSize,
-                          total: team?.total,
-                          showSizeChanger: false,
-                          onChange: (page) =>
-                            setTeamQuery((v) => ({ ...v, page })),
-                        }}
+                        pagination={modalPagination({
+                          page: teamQuery.page,
+                          pageSize: teamQuery.pageSize ?? 10,
+                          total: team?.total ?? 0,
+                          onChange: (page, pageSize) =>
+                            setTeamQuery((v) => ({ ...v, page, pageSize })),
+                        })}
                         columns={[
                           {
                             title: "团队成员",
@@ -494,7 +492,7 @@ export default function Invitations() {
                     <Table
                       rowKey="operationId"
                       dataSource={detail.history ?? []}
-                      pagination={{ pageSize: 5, showSizeChanger: false }}
+                      pagination={modalPaginationDefaults}
                       scroll={{ x: 1000 }}
                       columns={[
                         {

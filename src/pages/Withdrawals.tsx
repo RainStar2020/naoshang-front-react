@@ -31,6 +31,7 @@ import {
   type WithdrawalMutation,
 } from '../types/withdrawals'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination } from '../utils/pagination'
 
 /** 提现金额单位为元（非分），原样展示。 */
 function yuan(n: number) {
@@ -88,6 +89,7 @@ export default function Withdrawals() {
   const [module, setModule] = useState<WithdrawModule>()
   const [accountType, setAccountType] = useState<WithdrawAccountType>()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [rows, setRows] = useState<WithdrawalApplication[]>([])
   const [total, setTotal] = useState(0)
   const [summary, setSummary] = useState({
@@ -124,7 +126,7 @@ export default function Withdrawals() {
     try {
       const list = await withdrawalService.list(token, {
         page,
-        pageSize: 10,
+        pageSize,
         keyword: keyword || undefined,
         status,
         module,
@@ -138,7 +140,7 @@ export default function Withdrawals() {
     } finally {
       setLoading(false)
     }
-  }, [token, page, keyword, status, module, accountType])
+  }, [token, page, pageSize, keyword, status, module, accountType])
 
   const loadDetail = useCallback(
     async (id: string) => {
@@ -425,13 +427,13 @@ export default function Withdrawals() {
           columns={columns}
           dataSource={rows}
           scroll={{ x: 1900 }}
-          pagination={{
-            current: page,
+          pagination={pagePagination({
+            page,
+            pageSize,
             total,
-            pageSize: 10,
-            onChange: setPage,
             showTotal: (t) => `共 ${t} 条`,
-          }}
+            onChange: (next, size) => { setPage(next); setPageSize(size) },
+          })}
         />
       </Card>
 

@@ -8,6 +8,7 @@ import { ContentPreview } from '../utils/richContent'
 import { CmsCourseEditor, CmsTierEditor } from '../components/CmsEditors'
 import { formatUserDate } from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { pagePaginationDefaults } from '../utils/pagination'
 
 const labels = { 'save-tier': '保存会员等级配置', 'save-course': '保存课程草稿', publish: '发布课程', offline: '下线课程' }
 function CoursePreview({ course, onClose }: { course: CmsCourse; onClose: () => void }) {
@@ -73,7 +74,7 @@ await cmsService.mutate(token, { ...pending, reason: `后台内容维护：${pen
     {error ? <Alert type="error" message={error} action={<Button onClick={() => setRefresh(value => value + 1)}>重试</Button>} /> : loading ? <Spin><div style={{ minHeight: 120 }} /></Spin> : catalog && <Tabs items={[
       { key: 'courses', label: '学习等级与课程', children: <Card variant="borderless" title="课程目录" extra={edit && <Button type="primary" onClick={() => setCourseEditor('new')}>新建学习等级</Button>}>
         <Space wrap style={{ marginBottom: 20 }}><Input aria-label="搜索课程" placeholder="学习等级名称 / 编号" value={keyword} onChange={event => setKeyword(event.target.value)} allowClear /><Select aria-label="筛选会员归属" allowClear placeholder="全部会员等级" style={{ width: 190 }} value={tierFilter} onChange={setTierFilter} options={catalog.tiers.map(tier => ({ value: tier.membershipTierId, label: tier.name }))} /><Select aria-label="筛选发布状态" allowClear placeholder="全部状态" style={{ width: 140 }} value={status} onChange={setStatus} options={[{ value: 'draft', label: '草稿' }, { value: 'published', label: '已发布' }, { value: 'offline', label: '已下线' }]} /></Space>
-        <Table<CmsCourse> rowKey={course => course.draft.levelId} size="middle" dataSource={rows} scroll={{ x: 1000 }} pagination={{ pageSize: 10, showTotal: total => `共 ${total} 个学习等级` }} columns={[
+        <Table<CmsCourse> rowKey={course => course.draft.levelId} size="middle" dataSource={rows} scroll={{ x: 1000 }} pagination={{ ...pagePaginationDefaults, showTotal: total => `共 ${total} 个学习等级` }} columns={[
           { title: '编号', key: 'number', width: 90, render: (_, course) => course.draft.number }, { title: '名称', key: 'name', width: 160, render: (_, course) => course.draft.name },
           { title: '会员归属（草稿）', key: 'tier', width: 160, render: (_, course) => catalog.tiers.find(tier => tier.membershipTierId === course.draft.membershipTierId)?.name },
           { title: '章节', key: 'chapters', width: 65, render: (_, course) => course.draft.chapters.length },
@@ -84,7 +85,7 @@ await cmsService.mutate(token, { ...pending, reason: `后台内容维护：${pen
       { key: 'tiers', label: '会员等级配置', children: <Card variant="borderless" title="会员等级" extra={edit && <Button type="primary" onClick={() => setTierEditor('new')}>新建会员等级</Button>}><Table<CmsTier> rowKey="membershipTierId" dataSource={catalog.tiers} pagination={false} scroll={{ x: 700 }} columns={[
         { title: '阶层', dataIndex: 'number', width: 70 }, { title: '名称', dataIndex: 'name' }, { title: 'ID', dataIndex: 'membershipTierId', width: 160 }, { title: '简介', dataIndex: 'summary' }, { title: '操作', key: 'actions', width: 160, render: (_, tier) => <Space size={0}><Button type="link" onClick={() => setTierPreview(tier)}>预览</Button>{edit && <Button type="link" onClick={() => setTierEditor(tier)}>编辑</Button>}</Space> },
       ]} /></Card> },
-      { key: 'audit', label: `CMS操作记录（${catalog.audit.length}）`, children: <Table rowKey="operationId" size="small" dataSource={catalog.audit} pagination={{ pageSize: 10 }} scroll={{ x: 900 }} columns={[
+      { key: 'audit', label: `CMS操作记录（${catalog.audit.length}）`, children: <Table rowKey="operationId" size="small" dataSource={catalog.audit} pagination={pagePaginationDefaults} scroll={{ x: 900 }} columns={[
         { title: '操作', key: 'action', render: (_, item) => labels[item.action] }, { title: '对象', dataIndex: 'targetId' }, { title: '变更前版本', key: 'bv', render: (_, item) => `V${item.beforeVersion}` }, { title: '变更后版本', key: 'av', render: (_, item) => `V${item.afterVersion}` }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '时间', key: 'time', render: (_, item) => formatUserDate(item.occurredAt) },
       ]} /> },
     ]} />}

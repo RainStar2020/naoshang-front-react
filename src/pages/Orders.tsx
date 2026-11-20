@@ -8,6 +8,7 @@ import { DeliveryError } from '../types/delivery'
 import { formatUserDate } from '../components/UserDetailDrawer'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
 import SummaryTable from '../components/SummaryTable'
+import { pagePagination } from '../utils/pagination'
 const money = (amount: number) => `¥${(amount / 100).toFixed(2)}`
 const statuses = { PENDING_PAYMENT: '待付款', PAID: '已付款待履约', COMPLETED: '已完成', CANCELLED: '已取消' }
 const fulfillments = { WAIT_DELIVERY: '待交付', DELIVERED: '已交付', WAIT_SHIP: '待发货', SHIPPED: '已发货' }
@@ -18,7 +19,7 @@ export default function Orders() {
   const { session } = useAuth(); const { token, account } = session!
   const shipping = hasPermission(account, 'orders:shipping'), fulfill = hasPermission(account, 'orders:fulfill')
   const [options, setOptions] = useState<OrderOptions | null>(null), [optionsError, setOptionsError] = useState(''), [result, setResult] = useState<OrderList | null>(null), [error, setError] = useState(''), [loading, setLoading] = useState(false), [refresh, setRefresh] = useState(0)
-  const [filters, setFilters] = useState<OrderFilters>({}), [applied, setApplied] = useState<OrderFilters>({}), [fromDay, setFromDay] = useState(''), [toDay, setToDay] = useState(''), [page, setPage] = useState(1), [pageSize, setPageSize] = useState(10)
+  const [filters, setFilters] = useState<OrderFilters>({}), [applied, setApplied] = useState<OrderFilters>({}), [fromDay, setFromDay] = useState(''), [toDay, setToDay] = useState(''), [page, setPage] = useState(1), [pageSize, setPageSize] = useState(20)
   const [detailId, setDetailId] = useState<string | null>(null), [detail, setDetail] = useState<OrderDetail | null>(null), [detailError, setDetailError] = useState(''), [detailRefresh, setDetailRefresh] = useState(0)
   const [pending, setPending] = useState<OrderMutation | null>(null), [busy, setBusy] = useState(false), [blocked, setBlocked] = useState(false), [submitError, setSubmitError] = useState('')
   const [api, holder] = message.useMessage()
@@ -58,7 +59,13 @@ export default function Orders() {
       { key: 'paidCount', label: '已付款订单', value: result.summary.paidCount },
       { key: 'paidAmount', label: '已成功支付金额', value: money(result.summary.paidAmount) },
     ]} /></Card>}
-    <Card title="销售订单"><Table<SalesOrder> rowKey="orderId" loading={loading} scroll={{ x: 1800 }} dataSource={result?.items ?? []} pagination={{ current: page, pageSize, total: result?.total ?? 0, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: total => `共 ${total} 笔订单`, onChange: (next, size) => { setPage(size !== pageSize ? 1 : next); setPageSize(size) } }} columns={[
+    <Card title="销售订单"><Table<SalesOrder> rowKey="orderId" loading={loading} scroll={{ x: 1800 }} dataSource={result?.items ?? []} pagination={pagePagination({
+  page,
+  pageSize,
+  total: result?.total ?? 0,
+  showTotal: total => `共 ${total} 笔订单`,
+  onChange: (next, size) => { setPage(size !== pageSize ? 1 : next); setPageSize(size) },
+})} columns={[
       { title: '订单号', key: 'order', width: 180, render: (_, order) => <strong>{order.orderNo}</strong> },
       { title: '下单时间', key: 'createdAt', width: 170, render: (_, order) => formatUserDate(order.createdAt) },
       { title: '购买账号', key: 'buyer', width: 140, render: (_, order) => order.transaction?.buyerName ?? order.accountId },

@@ -39,6 +39,7 @@ import { annualStatusLabel, annualStatusTagColor } from "../utils/partnerAnnualS
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
 import SummaryTable from "../components/SummaryTable";
+import { pagePagination, pagePaginationDefaults, modalPaginationDefaults } from "../utils/pagination";
 /** 经营态筛选文案（partnerStatus），与年度权益无关 */
 const partnerStatusLabels: Record<PartnerProfile["partnerStatus"], string> = {
   ACTIVE: "正常",
@@ -81,7 +82,7 @@ export default function Partners() {
   const [catalog, setCatalog] = useState<PartnerCatalog | null>(null),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0);
-  const [query, setQuery] = useState<PartnerQuery>({ page: 1, pageSize: 10 }),
+  const [query, setQuery] = useState<PartnerQuery>({ page: 1, pageSize: 20 }),
     [list, setList] = useState<PartnerList | null>(null),
     [listError, setListError] = useState(""),
     [loading, setLoading] = useState(false);
@@ -272,7 +273,7 @@ export default function Partners() {
                         ([value, label]) => ({ value, label }),
                       )}
                     />
-                    <Button onClick={() => setQuery({ page: 1, pageSize: 10 })}>
+                    <Button onClick={() => setQuery({ page: 1, pageSize: 20 })}>
                       重置筛选
                     </Button>
                   </Space>
@@ -300,12 +301,10 @@ export default function Partners() {
                     loading={loading}
                     dataSource={list?.items ?? []}
                     scroll={{ x: 1480 }}
-                    pagination={{
-                      current: query.page,
+                    pagination={pagePagination({
+                      page: query.page,
                       pageSize: query.pageSize,
                       total: list?.total ?? 0,
-                      showSizeChanger: true,
-                      pageSizeOptions: [5, 10, 20],
                       showTotal: (total) => `共${total}个经营身份`,
                       onChange: (page, pageSize) =>
                         setQuery((current) => ({
@@ -313,7 +312,7 @@ export default function Partners() {
                           page: pageSize !== current.pageSize ? 1 : page,
                           pageSize,
                         })),
-                    }}
+                    })}
                     columns={[
                       {
                         title: "合伙人",
@@ -494,6 +493,7 @@ export default function Partners() {
                   rowKey="receiptId"
                   dataSource={catalog?.receipts ?? []}
                   scroll={{ x: 1150 }}
+                  pagination={pagePaginationDefaults}
                   columns={[
                     {
                       title: "账号",
@@ -568,6 +568,7 @@ export default function Partners() {
                 rowKey="operationId"
                 dataSource={visibleCatalogAudit}
                 scroll={{ x: 1000 }}
+                pagination={pagePaginationDefaults}
                 columns={[
                   {
                     title: "操作",
@@ -759,6 +760,7 @@ export default function Partners() {
                 <Table
                   rowKey="taskId"
                   size="small"
+                  pagination={modalPaginationDefaults}
                   dataSource={detail?.taskHistory ?? []}
                   columns={[
                     { title: "任务", dataIndex: "taskId" },

@@ -22,7 +22,7 @@ const PAY_STATUSES = new Set<CostorePaymentStatus>(['NOT_STARTED', 'PENDING', 'P
 const REFUND_STATUSES = new Set(['PENDING', 'SUCCEEDED', 'FAILED'])
 const CONTRACT_STATUSES = new Set(['NOT_SIGNED', 'PENDING_CONFIRMATION', 'SIGNED'])
 const ENTITLEMENT_STATUSES = new Set(['NOT_OPEN', 'PENDING_CONFIRMATION', 'OPEN'])
-const AUDIT_ACTIONS = new Set(['save-plan', 'approve', 'reject', 'retry-refund'])
+const AUDIT_ACTIONS = new Set(['save-plan', 'approve', 'reject', 'retry-refund', 'update-payment'])
 
 function emptyContent(): RichContent {
   return { version: 1, format: 'nodes', nodes: [] }
@@ -56,7 +56,7 @@ function asAppStatus(value: unknown): CostoreApplicationStatus {
 
 function asPayStatus(value: unknown): CostorePaymentStatus {
   const raw = str(value, 'NOT_STARTED').toUpperCase().replace(/-/g, '_')
-  if (raw === 'UNPAID' || raw === 'WAIT_PAY') return 'PENDING'
+  if (raw === 'UNPAID' || raw === 'WAIT_PAY' || raw === 'WAITING_PAYMENT' || raw === 'PENDING_PAYMENT') return 'PENDING'
   if (raw === 'SUCCESS' || raw === 'SUCCEEDED') return 'PAID'
   return PAY_STATUSES.has(raw as CostorePaymentStatus) ? (raw as CostorePaymentStatus) : 'NOT_STARTED'
 }
@@ -89,7 +89,7 @@ function moneyAmount(value: unknown): number {
   return Math.max(0, num(value))
 }
 
-const ALLOWED_ACTION_SET = new Set(['approve', 'reject', 'retry-refund'])
+const ALLOWED_ACTION_SET = new Set(['approve', 'reject', 'retry-refund', 'update-payment'])
 
 function mapAllowedActions(raw: unknown, refundStatus: CostoreRefundStatus): CostoreApplication['allowedActions'] {
   const fromApi = arr(raw).map((item) => str(item).toLowerCase().replace(/_/g, '-')).filter((item) => ALLOWED_ACTION_SET.has(item)) as CostoreApplication['allowedActions']

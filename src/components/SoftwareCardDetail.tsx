@@ -4,6 +4,7 @@ import { softwareCardsService } from '../services/softwareCards'
 import { softwareStockLabels, type SoftwareDetail } from '../types/softwareCards'
 import { formatUserDate } from './UserDetailDrawer'
 import { softwareActionNames } from './SoftwareCardModal'
+import { modalPaginationDefaults } from '../utils/pagination'
 
 export default function SoftwareCardDetail({ cardId, token, refresh, onClose }: { cardId: string; token: string; refresh: number; onClose: () => void }) {
   const [data, setData] = useState<SoftwareDetail | null>(null)
@@ -25,7 +26,7 @@ export default function SoftwareCardDetail({ cardId, token, refresh, onClose }: 
       { key: 'exported', label: '首次完整码导出', children: formatUserDate(card.secretExportedAt) },
       { key: 'old', label: '替代旧卡ID', children: card.replacesCardId ?? '—', span: 2 }, { key: 'new', label: '补发新卡ID', children: card.replacementCardId ?? '—', span: 2 },
     ]} />
-    <Table rowKey="operationId" size="small" dataSource={data!.audit} scroll={{ x: 750 }} pagination={{ pageSize: 5, hideOnSinglePage: true }} locale={{ emptyText: '暂无本轮操作记录；预置卡请查看上方演示字段' }} columns={[
+    <Table rowKey="operationId" size="small" dataSource={data!.audit} scroll={{ x: 750 }} pagination={modalPaginationDefaults} locale={{ emptyText: '暂无本轮操作记录；预置卡请查看上方演示字段' }} columns={[
       { title: '操作', key: 'action', render: (_, entry) => softwareActionNames[entry.action] }, { title: '时间', key: 'time', render: (_, entry) => formatUserDate(entry.occurredAt) }, { title: '变更前', dataIndex: 'before' }, { title: '变更后', dataIndex: 'after' }, { title: '原因', dataIndex: 'reason' }, { title: '请求号', dataIndex: 'requestId' }, { title: '操作人', dataIndex: 'operatorName' }, { title: '操作人ID', dataIndex: 'operatorId' },
     ]} />
   </Space>}</Drawer>

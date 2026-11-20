@@ -6,12 +6,13 @@ import type { MemberFilters, MemberListResult, MemberOptions, MemberProfile, Mem
 import MemberDetailDrawer from '../components/MemberDetailDrawer'
 import MemberEntitlementModal, { type EntitlementRequest } from '../components/MemberEntitlementModal'
 import HqDataSourceAlert from '../components/HqDataSourceAlert'
+import { pagePagination } from '../utils/pagination'
 
 export default function Members() {
   const { session } = useAuth()
   const { token, account } = session!
   const [form] = Form.useForm<MemberFilters>()
-  const [query, setQuery] = useState<MemberQuery>({ page: 1, pageSize: 10 })
+  const [query, setQuery] = useState<MemberQuery>({ page: 1, pageSize: 20 })
   const [result, setResult] = useState<MemberListResult | null>(null)
   const [options, setOptions] = useState<MemberOptions | null>(null)
   const [busy, setBusy] = useState(true)
@@ -44,10 +45,16 @@ export default function Members() {
         <Form.Item name="accountId" label="所属家长"><Select allowClear showSearch optionFilterProp="label" placeholder="家长昵称 / 手机号 / 账号" disabled={!options} options={(options?.parents ?? []).map(parent => ({ value: parent.accountId, label: `${parent.nickname} · ${parent.phone} · ${parent.accountId}` }))} /></Form.Item>
         <Form.Item name="gradeCode" label="年级"><Select allowClear placeholder="全部年级" disabled={!options} options={(options?.grades ?? []).map(grade => ({ value: grade.code, label: grade.label }))} /></Form.Item>
         <Form.Item name="storeId" label="学员所属门店"><Select allowClear showSearch optionFilterProp="label" placeholder="全部门店" disabled={!options} options={[{ value: 'unbound', label: '未绑定门店' }, ...((options?.stores ?? []).map(store => ({ value: store.storeId, label: store.name })) ?? [])]} /></Form.Item>
-      </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 10 }) }}>重置筛选</Button></Space>
+      </div><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { form.resetFields(); setQuery({ page: 1, pageSize: 20 }) }}>重置筛选</Button></Space>
     </Form></Card>
     <Card variant="borderless" title="学员列表" extra={<Typography.Text type="secondary">{result ? `共 ${result.total} 位学员` : '—'}</Typography.Text>}>
-      {error ? <Alert type="error" message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<MemberProfile> rowKey="memberId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: 1000 }} locale={{ emptyText: '暂无符合条件的学员' }} pagination={{ current: query.page, pageSize: query.pageSize, total: result?.total ?? 0, pageSizeOptions: [10, 20, 50], showSizeChanger: true, showTotal: total => `共 ${total} 位学员`, onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize === value.pageSize ? page : 1, pageSize })) }} columns={[
+      {error ? <Alert type="error" message={error} action={<Button onClick={reload}>重新加载</Button>} /> : <Table<MemberProfile> rowKey="memberId" size="middle" loading={busy} dataSource={result?.items ?? []} scroll={{ x: 1000 }} locale={{ emptyText: '暂无符合条件的学员' }} pagination={pagePagination({
+          page: query.page,
+          pageSize: query.pageSize,
+          total: result?.total ?? 0,
+          showTotal: total => `共 ${total} 位学员`,
+          onChange: (page, pageSize) => setQuery(value => ({ ...value, page: pageSize === value.pageSize ? page : 1, pageSize })),
+        })} columns={[
         { title: '学员', key: 'member', width: 170, render: (_, member) => <Space><Avatar src={member.avatar}>{member.name.slice(0, 1)}</Avatar><div><strong>{member.name}</strong><div><Typography.Text type="secondary">{member.displayId}</Typography.Text></div></div></Space> },
         { title: '年级', dataIndex: 'gradeLabel', width: 90 }, { title: '性别', dataIndex: 'genderLabel', width: 70 },
         { title: '所属家长', key: 'parent', width: 170, render: (_, member) => <>{member.parentName}<br /><Typography.Text type="secondary">{member.parentPhone}</Typography.Text></> },

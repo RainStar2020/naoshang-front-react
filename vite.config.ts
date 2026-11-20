@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-const ONLINE_API = "http://naoshang.chen1413.com.cn:3000";
+const ONLINE_API = "https://naoshang.chen1413.com.cn";
 const LOCAL_API = "http://localhost:3000";
 
 export default defineConfig(({ mode }) => {

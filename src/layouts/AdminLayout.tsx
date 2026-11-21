@@ -40,6 +40,7 @@ import {
   UserOutlined,
   UsergroupAddOutlined,
   WalletOutlined,
+  TransactionOutlined,
 } from '@ant-design/icons'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
@@ -88,6 +89,7 @@ const navIcons: Record<AdminNavIconKey, ReactNode> = {
   'revenue-founding': <TrophyOutlined />,
   'revenue-settlement': <AuditOutlined />,
   withdrawals: <WalletOutlined />,
+  'hq-ledger': <TransactionOutlined />,
   'staff-roles': <IdcardOutlined />,
   stores: <HomeOutlined />,
   training: <FormOutlined />,

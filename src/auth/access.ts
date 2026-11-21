@@ -38,6 +38,7 @@ export type AdminNavIconKey =
   | "revenue-founding"
   | "revenue-settlement"
   | "withdrawals"
+  | "hq-ledger"
   | "staff-roles"
   | "stores"
   | "training"
@@ -308,6 +309,12 @@ export const adminNavGroups: AdminNavGroup[] = [
     icon: "group-finance",
     children: [
       {
+        path: "/hq-ledger",
+        label: "总部分红",
+        permission: "hq.hq-ledger.read",
+        icon: "hq-ledger",
+      },
+      {
         path: "/withdrawals",
         label: "提现审核与打款",
         permission: "withdrawals:access",
@@ -372,6 +379,7 @@ export const dedicatedPagePaths: readonly string[] = [
   "/revenue/global",
   "/revenue/founding",
   "/revenue/settlement",
+  "/hq-ledger",
   "/withdrawals",
   // P2 第三批：协议客服预留 + 通用资源追溯（HQ-25～26）
   "/support",

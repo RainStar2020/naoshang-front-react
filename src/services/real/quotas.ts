@@ -156,6 +156,11 @@ function mapQuotaLedgerEntry(item: unknown, owner: QuotaOwner): QuotaLedger {
     reason: str(row.reason),
     operatorName: str(row.operatorName),
     createdAt: str(row.createdAt),
+    balanceBefore: row.balanceBefore == null ? undefined : num(row.balanceBefore),
+    balanceAfter: row.balanceAfter == null ? undefined : num(row.balanceAfter),
+    targetName: nullableStr(row.targetName),
+    targetPhone: nullableStr(row.targetPhone),
+    targetTier: nullableStr(row.targetTier),
     before: mapBalancePair(row.before),
     after: mapBalancePair(row.after),
   }

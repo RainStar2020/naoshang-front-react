@@ -1,3 +1,4 @@
+import AwardRevenue from "./AwardRevenue";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -82,6 +83,13 @@ const channelLabel: Record<IncomeChannel, string> = {
 };
 
 export default function Revenue() {
+  const location = useLocation();
+  const dimension = revenueDimensionFromPath(location.pathname);
+  if (dimension === "global" || dimension === "founding") return <AwardRevenue key={dimension} kind={dimension} />;
+  return <RevenueLedger />;
+}
+
+function RevenueLedger() {
   const { session } = useAuth();
   const location = useLocation();
   const dimension = revenueDimensionFromPath(location.pathname);

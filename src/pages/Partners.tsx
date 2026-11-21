@@ -35,11 +35,18 @@ import CmsContentEditor from "../components/CmsContentEditor";
 import { hasContent, nodeText } from "../utils/richContent";
 import { formatUserDate } from "../components/UserDetailDrawer";
 import { visiblePartnerCatalogAudit } from "../utils/partnerCatalogAudit";
-import { annualStatusLabel, annualStatusTagColor } from "../utils/partnerAnnualStatus";
+import {
+  annualStatusLabel,
+  annualStatusTagColor,
+} from "../utils/partnerAnnualStatus";
 import HqDataSourceAlert from "../components/HqDataSourceAlert";
 import { DebouncedSearchInput } from "../components/DebouncedSearchInput";
 import SummaryTable from "../components/SummaryTable";
-import { pagePagination, pagePaginationDefaults, modalPaginationDefaults } from "../utils/pagination";
+import {
+  pagePagination,
+  pagePaginationDefaults,
+  modalPaginationDefaults,
+} from "../utils/pagination";
 /** 经营态筛选文案（partnerStatus），与年度权益无关 */
 const partnerStatusLabels: Record<PartnerProfile["partnerStatus"], string> = {
   ACTIVE: "正常",
@@ -282,9 +289,21 @@ export default function Partners() {
                   <Card>
                     <SummaryTable
                       items={[
-                        { key: "total", label: "身份总数", value: list.summary.total },
-                        { key: "active", label: "经营正常", value: list.summary.active },
-                        { key: "frozen", label: "已冻结", value: list.summary.frozen },
+                        {
+                          key: "total",
+                          label: "身份总数",
+                          value: list.summary.total,
+                        },
+                        {
+                          key: "active",
+                          label: "经营正常",
+                          value: list.summary.active,
+                        },
+                        {
+                          key: "frozen",
+                          label: "已冻结",
+                          value: list.summary.frozen,
+                        },
                         {
                           key: "annualExpired",
                           label: "年度到期",
@@ -425,7 +444,6 @@ export default function Partners() {
                   )
                 }
               >
-
                 <Table
                   rowKey="partnerLevel"
                   dataSource={catalog?.levels ?? []}
@@ -488,7 +506,6 @@ export default function Partners() {
             label: `晋升回执（${(catalog?.receipts ?? []).length}）`,
             children: (
               <Card title="总部人工升级与用户任务晋升回执">
-
                 <Table
                   rowKey="receiptId"
                   dataSource={catalog?.receipts ?? []}
@@ -624,7 +641,6 @@ export default function Partners() {
             <Card loading />
           ) : (
             <Space direction="vertical" size={20} style={{ width: "100%" }}>
-
               {canUpgrade &&
                 (profile.allowedActions ?? []).includes("manual-upgrade") && (
                   <Button type="primary" onClick={() => startUpgrade(profile)}>
@@ -639,16 +655,18 @@ export default function Partners() {
                   {
                     key: "account",
                     label: "账号",
-                    children: profile.displayId || profile.accountId,
+                    children: profile.displayId
+                      ? profile.displayId
+                      : profile.accountId,
                   },
                   { key: "name", label: "姓名", children: profile.name },
                   { key: "phone", label: "手机号", children: profile.phone },
-                  {
-                    key: "ctx",
-                    label: "经营身份",
-                    span: 2,
-                    children: profile.contextId,
-                  },
+                  // {
+                  //   key: "ctx",
+                  //   label: "经营身份",
+                  //   span: 2,
+                  //   children: profile.contextId,
+                  // },
                   {
                     key: "level",
                     label: "合伙等级",
@@ -667,8 +685,7 @@ export default function Partners() {
                   {
                     key: "partnerStatus",
                     label: "合伙人状态",
-                    children:
-                      partnerStatusLabels[profile.partnerStatus],
+                    children: partnerStatusLabels[profile.partnerStatus],
                   },
                   {
                     key: "annual",
@@ -848,7 +865,6 @@ export default function Partners() {
                 label: levelName(value),
               }))}
             />
-
           </Space>
         </Modal>
       )}
@@ -873,7 +889,6 @@ export default function Partners() {
           cancelText="取消"
         >
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
-
             <Input.TextArea
               aria-label="合伙等级说明摘要"
               rows={2}
@@ -921,7 +936,6 @@ export default function Partners() {
           cancelText="取消"
         >
           <Space direction="vertical" size={12} style={{ width: "100%" }}>
-
             {partnerLevels.map((level) => {
               const row = levelNames.find(
                 (item) => item.partnerLevel === level,

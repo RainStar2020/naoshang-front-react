@@ -56,7 +56,7 @@ describe("adminNavGroups §4.3 信息架构", () => {
     expect(system.children.some((c) => c.path === "/agents")).toBe(false);
   });
 
-  it("收益入口统一展示收益；资金结算仅提现", () => {
+  it("收益入口统一展示收益；资金结算含总部分红与提现", () => {
     const revenue = adminNavGroups.find((g) => g.key === "revenue")!;
     expect(revenue.label).toBe("收益");
     expect(
@@ -65,11 +65,14 @@ describe("adminNavGroups §4.3 信息架构", () => {
       ["/revenue", "收益", "revenue:access"],
       ["/revenue/global", "全球奖", "revenue:access"],
       ["/revenue/founding", "创始奖", "revenue:access"],
-      ["/revenue/settlement", "结算重算与冲正", "revenue:access"],
+      ["/revenue/settlement", "全员月度分红监管", "revenue:access"],
     ]);
     const finance = adminNavGroups.find((g) => g.key === "finance")!;
     expect(finance.label).toBe("资金结算");
-    expect(finance.children.map((c) => c.path)).toEqual(["/withdrawals"]);
+    expect(finance.children.map((c) => [c.path, c.label, c.permission])).toEqual([
+      ["/hq-ledger", "总部分红", "hq.hq-ledger.read"],
+      ["/withdrawals", "提现审核与打款", "withdrawals:access"],
+    ]);
   });
 
   it("adminModules 由分组扁平生成且包含统一收益入口", () => {
@@ -113,6 +116,7 @@ describe("adminNavGroups §4.3 信息架构", () => {
       "/staff-roles",
       "/training",
       "/transfers",
+      "/hq-ledger",
       "/withdrawals",
       "/support",
       "/trace",
@@ -124,6 +128,7 @@ describe("adminNavGroups §4.3 信息架构", () => {
     )) {
       expect(isDedicatedPagePath(path)).toBe(true);
     }
+    expect(dedicatedPagePaths).toContain("/hq-ledger");
     expect(dedicatedPagePaths).toContain("/support");
     expect(dedicatedPagePaths).toContain("/trace");
   });

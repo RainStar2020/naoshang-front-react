@@ -16,6 +16,7 @@ export * from './coupons'
 export * from './payments'
 export * from './revenue'
 export * from './withdrawals'
+export * from './hqLedger'
 export * from './staff'
 export * from './stores'
 export * from './training'
@@ -47,6 +48,7 @@ import type { CouponsEndpoints } from './coupons'
 import type { PaymentsEndpoints } from './payments'
 import type { RevenueEndpoints } from './revenue'
 import type { WithdrawalsEndpoints } from './withdrawals'
+import type { HqLedgerEndpoints } from './hqLedger'
 import type { StaffEndpoints } from './staff'
 import type { StoresEndpoints } from './stores'
 import type { TrainingEndpoints } from './training'
@@ -62,4 +64,4 @@ import type { AssetsEndpoints } from './assets'
 import type { RedemptionsEndpoints } from './redemptions'
 
 /** 路径均相对于 /api/hq。 */
-export type HqEndpoints = AuthEndpoints & UsersEndpoints & MembersEndpoints & CourseEndpoints & ColumnsEndpoints & AnnouncementsEndpoints & MaterialsEndpoints & ActivationCodesEndpoints & SoftwareCardsEndpoints & QuotasEndpoints & ProductsEndpoints & DeliveryEndpoints & OrdersEndpoints & CouponsEndpoints & PaymentsEndpoints & RevenueEndpoints & WithdrawalsEndpoints & StaffEndpoints & StoresEndpoints & TrainingEndpoints & TransfersEndpoints & PartnersEndpoints & InvitationsEndpoints & CostoreEndpoints & SupportEndpoints & TraceEndpoints & AgentsEndpoints & RegionAgentsEndpoints & AssetsEndpoints & RedemptionsEndpoints
+export type HqEndpoints = AuthEndpoints & UsersEndpoints & MembersEndpoints & CourseEndpoints & ColumnsEndpoints & AnnouncementsEndpoints & MaterialsEndpoints & ActivationCodesEndpoints & SoftwareCardsEndpoints & QuotasEndpoints & ProductsEndpoints & DeliveryEndpoints & OrdersEndpoints & CouponsEndpoints & PaymentsEndpoints & RevenueEndpoints & WithdrawalsEndpoints & HqLedgerEndpoints & StaffEndpoints & StoresEndpoints & TrainingEndpoints & TransfersEndpoints & PartnersEndpoints & InvitationsEndpoints & CostoreEndpoints & SupportEndpoints & TraceEndpoints & AgentsEndpoints & RegionAgentsEndpoints & AssetsEndpoints & RedemptionsEndpoints

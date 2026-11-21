@@ -21,6 +21,7 @@ import Stores from './pages/Stores'
 const Training = lazy(() => import('./pages/Training'))
 const Transfers = lazy(() => import('./pages/Transfers'))
 const Withdrawals = lazy(() => import('./pages/Withdrawals'))
+const HqLedger = lazy(() => import('./pages/HqLedger'))
 const StaffRoles = lazy(() => import('./pages/StaffRoles'))
 const Costore = lazy(() => import('./pages/Costore'))
 const Invitations = lazy(() => import('./pages/Invitations'))
@@ -69,6 +70,7 @@ const pages: Record<string, React.ComponentType> = {
   '/stores': Stores,
   '/training': Training,
   '/transfers': Transfers,
+  '/hq-ledger': HqLedger,
   '/withdrawals': Withdrawals,
   '/partners': Partners,
   '/agents': Agents,

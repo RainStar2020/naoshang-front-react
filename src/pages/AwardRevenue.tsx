@@ -72,8 +72,7 @@ export default function AwardRevenue({ kind }: { kind: 'global' | 'founding' }) 
   };
   const componentAmount = (row: Record<string, unknown>, type: 'fixed' | 'performance') => {
     const explicit = type === 'fixed' ? row.fixedAmount ?? row.weightedAmount : row.performanceAmount;
-    const match = str(row.formula).match(type === 'fixed' ? /均分(?:一半)?\s*([\d.]+)/ : /业绩\s*([\d.]+)/);
-    return money(explicit ?? match?.[1]);
+    return money(explicit);
   };
   return <Space direction="vertical" size={16} style={{ width: '100%' }}>
     <Typography.Title level={3}>{kind === 'global' ? '全球奖' : '创始奖'}</Typography.Title>
@@ -90,7 +89,7 @@ export default function AwardRevenue({ kind }: { kind: 'global' | 'founding' }) 
       ]} />
       {isCurrent && <Typography.Text type="secondary">本月待分红，暂不可操作</Typography.Text>}
     </Card>
-    <Table loading={loading} pagination={false} rowKey={(row) => str(row.id ?? row.entryId ?? row.accountId)} dataSource={rows.filter(row => str(row.name ?? row.beneficiaryName ?? row.accountName).includes(name.trim()))} columns={[
+    <Table loading={loading} pagination={false} rowKey={(row) => str(row.id ?? row.entryId ?? row.ledgerId ?? row.accountId)} dataSource={rows.filter(row => str(row.name ?? row.beneficiaryName ?? row.accountName).includes(name.trim()))} columns={[
       { title: '姓名', render: (_, row) => str(row.name ?? row.beneficiaryName ?? row.accountName) || '—' },
       ...(kind === 'global' ? [
         { title: '固定分红', render: (_: unknown, row: Record<string, unknown>) => componentAmount(row, 'fixed') },
